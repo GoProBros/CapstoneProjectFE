@@ -111,7 +111,7 @@ export default function SessionInfoModule() {
       </div>
 
       {/* Price Levels Table */}
-      <div className="overflow-auto flex-1 px-2 mt-2">
+      <div className="overflow-auto custom-scrollbar flex-1 px-2 mt-2">
         <div>
           <div className="overflow-x-auto w-full max-h-screen rounded-lg bg-[#282832]">
             <table className="table text-sm text-center w-full">

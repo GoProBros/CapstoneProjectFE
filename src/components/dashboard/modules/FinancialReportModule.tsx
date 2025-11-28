@@ -697,7 +697,7 @@ export default function FinancialReportModule() {
       </div>
 
       {/* Financial Data Table */}
-      <div className="flex-1 overflow-auto px-6">
+      <div className="flex-1 overflow-auto custom-scrollbar px-6">
         {currentMetrics.map((metric) => (
           <div key={metric} className="flex justify-between items-center">
             <div className="flex flex-wrap gap-1 min-w-32 text-gray-300">

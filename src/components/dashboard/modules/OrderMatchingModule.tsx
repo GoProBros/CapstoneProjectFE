@@ -62,7 +62,7 @@ export default function OrderMatchingModule() {
       <div className="px-2 pb-2 -mt-2 flex-1 overflow-hidden">
         <div className="relative h-full">
           <div className="inline-flex w-full h-full">
-            <div className="overflow-x-auto overflow-y-auto w-full h-full rounded-lg bg-white/5">
+            <div className="overflow-x-auto overflow-y-auto custom-scrollbar w-full h-full rounded-lg bg-white/5">
               <table className="w-full text-sm text-center table-auto">
                 <thead className="sticky top-0 z-10">
                   <tr className="text-xs bg-[#252938]">
