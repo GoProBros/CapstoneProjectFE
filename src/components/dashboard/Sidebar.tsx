@@ -3,6 +3,7 @@
 import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
     onAddModule: () => void;
@@ -13,6 +14,7 @@ interface SidebarProps {
 export default function Sidebar({ onAddModule, onAddPage, customPages }: SidebarProps) {
     const [fontSize, setFontSize] = useState(6);
     const { theme, toggleTheme } = useTheme();
+    const router = useRouter();
 
     const handleAddModuleClick = () => {
         console.log('Add module button clicked in Sidebar!');
@@ -29,6 +31,11 @@ export default function Sidebar({ onAddModule, onAddPage, customPages }: Sidebar
 
     const decreaseFontSize = () => {
         if (fontSize > 0) setFontSize(fontSize - 1);
+    };
+
+    const handleLogout = () => {
+        // Clear any session data here if needed
+        router.push('/login');
     };
 
     return (
@@ -76,7 +83,7 @@ export default function Sidebar({ onAddModule, onAddPage, customPages }: Sidebar
                         <LayoutGrid className="w-10 h-10 text-white-400" strokeWidth={2} />
                     </button>
                     <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                        Thêm module vào page
+                        Thêm page tùy chọn
                     </div>
                 </div>
             </div>
@@ -170,7 +177,10 @@ export default function Sidebar({ onAddModule, onAddPage, customPages }: Sidebar
 
                     {/* Power Icon - White background */}
                     <div className="relative group">
-                        <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors">
+                        <button 
+                            onClick={handleLogout}
+                            className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
+                        >
                             <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
                         </button>
                         <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
