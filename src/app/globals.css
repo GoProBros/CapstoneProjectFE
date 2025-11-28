@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0e0d15;
+  --foreground: #ededed;
+}
+
+.light {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+}
+
+.dark {
+  --background: #0e0d15;
+  --foreground: #ededed;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Quicksand', sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@layer base {
+  .bg-base-300 {
+    @apply bg-gray-800 dark:bg-gray-900;
+  }
+  
+  .bg-base-200 {
+    @apply bg-gray-700 dark:bg-gray-800;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .ani-pop {
+    transition: all 0.15s ease;
+  }
+  
+  .ani-pop:active {
+    transform: scale(0.95);
+  }
+  
+  .sidebar-item {
+    @apply relative py-1 flex justify-center;
+  }
+  
+  .sidebar-active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full;
+  }
+
+  /* Custom Range Slider Styles */
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 0;
+    height: 0;
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    width: 0;
+    height: 0;
+    border: none;
+    background: transparent;
+  }
+}
