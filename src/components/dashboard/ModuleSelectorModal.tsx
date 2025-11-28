@@ -53,7 +53,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
     },
     { 
       id: 'global-stock-chart', 
-      title: '1',
+      title: 'Biểu đồ chứng khoán thế giới',
       preview: '/assets/Dashboard/ModulePreviews/global-stock-chart.png'
     },
     { 

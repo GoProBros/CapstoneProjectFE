@@ -18,7 +18,7 @@ export default function GlobalStockChartModule() {
   ];
 
   return (
-    <div className="w-full h-full bg-[#0f0f0f] rounded-lg border border-gray-800 flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-[#282832] rounded-lg border border-gray-800 flex flex-col overflow-hidden">
       {/* Header with symbol selector */}
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
         <select

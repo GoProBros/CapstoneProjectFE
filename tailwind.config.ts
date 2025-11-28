@@ -23,7 +23,7 @@ const config: Config = {
         borderGray: '#374151',
         borderDark: '#1f2937',
         // Add Page Modal colors
-        moduleBackground: '#171717',
+        moduleBackground: '#282832',
         skeletonLine: '#2F2F2F',
         // Light mode colors
         light: {
