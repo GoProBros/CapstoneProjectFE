@@ -22,6 +22,9 @@ const config: Config = {
         cardPreview: '#0f0f0f',
         borderGray: '#374151',
         borderDark: '#1f2937',
+        // Add Page Modal colors
+        moduleBackground: '#171717',
+        skeletonLine: '#2F2F2F',
         // Light mode colors
         light: {
           componentBackground: '#f3f4f6',
