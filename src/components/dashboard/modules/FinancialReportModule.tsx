@@ -577,163 +577,166 @@ export default function FinancialReportModule() {
         </div>
       </div>
 
-      {/* Chart Section */}
-      <div className="px-6 pb-6 flex-none -mx-4 -mt-6">
-        <ResponsiveContainer width="100%" height={215}>
-          <BarChart data={currentChartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            <XAxis dataKey="year" stroke="#e0e0e0" tick={{ fill: '#f6f7f8', fontSize: 12 }} />
-            <YAxis stroke="#e0e0e0" tick={{ fill: '#f6f7f8', fontSize: 11 }} />
-            <Tooltip 
-              contentStyle={{ backgroundColor: '#424242', border: 'none', borderRadius: '4px' }}
-              labelStyle={{ color: '#f6f7f8' }}
-            />
-            <Legend 
-              wrapperStyle={{ fontSize: '12px', color: '#f6f7f8' }} 
-              iconType="square"
-            />
-            {reportType === 'income' ? (
-              <>
-                <Bar dataKey="revenue" fill="#84cc16" name="Doanh thu thuần" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="profit" fill="#22c55e" name="Lợi nhuận gộp" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="afterTax" fill="#10b981" name="Lợi nhuận sau thuế" radius={[4, 4, 0, 0]} />
-              </>
-            ) : reportType === 'balance' ? (
-              <>
-                <Bar dataKey="totalAssets" fill="#84cc16" name="Tổng tài sản" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="charterCapital" fill="#22c55e" name="Vốn điều lệ" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="equity" fill="#10b981" name="Vốn chủ sở hữu" radius={[4, 4, 0, 0]} />
-              </>
-            ) : (
-              <>
-                <Bar dataKey="operating" fill="#84cc16" name="Dòng tiền từ hoạt động kinh doanh" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="investing" fill="#22c55e" name="Dòng tiền từ hoạt động đầu tư" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="freeCashFlow" fill="#10b981" name="Dòng tiền tự do" radius={[4, 4, 0, 0]} />
-              </>
-            )}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Tabs and Year Selector */}
-      <div className="flex-none px-6">
-        <div className="flex justify-between items-center">
-          <div className="flex flex-wrap gap-1 min-w-32">
-            <button
-              onClick={() => setActiveTab('annual')}
-              className={`px-3 py-1 rounded-full ${
-                activeTab === 'annual'
-                  ? 'bg-accentGreen text-black'
-                  : 'bg-transparent text-gray-400'
-              }`}
-            >
-              Hàng Năm
-            </button>
-            <button
-              onClick={() => setActiveTab('quarterly')}
-              className={`px-3 py-1 rounded-full ${
-                activeTab === 'quarterly'
-                  ? 'bg-accentGreen text-black'
-                  : 'bg-transparent text-gray-400'
-              }`}
-            >
-              Hàng Quý
-            </button>
-          </div>
-
-          {/* Period headers (Years or Quarters) */}
-          <div className="relative">
-            <div className="absolute inset-y-0 -left-4 flex items-center">
-              <button 
-                type="button" 
-                onClick={activeTab === 'annual' ? handlePreviousYears : handlePreviousQuarters}
-                disabled={
-                  activeTab === 'annual' 
-                    ? yearRangeIndex === yearRanges.length - 1
-                    : quarterRangeIndex === quarterRanges.length - 1
-                }
-                className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
-                  (activeTab === 'annual' && yearRangeIndex === yearRanges.length - 1) ||
-                  (activeTab === 'quarterly' && quarterRangeIndex === quarterRanges.length - 1)
-                    ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
-                    : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex gap-2 text-center">
-              {currentPeriods.map((period) => (
-                <div key={period} className="font-semibold w-14 text-white">
-                  {period}
-                </div>
-              ))}
-            </div>
-            <div className="absolute inset-y-0 -right-4 flex items-center">
-              <button 
-                type="button" 
-                onClick={activeTab === 'annual' ? handleNextYears : handleNextQuarters}
-                disabled={
-                  activeTab === 'annual' 
-                    ? yearRangeIndex === 0
-                    : quarterRangeIndex === 0
-                }
-                className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
-                  (activeTab === 'annual' && yearRangeIndex === 0) ||
-                  (activeTab === 'quarterly' && quarterRangeIndex === 0)
-                    ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
-                    : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
+      {/* Scrollable Content - includes Chart, Tabs, and Table */}
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        {/* Chart Section */}
+        <div className="px-6 pb-6 -mx-4 -mt-6">
+          <ResponsiveContainer width="100%" height={215}>
+            <BarChart data={currentChartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <XAxis dataKey="year" stroke="#e0e0e0" tick={{ fill: '#ffffff', fontSize: 12 }} />
+              <YAxis stroke="#e0e0e0" tick={{ fill: '#ffffff', fontSize: 11 }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#424242', border: 'none', borderRadius: '4px' }}
+                labelStyle={{ color: '#ffffff' }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px', color: '#ffffff' }} 
+                iconType="square"
+              />
+              {reportType === 'income' ? (
+                <>
+                  <Bar dataKey="revenue" fill="#84cc16" name="Doanh thu thuần" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="profit" fill="#22c55e" name="Lợi nhuận gộp" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="afterTax" fill="#10b981" name="Lợi nhuận sau thuế" radius={[4, 4, 0, 0]} />
+                </>
+              ) : reportType === 'balance' ? (
+                <>
+                  <Bar dataKey="totalAssets" fill="#84cc16" name="Tổng tài sản" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="charterCapital" fill="#22c55e" name="Vốn điều lệ" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="equity" fill="#10b981" name="Vốn chủ sở hữu" radius={[4, 4, 0, 0]} />
+                </>
+              ) : (
+                <>
+                  <Bar dataKey="operating" fill="#84cc16" name="Dòng tiền từ hoạt động kinh doanh" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="investing" fill="#22c55e" name="Dòng tiền từ hoạt động đầu tư" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="freeCashFlow" fill="#10b981" name="Dòng tiền tự do" radius={[4, 4, 0, 0]} />
+                </>
+              )}
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <div className="my-4 font-semibold"></div>
-      </div>
 
-      {/* Financial Data Table */}
-      <div className="flex-1 overflow-auto custom-scrollbar px-6">
-        {currentMetrics.map((metric) => (
-          <div key={metric} className="flex justify-between items-center">
-            <div className="flex flex-wrap gap-1 min-w-32 text-gray-300">
-              {metric}
+        {/* Tabs and Year Selector */}
+        <div className="px-6">
+          <div className="flex justify-between items-center">
+            <div className="flex flex-wrap gap-1 min-w-32">
+              <button
+                onClick={() => setActiveTab('annual')}
+                className={`px-3 py-1 rounded-full ${
+                  activeTab === 'annual'
+                    ? 'bg-accentGreen text-black'
+                    : 'bg-transparent text-gray-400'
+                }`}
+              >
+                Hàng Năm
+              </button>
+              <button
+                onClick={() => setActiveTab('quarterly')}
+                className={`px-3 py-1 rounded-full ${
+                  activeTab === 'quarterly'
+                    ? 'bg-accentGreen text-black'
+                    : 'bg-transparent text-gray-400'
+                }`}
+              >
+                Hàng Quý
+              </button>
             </div>
-            <div className="relative">
-              <div className="flex gap-2 text-center">
-                {currentPeriods.map((period) => {
-                  const value = currentData[period][metric];
-                  const isPercentage = metric.includes('%');
-                  const isNegative = value < 0;
-                  const isPositive = value > 0;
 
-                  return (
-                    <div
-                      key={`${metric}-${period}`}
-                      className={`w-14 my-1 ${
-                        isPercentage
-                          ? isPositive
-                            ? 'text-green-400'
-                            : isNegative
-                            ? 'text-red-400'
-                            : 'text-white'
-                          : isNegative
-                          ? 'text-red-400'
-                          : 'text-white'
-                      }`}
-                    >
-                      {isPercentage ? `${value.toFixed(1)}%` : value}
-                    </div>
-                  );
-                })}
+            {/* Period headers (Years or Quarters) */}
+            <div className="relative">
+              <div className="absolute inset-y-0 -left-4 flex items-center">
+                <button 
+                  type="button" 
+                  onClick={activeTab === 'annual' ? handlePreviousYears : handlePreviousQuarters}
+                  disabled={
+                    activeTab === 'annual' 
+                      ? yearRangeIndex === yearRanges.length - 1
+                      : quarterRangeIndex === quarterRanges.length - 1
+                  }
+                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
+                    (activeTab === 'annual' && yearRangeIndex === yearRanges.length - 1) ||
+                    (activeTab === 'quarterly' && quarterRangeIndex === quarterRanges.length - 1)
+                      ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
+                      : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex gap-2 text-center">
+                {currentPeriods.map((period) => (
+                  <div key={period} className="font-semibold w-14 text-white">
+                    {period}
+                  </div>
+                ))}
+              </div>
+              <div className="absolute inset-y-0 -right-4 flex items-center">
+                <button 
+                  type="button" 
+                  onClick={activeTab === 'annual' ? handleNextYears : handleNextQuarters}
+                  disabled={
+                    activeTab === 'annual' 
+                      ? yearRangeIndex === 0
+                      : quarterRangeIndex === 0
+                  }
+                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
+                    (activeTab === 'annual' && yearRangeIndex === 0) ||
+                    (activeTab === 'quarterly' && quarterRangeIndex === 0)
+                      ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
+                      : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-        ))}
+          <div className="my-4 font-semibold"></div>
+        </div>
+
+        {/* Financial Data Table */}
+        <div className="px-6 pb-4">
+          {currentMetrics.map((metric) => (
+            <div key={metric} className="flex justify-between items-center">
+              <div className="flex flex-wrap gap-1 min-w-32 text-white">
+                {metric}
+              </div>
+              <div className="relative">
+                <div className="flex gap-2 text-center">
+                  {currentPeriods.map((period) => {
+                    const value = currentData[period][metric];
+                    const isPercentage = metric.includes('%');
+                    const isNegative = value < 0;
+                    const isPositive = value > 0;
+
+                    return (
+                      <div
+                        key={`${metric}-${period}`}
+                        className={`w-14 my-1 ${
+                          isPercentage
+                            ? isPositive
+                              ? 'text-green-400'
+                              : isNegative
+                              ? 'text-red-400'
+                              : 'text-white'
+                            : isNegative
+                            ? 'text-red-400'
+                            : 'text-white'
+                        }`}
+                      >
+                        {isPercentage ? `${value.toFixed(1)}%` : value}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -53,14 +53,18 @@ export default function DashboardPage() {
         <GridLayout
           className="layout"
           layout={layout}
-          cols={12}
-          rowHeight={100}
+          cols={96}
+          rowHeight={20}
           width={containerWidth}
           onLayoutChange={updateLayout}
           draggableHandle=".drag-handle"
           isResizable={true}
           isDraggable={true}
           margin={[16, 16]}
+          compactType="vertical"
+          preventCollision={false}
+          resizeHandles={['se']}
+          allowOverlap={false}
         >
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];

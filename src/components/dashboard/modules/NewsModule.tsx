@@ -490,7 +490,6 @@ export default function NewsModule() {
           ))}
         </div>
         )}
-        )}
       </div>
     </div>
   );
