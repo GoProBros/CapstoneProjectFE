@@ -75,7 +75,7 @@ const Logo = () => {
         </div>
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-[#4ADE80] via-blue-400 to-[#4ADE80] bg-clip-text text-transparent">
-            Bảng Điều Khiển
+           Băng Rồng xanh
           </h1>
           <p className="text-slate-300 text-sm font-medium tracking-wide">Nền tảng giao dịch chuyên nghiệp</p>
         </div>

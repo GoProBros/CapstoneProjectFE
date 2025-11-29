@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
 import React from 'react';
 
-export default function FAAdvisorModule() {
+const FundamentalAnalysisModule = () => {
   return (
-    <div className="rounded-lg overflow-hidden h-full w-full bg-[#282832] flex flex-col text-sm">
+    <div className="rounded-lg overflow-hidden h-full w-full bg-gray-800 flex flex-col text-sm">
       {/* Header Section */}
       <div className="flex justify-between">
         <div className="p-4 text-sm -mr-6">
           <div className="relative">
-            <div className="text-2xl" style={{ color: '#34C85E' }}>Fundamental</div>
+            <div className="text-2xl text-lime-500">Fundamental</div>
             <div className="absolute -bottom-2 -right-6 text-gray-400 text-xs">Analysis</div>
           </div>
-          <div className="text-gray-300">Tứ trụ FA</div>
+          <div>Tứ trụ FA</div>
         </div>
 
         {/* SVG Background with Chart Icon */}
@@ -39,8 +39,7 @@ export default function FAAdvisorModule() {
           <div className="relative h-full flex justify-center items-center">
             <button 
               type="button" 
-              className="font-medium rounded-full text-sm gap-x-2 p-2 shadow-sm ring-1 ring-inset ring-gray-700 text-white bg-gray-900 hover:bg-gray-800/50 focus-visible:ring-2 inline-flex items-center ml-6 transition-all"
-              style={{ '--tw-ring-color': '#34C85E' } as React.CSSProperties}
+              className="ani-pop font-medium rounded-full text-sm gap-x-2 p-2 shadow-sm ring-1 ring-inset ring-gray-700 text-white bg-gray-900 hover:bg-gray-800/50 focus-visible:ring-2 focus-visible:ring-lime-500 inline-flex items-center ml-6"
             >
               <svg 
                 className="flex-shrink-0 h-5 w-5" 
@@ -65,36 +64,38 @@ export default function FAAdvisorModule() {
         <div className="grid grid-cols-2 gap-4 text-center w-full">
           {/* Định Giá (Valuation) */}
           <div>
-            <p className="text-gray-400 text-sm">Định Giá</p>
-            <p className="text-xl font-bold text-white">16.1</p>
+            <p className="text-gray-400">Định Giá</p>
+            <p className="text-xl font-bold">16.1</p>
           </div>
 
           {/* Tài chính (Financial) */}
           <div>
-            <p className="text-gray-400 text-sm">Tài chính</p>
-            <p className="text-xl font-bold" style={{ color: '#34C85E' }}>84</p>
+            <p className="text-gray-400">Tài chính</p>
+            <p className="text-xl font-bold text-lime-500">84</p>
           </div>
 
           {/* Divider with Stock Symbol */}
           <div className="border-t border-gray-600 col-span-2 relative">
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full text-gray-900 font-semibold text-xs" style={{ backgroundColor: '#34C85E' }}>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-lime-500 px-2 py-0.5 rounded-full text-gray-900 font-semibold">
               ABR
             </div>
           </div>
 
           {/* Kinh doanh (Business) */}
           <div>
-            <p className="text-gray-400 text-sm">Kinh doanh</p>
+            <p className="text-gray-400">Kinh doanh</p>
             <p className="text-xl font-bold text-yellow-600">70</p>
           </div>
 
           {/* Hiệu quả (Efficiency) */}
           <div>
-            <p className="text-gray-400 text-sm">Hiệu quả</p>
+            <p className="text-gray-400">Hiệu quả</p>
             <p className="text-xl font-bold text-yellow-600">78</p>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default FundamentalAnalysisModule;
