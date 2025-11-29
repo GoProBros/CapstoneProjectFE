@@ -47,11 +47,7 @@ export default function DashboardPage() {
   return (
     <div className="p-6" ref={containerRef}>
       {modules.length === 0 ? (
-        <div className="w-full h-[400px] bg-cardBackground rounded-lg overflow-hidden flex items-center justify-center border border-borderDark">
-          <div className="text-center">
-            <p className="text-gray-400 text-lg mb-2">Chưa có module nào</p>
-            <p className="text-gray-500 text-sm">Nhấn vào nút "Thêm Module" để bắt đầu</p>
-          </div>
+        <div className="">
         </div>
       ) : (
         <GridLayout
