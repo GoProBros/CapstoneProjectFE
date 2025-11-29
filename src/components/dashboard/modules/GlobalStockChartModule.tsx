@@ -1,48 +1,82 @@
 "use client";
 
-import React, { useState } from 'react';
-import TradingViewWidget from './TradingViewWidget';
+import React, { useEffect, useRef } from 'react';
 
 export default function GlobalStockChartModule() {
-  const [selectedSymbol, setSelectedSymbol] = useState('NASDAQ:AAPL');
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const popularSymbols = [
-    { label: 'Apple', symbol: 'NASDAQ:AAPL' },
-    { label: 'Microsoft', symbol: 'NASDAQ:MSFT' },
-    { label: 'Google', symbol: 'NASDAQ:GOOGL' },
-    { label: 'Amazon', symbol: 'NASDAQ:AMZN' },
-    { label: 'Tesla', symbol: 'NASDAQ:TSLA' },
-    { label: 'Meta', symbol: 'NASDAQ:META' },
-    { label: 'NVIDIA', symbol: 'NASDAQ:NVDA' },
-    { label: 'Bitcoin', symbol: 'BINANCE:BTCUSDT' },
-  ];
+  useEffect(() => {
+    // Clean up any existing script
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Clear existing content
+    container.innerHTML = '';
+
+    // Create widget container
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.height = 'calc(100% - 32px)';
+    widgetDiv.style.width = '100%';
+    container.appendChild(widgetDiv);
+
+    // Create copyright div
+    const copyrightDiv = document.createElement('div');
+    copyrightDiv.className = 'tradingview-widget-copyright';
+    copyrightDiv.innerHTML = '<a href="https://vn.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets on TradingView</span></a>';
+    container.appendChild(copyrightDiv);
+
+    // Create and append script
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.type = 'text/javascript';
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: "OANDA:XAUUSD",
+      interval: "D",
+      timezone: "Etc/UTC",
+      theme: "dark",
+      style: "1",
+      locale: "vi_VN",
+      allow_symbol_change: true,
+      calendar: false,
+      details: true,
+      hide_side_toolbar: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      hide_volume: false,
+      hotlist: true,
+      save_image: true,
+      backgroundColor: "#282832",
+      gridColor: "rgba(242, 242, 242, 0.06)",
+      watchlist: [],
+      withdateranges: true,
+      range: "YTD",
+      compareSymbols: [],
+      show_popup_button: true,
+      popup_height: "650",
+      popup_width: "1000",
+      studies: []
+    });
+
+    container.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, []);
 
   return (
-    <div className="w-full h-full bg-[#282832] rounded-lg border border-gray-800 flex flex-col overflow-hidden">
-      {/* Header with symbol selector */}
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
-        <select
-          value={selectedSymbol}
-          onChange={(e) => setSelectedSymbol(e.target.value)}
-          className="bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg border border-gray-700 focus:outline-none focus:border-accentGreen"
-        >
-          {popularSymbols.map((item) => (
-            <option key={item.symbol} value={item.symbol}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* TradingView Chart */}
-      <div className="flex-1 overflow-hidden">
-        <TradingViewWidget 
-          symbol={selectedSymbol}
-          theme="dark"
-          interval="D"
-          style="1"
-        />
-      </div>
+    <div className="w-full h-full bg-[#282832] rounded-lg border border-gray-800 overflow-hidden">
+      <div 
+        ref={containerRef}
+        className="tradingview-widget-container"
+        style={{ height: '100%', width: '100%' }}
+      />
     </div>
   );
 }

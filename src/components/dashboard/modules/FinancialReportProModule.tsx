@@ -5,11 +5,7 @@ import React from 'react';
 export default function FinancialReportProModule() {
   return (
     <div className="w-full h-full bg-[#282832] rounded-lg p-4 border border-gray-800">
-      <h3 className="text-white text-lg font-semibold mb-4">Báo cáo tài chính - Pro</h3>
-      <div className="flex items-center justify-center h-[calc(100%-3rem)] text-gray-500">
-        {/* Content will be implemented later */}
-        <p>Module content coming soon...</p>
-      </div>
+      <h3 className="text-white text-lg font-semibold mb-4">Financial Report Pro</h3>
     </div>
   );
 }
