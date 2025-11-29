@@ -136,85 +136,72 @@ export default function DashboardLayout({
     console.log('Checking layout type:', layoutType, 'equals "Giao diện mặc định":', layoutType === 'Giao diện mặc định');
     
     if (layoutType === 'Giao diện mặc định') {
-      console.log('Creating default layout modules...');
-      
       const defaultModules: Module[] = [
-        // Row 1: Large module on left, small on right
-        { id: `chart-main-${timestamp}`, type: 'chart', title: 'Biểu đồ chính' },
-        { id: `market-watch-${timestamp}`, type: 'watchlist', title: 'Theo dõi thị trường' },
-        
-        // Row 2: 3 equal modules
-        { id: `technical-${timestamp}`, type: 'analysis', title: 'Phân tích kỹ thuật' },
-        { id: `fundamental-${timestamp}`, type: 'analysis', title: 'Phân tích cơ bản' },
+        { id: `global-stock-chart-${timestamp}`, type: 'global-stock-chart', title: 'Biểu đồ chứng khoán thế giới' },
+        { id: `financial-report-${timestamp}`, type: 'financial-report', title: 'Báo cáo tài chính' },
         { id: `news-${timestamp}`, type: 'news', title: 'Tin tức' },
-        
-        // Row 3: 3 equal modules
-        { id: `filter-${timestamp}`, type: 'filter', title: 'Bộ lọc cổ phiếu' },
-        { id: `watchlist-${timestamp}`, type: 'watchlist', title: 'Danh sách theo dõi' },
-        { id: `orders-${timestamp}`, type: 'orders', title: 'Lệnh giao dịch' },
+        { id: `canslim-${timestamp}`, type: 'canslim', title: 'Canslim' },
+        { id: `ta-advisor-${timestamp}`, type: 'ta-advisor', title: 'Tư trụ T A' },
+        { id: `fa-advisor-${timestamp}`, type: 'fa-advisor', title: 'Tư trụ F A' },
+        { id: `stock-screener-${timestamp}`, type: 'stock-screener', title: 'Bộ lọc cổ phiếu' },
       ];
-
+      
       const defaultLayout: LayoutItem[] = [
-        // Row 1: Large chart (8 cols) + Market watch (4 cols)
-        { i: defaultModules[0].id, x: 0, y: 0, w: 8, h: 4 },
-        { i: defaultModules[1].id, x: 8, y: 0, w: 4, h: 4 },
-        
-        // Row 2: 3 equal modules (4 cols each)
-        { i: defaultModules[2].id, x: 0, y: 4, w: 4, h: 3 },
-        { i: defaultModules[3].id, x: 4, y: 4, w: 4, h: 3 },
-        { i: defaultModules[4].id, x: 8, y: 4, w: 4, h: 3 },
-        
-        // Row 3: 3 equal modules (4 cols each)
-        { i: defaultModules[5].id, x: 0, y: 7, w: 4, h: 3 },
-        { i: defaultModules[6].id, x: 4, y: 7, w: 4, h: 3 },
-        { i: defaultModules[7].id, x: 8, y: 7, w: 4, h: 3 },
+        { i: defaultModules[0].id, x: 0, y: 0, w: 62, h: 25 },
+        { i: defaultModules[1].id, x: 62, y: 0, w: 34, h: 18 },
+        { i: defaultModules[2].id, x: 62, y: 18, w: 34, h: 18 },
+        { i: defaultModules[3].id, x: 0, y: 25, w: 21, h: 11 },
+        { i: defaultModules[4].id, x: 21, y: 25, w: 21, h: 11 },
+        { i: defaultModules[5].id, x: 42, y: 25, w: 20, h: 11 },
+        { i: defaultModules[6].id, x: 0, y: 36, w: 96, h: 20 },
       ];
 
       newPage.modules = defaultModules;
       newPage.layout = defaultLayout;
-      
-      console.log('Created page with modules:', defaultModules);
-      console.log('Created page with layout:', defaultLayout);
     } else if (layoutType === 'Giao diện nâng cao') {
-      console.log('Creating advanced layout modules...');
-      
       const advancedModules: Module[] = [
-        // Row 1: 3 equal modules
-        { id: `watchlist-1-${timestamp}`, type: 'watchlist', title: 'Danh sách theo dõi 1' },
-        { id: `watchlist-2-${timestamp}`, type: 'watchlist', title: 'Danh sách theo dõi 2' },
-        { id: `watchlist-3-${timestamp}`, type: 'watchlist', title: 'Danh sách theo dõi 3' },
-        
-        // Row 2: 1 large module
-        { id: `chart-main-${timestamp}`, type: 'chart', title: 'Biểu đồ chính' },
-        
-        // Row 3: 3 equal modules
-        { id: `orders-${timestamp}`, type: 'orders', title: 'Lệnh giao dịch' },
-        { id: `portfolio-${timestamp}`, type: 'portfolio', title: 'Danh mục' },
+        { id: `session-info-${timestamp}`, type: 'session-info', title: 'Thông tin phiên giao dịch' },
+        { id: `order-matching-${timestamp}`, type: 'order-matching', title: 'Khớp lệnh' },
+        { id: `canslim-${timestamp}`, type: 'canslim', title: 'Canslim' },
+        { id: `fa-advisor-${timestamp}`, type: 'fa-advisor', title: 'Tư trụ F A' },
+        { id: `financial-report-${timestamp}`, type: 'financial-report', title: 'Báo cáo tài chính' },
+        { id: `global-stock-chart-${timestamp}`, type: 'global-stock-chart', title: 'Biểu đồ chứng khoán thế giới' },
         { id: `news-${timestamp}`, type: 'news', title: 'Tin tức' },
       ];
-
+      
       const advancedLayout: LayoutItem[] = [
-        // Row 1: 3 equal modules (4 cols each)
-        { i: advancedModules[0].id, x: 0, y: 0, w: 4, h: 2 },
-        { i: advancedModules[1].id, x: 4, y: 0, w: 4, h: 2 },
-        { i: advancedModules[2].id, x: 8, y: 0, w: 4, h: 2 },
-        
-        // Row 2: Full width chart (12 cols)
-        { i: advancedModules[3].id, x: 0, y: 2, w: 12, h: 5 },
-        
-        // Row 3: 3 equal modules (4 cols each)
-        { i: advancedModules[4].id, x: 0, y: 7, w: 4, h: 2 },
-        { i: advancedModules[5].id, x: 4, y: 7, w: 4, h: 2 },
-        { i: advancedModules[6].id, x: 8, y: 7, w: 4, h: 2 },
+        { i: advancedModules[0].id, x: 0, y: 0, w: 16, h: 8 },
+        { i: advancedModules[1].id, x: 16, y: 0, w: 15, h: 8 },
+        { i: advancedModules[2].id, x: 31, y: 0, w: 16, h: 8 },
+        { i: advancedModules[3].id, x: 47, y: 0, w: 15, h: 8 },
+        { i: advancedModules[4].id, x: 62, y: 0, w: 34, h: 19 },
+        { i: advancedModules[5].id, x: 0, y: 8, w: 62, h: 26 },
+        { i: advancedModules[6].id, x: 62, y: 19, w: 34, h: 15 },
       ];
 
       newPage.modules = advancedModules;
       newPage.layout = advancedLayout;
+    } else if (layoutType === 'Giao diện đơn giản') {
+      const simpleModules: Module[] = [
+        { id: `global-stock-chart-${timestamp}`, type: 'global-stock-chart', title: 'Biểu đồ chứng khoán thế giới' },
+        { id: `financial-report-${timestamp}`, type: 'financial-report', title: 'Báo cáo tài chính' },
+        { id: `news-${timestamp}`, type: 'news', title: 'Tin tức' },
+        { id: `canslim-${timestamp}`, type: 'canslim', title: 'Canslim' },
+        { id: `ta-advisor-${timestamp}`, type: 'ta-advisor', title: 'Tư trụ T A' },
+        { id: `fa-advisor-${timestamp}`, type: 'fa-advisor', title: 'Tư trụ F A' },
+      ];
       
-      console.log('Created page with modules:', advancedModules);
-      console.log('Created page with layout:', advancedLayout);
-    } else {
-      console.log('Not default layout, creating empty page');
+      const simpleLayout: LayoutItem[] = [
+        { i: simpleModules[0].id, x: 0, y: 0, w: 96, h: 20 },
+        { i: simpleModules[1].id, x: 0, y: 20, w: 31, h: 18 },
+        { i: simpleModules[2].id, x: 31, y: 20, w: 31, h: 18 },
+        { i: simpleModules[3].id, x: 62, y: 20, w: 34, h: 7 },
+        { i: simpleModules[4].id, x: 62, y: 27, w: 17, h: 11 },
+        { i: simpleModules[5].id, x: 79, y: 27, w: 17, h: 11 },
+      ];
+
+      newPage.modules = simpleModules;
+      newPage.layout = simpleLayout;
     }
 
     const updatedPages = [...pages, newPage];
@@ -277,12 +264,70 @@ export default function DashboardLayout({
       ? Math.max(...layout.map(item => item.y + item.h))
       : 0;
     
+    // Default sizes for different module types based on content
+    let width = 48;  // Default: half width (48 columns = 50%)
+    let height = 20;  // Default: 20 units (400px with rowHeight=20px)
+    
+    // Chart modules - larger, landscape orientation
+    if (['overview-chart', 'vn-stock-chart', 'global-stock-chart'].includes(moduleType)) {
+      width = 64;   // 64 columns = ~67% width
+      height = 25;  // 25 units = 500px
+    }
+    
+    // Financial reports - medium width, tall
+    else if (['financial-report', 'financial-report-pro'].includes(moduleType)) {
+      width = 48;   // 48 columns = 50% width
+      height = 30;  // 30 units = 600px (tall for tables)
+    }
+    
+    // News module - medium width, tall for scrolling
+    else if (moduleType === 'news') {
+      width = 40;   // 40 columns = ~42% width
+      height = 30;  // 30 units = 600px
+    }
+    
+    // Session Info & TA Advisor - compact square modules
+    else if (['session-info', 'ta-advisor', 'fa-advisor'].includes(moduleType)) {
+      width = 24;   // 24 columns = 25% width
+      height = 20;  // 20 units = 400px (square-ish)
+    }
+    
+    // Order Matching - compact, medium height
+    else if (moduleType === 'order-matching') {
+      width = 28;   // 28 columns = ~29% width
+      height = 22;  // 22 units = 440px
+    }
+    
+    // Canslim - compact square
+    else if (moduleType === 'canslim') {
+      width = 24;   // 24 columns = 25% width
+      height = 18;  // 18 units = 360px
+    }
+    
+    // Stock Screener - wide, tall for tables
+    else if (moduleType === 'stock-screener') {
+      width = 72;   // 72 columns = 75% width
+      height = 30;  // 30 units = 600px
+    }
+    
+    // Trading Map - large square
+    else if (moduleType === 'trading-map') {
+      width = 48;   // 48 columns = 50% width
+      height = 24;  // 24 units = 480px (square)
+    }
+    
+    // Analysis Report - medium width, tall
+    else if (moduleType === 'analysis-report') {
+      width = 48;   // 48 columns = 50% width
+      height = 28;  // 28 units = 560px
+    }
+    
     const newLayoutItem: LayoutItem = {
       i: newModule.id,
       x: 0,
       y: yPosition,
-      w: 12,
-      h: 4,
+      w: width,
+      h: height,
     };
     
     // Update current page's modules and layout

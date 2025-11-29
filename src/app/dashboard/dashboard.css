@@ -44,8 +44,9 @@
   bottom: 3px;
   width: 8px;
   height: 8px;
-  border-right: 2px solid rgba(74, 222, 128, 0.6);
-  border-bottom: 2px solid rgba(74, 222, 128, 0.6);
+  border-right: 2px solid rgba(156, 163, 175, 0.3);
+  border-bottom: 2px solid rgba(156, 163, 175, 0.3);
+  transition: all 200ms ease;
 }
 
 .react-resizable-handle-se {
@@ -55,7 +56,9 @@
 }
 
 .react-grid-item:hover > .react-resizable-handle::after {
-  border-color: #4ADE80;
+  border-color: rgba(74, 222, 128, 0.8);
+  width: 10px;
+  height: 10px;
 }
 
 /* Drag handle cursor */
