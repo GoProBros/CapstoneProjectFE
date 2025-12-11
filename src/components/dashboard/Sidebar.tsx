@@ -262,23 +262,23 @@ export default function Sidebar({
             {/* Delete Confirmation Modal */}
             {pageToDelete && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10001]">
-                    <div className="bg-white dark:bg-cardBackground rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-                        <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-textPrimary">
+                    <div className="bg-white dark:bg-[#1e1e2e] rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">
                             Xác nhận xóa
                         </h3>
-                        <p className="text-gray-600 dark:text-textSecondary mb-6">
+                        <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
                             Bạn có chắc chắn muốn xóa page "{pages.find(p => p.id === pageToDelete)?.name}"? Tất cả modules trong page này sẽ bị xóa.
                         </p>
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={cancelDelete}
-                                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
                             >
                                 Hủy
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors font-medium"
                             >
                                 Xóa
                             </button>

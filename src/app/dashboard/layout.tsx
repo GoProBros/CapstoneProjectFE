@@ -56,14 +56,30 @@ export default function DashboardLayout({
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   
-  // Initialize with default page
+  // Initialize with default page using default layout
   const [pages, setPages] = useState<PageData[]>([
     {
       id: 'default',
       name: 'Giao diện mặc định',
       initial: 'D',
-      modules: [],
-      layout: []
+      modules: [
+        { id: 'global-stock-chart-default', type: 'global-stock-chart', title: 'Biểu đồ chứng khoán thế giới' },
+        { id: 'financial-report-default', type: 'financial-report', title: 'Báo cáo tài chính' },
+        { id: 'news-default', type: 'news', title: 'Tin tức' },
+        { id: 'canslim-default', type: 'canslim', title: 'Canslim' },
+        { id: 'ta-advisor-default', type: 'ta-advisor', title: 'Tư trụ T A' },
+        { id: 'fa-advisor-default', type: 'fa-advisor', title: 'Tư trụ F A' },
+        { id: 'stock-screener-default', type: 'stock-screener', title: 'Bộ lọc cổ phiếu' },
+      ],
+      layout: [
+        { i: 'global-stock-chart-default', x: 0, y: 0, w: 62, h: 25 },
+        { i: 'financial-report-default', x: 62, y: 0, w: 34, h: 18 },
+        { i: 'news-default', x: 62, y: 18, w: 34, h: 18 },
+        { i: 'canslim-default', x: 0, y: 25, w: 21, h: 11 },
+        { i: 'ta-advisor-default', x: 21, y: 25, w: 21, h: 11 },
+        { i: 'fa-advisor-default', x: 42, y: 25, w: 20, h: 11 },
+        { i: 'stock-screener-default', x: 0, y: 36, w: 96, h: 20 },
+      ]
     }
   ]);
   const [currentPageId, setCurrentPageId] = useState('default');

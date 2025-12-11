@@ -69,29 +69,30 @@ export default function DashboardPage() {
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
             return (
-              <div key={module.id} className="bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300">
-                {/* Module Header with drag handle and close button */}
-                <div className="drag-handle bg-white dark:bg-componentBackground px-4 py-2 flex items-center justify-between cursor-move border-b border-gray-200 dark:border-borderDark transition-colors duration-300">
-                  <h3 className="text-gray-900 dark:text-white text-sm font-medium">{module.title}</h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      removeModule(module.id);
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                    }}
-                    className="group flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all cursor-pointer"
-                  >
-                    <span className="hidden group-hover:inline-block text-xs font-medium">Remove</span>
-                    <div className="w-6 h-6 rounded-full border-2 border-current group-hover:bg-red-500 group-hover:border-red-500 flex items-center justify-center transition-all">
-                      <X className="w-3.5 h-3.5 group-hover:text-white" />
-                    </div>
-                  </button>
-                </div>
+              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300">
+                {/* Drag handle - invisible overlay */}
+                <div className="drag-handle absolute inset-0 cursor-move z-0" />
+                
+                {/* Remove button - shows on hover */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    removeModule(module.id);
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="absolute top-2 right-2 z-20 opacity-0 group-hover/module:opacity-100 transition-opacity duration-200 flex items-center gap-2 text-gray-400 hover:text-red-500 cursor-pointer"
+                >
+                  <span className="hidden group-hover:inline-block text-xs font-medium bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-lg">Remove</span>
+                  <div className="w-7 h-7 rounded-full border-2 border-current hover:bg-red-500 hover:border-red-500 flex items-center justify-center transition-all bg-white dark:bg-gray-800 shadow-lg">
+                    <X className="w-4 h-4 hover:text-white" />
+                  </div>
+                </button>
+
                 {/* Module Content */}
-                <div className="h-[calc(100%-40px)] overflow-auto">
+                <div className="h-full overflow-auto relative z-10">
                   {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
                 </div>
               </div>
