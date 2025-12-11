@@ -123,7 +123,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
       <div className="h-16 border-b border-gray-300 dark:border-borderGray flex items-center justify-between px-6 bg-white dark:bg-modalBackground transition-colors duration-300">
         <div className="flex items-center gap-4">
           <h3 className="text-gray-900 dark:text-white text-l font-semibold">Modules</h3>
-          <button className="flex items-center gap-2 bg-white dark:bg-cardBackground border border-buttonGreen text-buttonGreen px-4 py-2 rounded-full text-sm font-medium hover:bg-buttonGreen/10 dark:hover:bg-buttonGreen/10 transition-colors">
+          <button className="flex items-center gap-2 bg-white dark:bg-cardBackground border-2 border-buttonGreen text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-buttonGreen/10 dark:hover:bg-buttonGreen/10 transition-colors">
             <span>All Modules</span>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
