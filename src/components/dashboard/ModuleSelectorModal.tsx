@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useDashboard } from '@/app/dashboard/layout';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface ModuleSelectorModalProps {
   isOpen: boolean;
