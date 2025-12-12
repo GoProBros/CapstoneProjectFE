@@ -277,7 +277,7 @@ export default function NewsModule() {
   ] as const;
 
   return (
-    <div className="w-full h-full bg-[#282832] rounded-lg flex flex-col overflow-hidden text-sm">
+    <div className="dashboard-module w-full h-full bg-[#282832] rounded-lg flex flex-col overflow-hidden text-sm">
       {/* Header with "Tin Tức" badge */}
       <div className="flex justify-center mb-2 pt-3">
         <div className="flex items-center relative text-sm">

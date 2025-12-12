@@ -4,7 +4,7 @@ import React from 'react';
 
 const FundamentalAnalysisModule = () => {
   return (
-    <div className="rounded-lg overflow-hidden h-full w-full bg-gray-800 flex flex-col text-sm">
+    <div className="dashboard-module rounded-lg overflow-hidden h-full w-full bg-gray-800 flex flex-col text-sm">
       {/* Header Section */}
       <div className="flex justify-between">
         <div className="p-4 text-sm -mr-6">

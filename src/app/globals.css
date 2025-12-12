@@ -5,6 +5,7 @@
 :root {
   --background: #0e0d15;
   --foreground: #ededed;
+  --base-font-size: 0.875rem; /* Default base font size */
 }
 
 .light {
@@ -95,5 +96,56 @@ body {
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(52, 200, 94, 0.3) rgba(255, 255, 255, 0.05);
+  }
+
+  /* Dynamic Font Size Classes */
+  .dashboard-module {
+    font-size: var(--base-font-size);
+  }
+
+  .dashboard-module h1 {
+    font-size: calc(var(--base-font-size) * 2);
+  }
+
+  .dashboard-module h2 {
+    font-size: calc(var(--base-font-size) * 1.5);
+  }
+
+  .dashboard-module h3 {
+    font-size: calc(var(--base-font-size) * 1.25);
+  }
+
+  .dashboard-module p,
+  .dashboard-module span,
+  .dashboard-module div {
+    font-size: var(--base-font-size);
+  }
+
+  .dashboard-module .text-xs {
+    font-size: calc(var(--base-font-size) * 0.75);
+  }
+
+  .dashboard-module .text-sm {
+    font-size: calc(var(--base-font-size) * 0.875);
+  }
+
+  .dashboard-module .text-base {
+    font-size: var(--base-font-size);
+  }
+
+  .dashboard-module .text-lg {
+    font-size: calc(var(--base-font-size) * 1.125);
+  }
+
+  .dashboard-module .text-xl {
+    font-size: calc(var(--base-font-size) * 1.25);
+  }
+
+  .dashboard-module .text-2xl {
+    font-size: calc(var(--base-font-size) * 1.5);
+  }
+
+  .dashboard-module .text-3xl {
+    font-size: calc(var(--base-font-size) * 1.875);
   }
 }

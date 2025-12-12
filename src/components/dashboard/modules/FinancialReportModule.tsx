@@ -521,7 +521,7 @@ export default function FinancialReportModule() {
   };
 
   return (
-    <div className="w-full h-full bg-moduleBackground rounded-2xl border-2 border-gray-700/40 flex flex-col overflow-hidden text-sm">
+    <div className="dashboard-module w-full h-full bg-moduleBackground rounded-2xl border-2 border-gray-700/40 flex flex-col overflow-hidden text-sm">
       {/* Header with BCTC logo and tabs */}
       <div className="flex justify-between flex-none">
         {/* Left: BCTC Logo */}
@@ -708,7 +708,8 @@ export default function FinancialReportModule() {
               <div className="relative">
                 <div className="flex gap-2 text-center">
                   {currentPeriods.map((period) => {
-                    const value = currentData[period][metric];
+                    const periodData = currentData[period as keyof typeof currentData];
+                    const value = periodData ? periodData[metric as keyof typeof periodData] as number : 0;
                     const isPercentage = metric.includes('%');
                     const isNegative = value < 0;
                     const isPositive = value > 0;

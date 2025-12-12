@@ -7,7 +7,7 @@ export default function CanslimModule() {
   const activeIndex = 2; // 'n' is active
 
   return (
-    <div className="rounded-lg overflow-hidden h-full w-full text-base bg-[#282832] flex flex-col justify-between">
+    <div className="dashboard-module rounded-lg overflow-hidden h-full w-full text-base bg-[#282832] flex flex-col justify-between">
       {/* Header Section */}
       <div className="px-6 pt-6">
         <div className="flex justify-between mb-4">

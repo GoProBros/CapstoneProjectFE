@@ -5,6 +5,7 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { FontSizeProvider } from "@/contexts/FontSizeContext";
 
 interface Module {
   id: string;
@@ -395,42 +396,51 @@ export default function DashboardLayout({
 
   return (
     <ThemeProvider>
-      <DashboardContext.Provider value={{ modules, addModule, layout, updateLayout, removeModule, currentPageId }}>
-        <div className="flex h-screen bg-[#E0E3EB] dark:bg-pageBackground transition-colors duration-300">
-          <Sidebar 
-            onAddModule={handleOpenModal} 
-            onAddPage={handleOpenAddPageModal} 
-            pages={pages}
-            currentPageId={currentPageId}
-            onSwitchPage={handleSwitchPage}
-            onDeletePage={handleDeletePage}
-          />
-          <main className="flex-1 overflow-y-auto relative">
-            {children}
-            
-            {/* Success Notification */}
-            {notification && (
-              <div className="fixed top-4 right-4 z-[10000] animate-in slide-in-from-top">
-                <div className="bg-buttonGreen text-black px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-medium">{notification}</span>
+      <FontSizeProvider>
+        <DashboardContext.Provider value={{
+          modules: currentPage?.modules || [],
+          addModule,
+          layout: currentPage?.layout || [],
+          updateLayout,
+          removeModule,
+          currentPageId
+        }}>
+          <div className="flex h-screen bg-[#E0E3EB] dark:bg-pageBackground transition-colors duration-300">
+            <Sidebar 
+              onAddModule={handleOpenModal} 
+              onAddPage={handleOpenAddPageModal} 
+              pages={pages}
+              currentPageId={currentPageId}
+              onSwitchPage={handleSwitchPage}
+              onDeletePage={handleDeletePage}
+            />
+            <main className="flex-1 overflow-y-auto relative">
+              {children}
+              
+              {/* Success Notification */}
+              {notification && (
+                <div className="fixed top-4 right-4 z-[10000] animate-in slide-in-from-top">
+                  <div className="bg-buttonGreen text-black px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="font-medium">{notification}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </main>
-          <ModuleSelectorModal 
-            isOpen={isModalOpen} 
-            onClose={handleCloseModal}
-          />
-          <AddPageModal
-            isOpen={isAddPageModalOpen}
-            onClose={handleCloseAddPageModal}
-            onSave={handleAddPage}
-          />
-        </div>
-      </DashboardContext.Provider>
+              )}
+            </main>
+            <ModuleSelectorModal 
+              isOpen={isModalOpen} 
+              onClose={handleCloseModal}
+            />
+            <AddPageModal
+              isOpen={isAddPageModalOpen}
+              onClose={handleCloseAddPageModal}
+              onSave={handleAddPage}
+            />
+          </div>
+        </DashboardContext.Provider>
+      </FontSizeProvider>
     </ThemeProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFontSize } from '@/contexts/FontSizeContext';
 import { useRouter } from 'next/navigation';
 
 interface PageData {
@@ -30,7 +31,7 @@ export default function Sidebar({
     onSwitchPage, 
     onDeletePage 
 }: SidebarProps) {
-    const [fontSize, setFontSize] = useState(6);
+    const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
@@ -43,14 +44,6 @@ export default function Sidebar({
 
     const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFontSize(Number(e.target.value));
-    };
-
-    const increaseFontSize = () => {
-        if (fontSize < 10) setFontSize(fontSize + 1);
-    };
-
-    const decreaseFontSize = () => {
-        if (fontSize > 0) setFontSize(fontSize - 1);
     };
 
     const handleLogout = () => {
