@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface NewsItem {
   id: string;
@@ -276,8 +277,13 @@ export default function NewsModule() {
     { id: 'report', label: 'Báo cáo' }
   ] as const;
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
-    <div className="dashboard-module w-full h-full bg-[#282832] rounded-lg flex flex-col overflow-hidden text-sm">
+    <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm ${
+      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header with "Tin Tức" badge */}
       <div className="flex justify-center mb-2 pt-3">
         <div className="flex items-center relative text-sm">
@@ -391,7 +397,7 @@ export default function NewsModule() {
                   <td colSpan={4}>
                     <div 
                       className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${
-                        index % 2 === 0 ? 'bg-[#1a1a24]' : ''
+                        index % 2 === 0 ? (isDark ? 'bg-cyan-900/30' : 'bg-cyan-50') : ''
                       }`}
                     >
                       <div className="flex-none w-[70px] text-gray-300">{event.code}</div>
@@ -426,7 +432,7 @@ export default function NewsModule() {
                   <td colSpan={4}>
                     <div 
                       className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${
-                        index % 2 === 0 ? 'bg-[#1a1a24]' : ''
+                        index % 2 === 0 ? (isDark ? 'bg-cyan-900/30' : 'bg-cyan-50') : ''
                       }`}
                     >
                       <div className="flex-none w-[136px] text-gray-300">{report.code}</div>
@@ -442,7 +448,9 @@ export default function NewsModule() {
           /* News Grid */
           <div className="grid gap-4">
           {newsItems.map((item) => (
-            <div key={item.id} className="text-sm bg-[#1a1a24] px-3 py-1.5 rounded-lg">
+            <div key={item.id} className={`text-sm px-3 py-1.5 rounded-lg ${
+              isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'
+            }`}>
               {/* Time and AI button */}
               <div className="flex items-center justify-between mb-1.5" style={{ color: '#34C85E' }}>
                 <div className="text-xs">{item.time}</div>

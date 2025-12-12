@@ -1,16 +1,24 @@
 'use client';
 
 import React from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const FundamentalAnalysisModule = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  
   return (
-    <div className="dashboard-module rounded-lg overflow-hidden h-full w-full bg-gray-800 flex flex-col text-sm">
+    <div className={`dashboard-module rounded-lg overflow-hidden h-full w-full flex flex-col text-sm ${
+      isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header Section */}
       <div className="flex justify-between">
         <div className="p-4 text-sm -mr-6">
           <div className="relative">
             <div className="text-2xl text-lime-500">Fundamental</div>
-            <div className="absolute -bottom-2 -right-6 text-gray-400 text-xs">Analysis</div>
+            <div className={`absolute -bottom-2 -right-6 text-xs ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}>Analysis</div>
           </div>
           <div>Tứ trụ FA</div>
         </div>
@@ -19,7 +27,9 @@ const FundamentalAnalysisModule = () => {
         <div className="relative flex-none" style={{ width: '99.2px', minHeight: '80px', borderRadius: '0px 0px 23px' }}>
           <div className="absolute inset-0 origin-top-left" style={{ width: '99.2px', height: '80px', transform: 'scale(0.4)' }}>
             <svg 
-              className="absolute inset-0 text-gray-700" 
+              className={`absolute inset-0 ${
+                isDark ? 'text-gray-700' : 'text-gray-200'
+              }`}
               xmlns="http://www.w3.org/2000/svg" 
               fill="none" 
               width="248" 
@@ -39,7 +49,11 @@ const FundamentalAnalysisModule = () => {
           <div className="relative h-full flex justify-center items-center">
             <button 
               type="button" 
-              className="ani-pop font-medium rounded-full text-sm gap-x-2 p-2 shadow-sm ring-1 ring-inset ring-gray-700 text-white bg-gray-900 hover:bg-gray-800/50 focus-visible:ring-2 focus-visible:ring-lime-500 inline-flex items-center ml-6"
+              className={`ani-pop font-medium rounded-full text-sm gap-x-2 p-2 shadow-sm ring-1 ring-inset inline-flex items-center ml-6 focus-visible:ring-2 focus-visible:ring-lime-500 ${
+                isDark 
+                  ? 'ring-gray-700 text-white bg-gray-900 hover:bg-gray-800/50' 
+                  : 'ring-gray-300 text-gray-700 bg-gray-100 hover:bg-gray-200'
+              }`}
             >
               <svg 
                 className="flex-shrink-0 h-5 w-5" 
@@ -64,18 +78,20 @@ const FundamentalAnalysisModule = () => {
         <div className="grid grid-cols-2 gap-4 text-center w-full">
           {/* Định Giá (Valuation) */}
           <div>
-            <p className="text-gray-400">Định Giá</p>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Định Giá</p>
             <p className="text-xl font-bold">16.1</p>
           </div>
 
           {/* Tài chính (Financial) */}
           <div>
-            <p className="text-gray-400">Tài chính</p>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Tài chính</p>
             <p className="text-xl font-bold text-lime-500">84</p>
           </div>
 
           {/* Divider with Stock Symbol */}
-          <div className="border-t border-gray-600 col-span-2 relative">
+          <div className={`border-t col-span-2 relative ${
+            isDark ? 'border-gray-600' : 'border-gray-300'
+          }`}>
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-lime-500 px-2 py-0.5 rounded-full text-gray-900 font-semibold">
               ABR
             </div>
@@ -83,13 +99,13 @@ const FundamentalAnalysisModule = () => {
 
           {/* Kinh doanh (Business) */}
           <div>
-            <p className="text-gray-400">Kinh doanh</p>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Kinh doanh</p>
             <p className="text-xl font-bold text-yellow-600">70</p>
           </div>
 
           {/* Hiệu quả (Efficiency) */}
           <div>
-            <p className="text-gray-400">Hiệu quả</p>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Hiệu quả</p>
             <p className="text-xl font-bold text-yellow-600">78</p>
           </div>
         </div>

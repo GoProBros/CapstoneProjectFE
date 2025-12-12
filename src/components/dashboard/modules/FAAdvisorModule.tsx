@@ -1,10 +1,16 @@
 "use client";
 
 import React from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function FAAdvisorModule() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  
   return (
-    <div className="dashboard-module rounded-lg overflow-hidden h-full w-full bg-[#282832] flex flex-col text-sm">
+    <div className={`dashboard-module rounded-lg overflow-hidden h-full w-full flex flex-col text-sm ${
+      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header Section */}
       <div className="flex justify-between">
         <div className="p-4 text-sm -mr-6">

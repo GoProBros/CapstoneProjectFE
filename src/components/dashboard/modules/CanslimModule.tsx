@@ -1,13 +1,18 @@
 "use client";
 
 import React from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function CanslimModule() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const canslimLetters = ['c', 'a', 'n', 's', 'l', 'i', 'm'];
   const activeIndex = 2; // 'n' is active
 
   return (
-    <div className="dashboard-module rounded-lg overflow-hidden h-full w-full text-base bg-[#282832] flex flex-col justify-between">
+    <div className={`dashboard-module rounded-lg overflow-hidden h-full w-full text-base flex flex-col justify-between ${
+      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header Section */}
       <div className="px-6 pt-6">
         <div className="flex justify-between mb-4">

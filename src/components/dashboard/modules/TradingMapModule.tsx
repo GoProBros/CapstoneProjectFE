@@ -2,9 +2,12 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TradingMapModule() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     <>

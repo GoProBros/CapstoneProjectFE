@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface PriceLevel {
   price: number;
@@ -12,6 +13,8 @@ interface PriceLevel {
 
 export default function SessionInfoModule() {
   const [showTotal, setShowTotal] = useState(true); // Toggle between Total/Balance
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   // Sample data for price levels
   const priceLevels: PriceLevel[] = [
@@ -36,7 +39,9 @@ export default function SessionInfoModule() {
   };
 
   return (
-    <div className="h-full w-full text-base bg-[#282832] flex flex-col justify-between rounded-lg overflow-hidden">
+    <div className={`h-full w-full text-base flex flex-col justify-between rounded-lg overflow-hidden ${
+      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header with "3 Bước Giá" badge */}
       <div className="flex-none h-[32px]">
         <div className="w-full relative flex justify-center">
