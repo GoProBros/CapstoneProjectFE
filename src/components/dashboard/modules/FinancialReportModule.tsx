@@ -708,7 +708,7 @@ export default function FinancialReportModule() {
               <div className="relative">
                 <div className="flex gap-2 text-center">
                   {currentPeriods.map((period) => {
-                    const value = currentData[period][metric];
+                    const value = (currentData as any)[period]?.[metric] || 0;
                     const isPercentage = metric.includes('%');
                     const isNegative = value < 0;
                     const isPositive = value > 0;

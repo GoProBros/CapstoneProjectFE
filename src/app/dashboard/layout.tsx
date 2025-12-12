@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { DashboardContext } from "@/contexts/DashboardContext";
+import { SignalRProvider } from "@/contexts/SignalRContext";
 
 interface Module {
   id: string;
@@ -27,25 +29,6 @@ interface PageData {
   modules: Module[];
   layout: LayoutItem[];
 }
-
-interface DashboardContextType {
-  modules: Module[];
-  addModule: (moduleType: string, moduleTitle: string) => void;
-  layout: LayoutItem[];
-  updateLayout: (newLayout: LayoutItem[]) => void;
-  removeModule: (moduleId: string) => void;
-  currentPageId: string;
-}
-
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
-
-export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within DashboardLayout');
-  }
-  return context;
-};
 
 export default function DashboardLayout({
   children,
@@ -379,8 +362,9 @@ export default function DashboardLayout({
 
   return (
     <ThemeProvider>
-      <DashboardContext.Provider value={{ modules, addModule, layout, updateLayout, removeModule, currentPageId }}>
-        <div className="flex h-screen bg-[#E0E3EB] dark:bg-pageBackground transition-colors duration-300">
+      <SignalRProvider apiUrl={process.env.NEXT_PUBLIC_API_URL} autoConnect={true} autoReconnect={true}>
+        <DashboardContext.Provider value={{ modules, addModule, layout, updateLayout, removeModule, currentPageId }}>
+          <div className="flex h-screen bg-[#E0E3EB] dark:bg-pageBackground transition-colors duration-300">
           <Sidebar 
             onAddModule={handleOpenModal} 
             onAddPage={handleOpenAddPageModal} 
@@ -413,8 +397,9 @@ export default function DashboardLayout({
             onClose={handleCloseAddPageModal}
             onSave={handleAddPage}
           />
-        </div>
-      </DashboardContext.Provider>
+          </div>
+        </DashboardContext.Provider>
+      </SignalRProvider>
     </ThemeProvider>
   );
 }

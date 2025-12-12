@@ -267,7 +267,7 @@ export default function Sidebar({
                             Xác nhận xóa
                         </h3>
                         <p className="text-gray-600 dark:text-textSecondary mb-6">
-                            Bạn có chắc chắn muốn xóa page "{pages.find(p => p.id === pageToDelete)?.name}"? Tất cả modules trong page này sẽ bị xóa.
+                            Bạn có chắc chắn muốn xóa page &quot;{pages.find(p => p.id === pageToDelete)?.name}&quot;? Tất cả modules trong page này sẽ bị xóa.
                         </p>
                         <div className="flex gap-3 justify-end">
                             <button

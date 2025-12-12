@@ -1,363 +1,1004 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { useTheme } from '@/contexts/ThemeContext';
-import { sampleStockData } from '@/lib/sampleStockData';
+import { useColumnStore } from '@/stores/columnStore';
+import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
+import { Settings, Save, Download, Wifi, WifiOff } from 'lucide-react';
+import { useSignalR } from '@/contexts/SignalRContext';
+import { MarketSymbolDto } from '@/types/market';
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Component cho nhóm cột có thể mở rộng/thu gọn
-interface ColumnGroupProps {
-  title: string;
-  fields: { field: string; label: string }[];
-  columnVisibility: {[key: string]: boolean};
-  toggleColumnVisibility: (field: string) => void;
-  toggleGroupVisibility: (fields: string[]) => void;
-  isDark: boolean;
-}
-
-function ColumnGroup({ title, fields, columnVisibility, toggleColumnVisibility, toggleGroupVisibility, isDark }: ColumnGroupProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const fieldNames = fields.map(f => f.field);
-  const allVisible = fieldNames.every(field => columnVisibility[field]);
-
-  return (
-    <div className="mb-4">
-      <div
-        className={`flex items-center justify-between px-3 py-2 rounded cursor-pointer transition-colors ${
-          isDark ? 'hover:bg-[#252530]' : 'hover:bg-gray-50'
-        }`}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={allVisible}
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleGroupVisibility(fieldNames);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-4 h-4 rounded border-gray-300"
-          />
-          <div className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            {title}
-          </div>
-        </div>
-        <svg
-          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''} ${
-            isDark ? 'text-gray-400' : 'text-gray-600'
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-      
-      {isExpanded && (
-        <div className="mt-1">
-          {fields.map(({ field, label }) => (
-            <label
-              key={field}
-              className={`flex items-center gap-3 px-3 py-2 pl-10 rounded cursor-pointer transition-colors ${
-                isDark ? 'hover:bg-[#252530]' : 'hover:bg-gray-50'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={columnVisibility[field]}
-                onChange={() => toggleColumnVisibility(field)}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {label}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function StockScreenerModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
   const [gridApi, setGridApi] = useState<any>(null);
+  // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  
+  // Get column config from Zustand store
+  const { columns, setColumnWidth, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
 
-  const [rowData] = useState(sampleStockData);
-
-  // Danh sách tất cả các cột với trạng thái visible (mặc định hiện một số cột)
-  const [columnVisibility, setColumnVisibility] = useState<{[key: string]: boolean}>({
-    // THÔNG TIN TỔNG QUAN - hiện mặc định
-    MA: true,
-    NGANH: true,
-    GIA: true,
-    THAYDOI: true,
-    THANHKHOAN: false,
-    volume: true,
-    
-    // PHÂN TÍCH KỸ THUẬT - hiện một số
-    ThanhKhoanTB50: false,
-    volTB50: false,
-    KL1KLTB: false,
-    bulVol: false,
-    bearVol: false,
-    NGANHAN: true,
-    TRUNGHAN: false,
-    DAIHAN: false,
-    SUCMANH: true,
-    RS: true,
-    rrg: false,
-    signalSMC: false,
-    AiTrend: false,
-    pVWMA20: false,
-    
-    // CHỈ SỐ GIÁ - ẩn mặc định
-    ptop52W: false,
-    plow52W: false,
-    pMA20: false,
-    pMA50: false,
-    pMA100: false,
-    pMA200: false,
-    
-    // PHÂN TÍCH CƠ BẢN - hiện một số
-    PE: false,
-    ROE: false,
-    BLNR: false,
-    diemBinhquan: true,
-    DG_bq: false,
-    skTaichinh: false,
-    mohinhKinhdoanh: false,
-    hieuquaHoatdong: false,
-    diemKythuat: false,
-    BAT: false,
-    AIPredict20d: false,
-    
-    // PHÂN TÍCH KỸ THUẬT NÂNG CAO - ẩn mặc định
-    candles: false,
-    pattern: false,
-    vungcau: false,
-    vungcung: false,
-    hotro: false,
-    khangcu: false,
-    kenhduoi: false,
-    kenhtren: false,
-    cmtTA: false,
-    
-    // CHIẾN LƯỢC - ẩn mặc định
-    CHIENLUOC: false,
-    GIAMUA: false,
-    GIABAN: false,
-    LAILO: false,
-    NGAYMUA: false,
-    NGAYBAN: false,
-    TTDT: false,
-    TTLN: false,
+  // Get SignalR connection và market data
+  const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
+  
+  // Logging state - Log MỌI event SignalR nhận được
+  const [isLogging, setIsLogging] = useState(false);
+  const loggingDataRef = React.useRef<{
+    startTime: number;
+    signalREvents: Array<{
+      timestamp: string;
+      elapsed: number;
+      eventNumber: number;
+      ticker: string;
+      rawData: any; // RAW data từ SignalR event (chỉ fields thay đổi hoặc partial data)
+    }>;
+    symbolStats: Map<string, number>;
+    totalEvents: number;
+  }>({
+    startTime: Date.now(),
+    signalREvents: [],
+    symbolStats: new Map(),
+    totalEvents: 0,
   });
 
-  // Toggle visibility của một cột
-  const toggleColumnVisibility = (field: string) => {
-    setColumnVisibility(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-    
-    if (gridApi) {
-      gridApi.setColumnsVisible([field], !columnVisibility[field]);
+  /**
+   * Subscribe to ALL symbols từ backend API
+   */
+  useEffect(() => {
+    // Chỉ subscribe khi đã connected
+    if (!isConnected) {
+      return;
     }
-  };
 
-  // Toggle visibility của cả nhóm cột
-  const toggleGroupVisibility = (fields: string[]) => {
-    const allVisible = fields.every(field => columnVisibility[field]);
-    const newVisibility = !allVisible;
+    // Fetch ALL symbols từ backend API
+    const fetchAndSubscribeSymbols = async () => {
+      try {
+        // ✅ HARDCODED: Subscribe tới danh sách cố định 10 mã
+        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
+        
+        console.log(`[StockScreener] Using hardcoded symbols: ${symbols.length} symbols`);
+        console.log('[StockScreener] Symbols:', symbols.join(', '));
+        
+        // Subscribe tới danh sách hardcoded
+        await subscribeToSymbols(symbols);
+        console.log(`[StockScreener] ✅ Subscribed to ${symbols.length} hardcoded symbols`);
+      } catch (error) {
+        console.error('[StockScreener] Error subscribing to hardcoded symbols:', error);
+      }
+    };
     
-    const updates = fields.reduce((acc, field) => ({
-      ...acc,
-      [field]: newVisibility
-    }), {});
-    
-    setColumnVisibility(prev => ({
-      ...prev,
-      ...updates
-    }));
-    
-    if (gridApi) {
-      fields.forEach(field => {
-        gridApi.setColumnsVisible([field], newVisibility);
+    fetchAndSubscribeSymbols();
+
+    // Cleanup: Unsubscribe khi component unmount
+    // Note: Không cần unsubscribe explicitly vì Context sẽ tự cleanup
+  }, [isConnected, subscribeToSymbols]);
+
+  /**
+   * Subscribe TRỰC TIẾP vào SignalR service để log RAW events
+   * Điều này cho phép bắt CHÍNH XÁC data backend gửi lên (chỉ fields thay đổi)
+   * KHÔNG ẢNH HƯỞNG đến việc update grid (grid vẫn nhận từ Context bình thường)
+   */
+  useEffect(() => {
+    if (!isLogging) return;
+
+    // Import SignalR service
+    import('@/services/signalRService').then((module) => {
+      const SignalRService = module.default;
+      const service = SignalRService.getInstance();
+
+      // Subscribe to RAW SignalR events - BẮT DATA TRƯỚC KHI NÓ ĐƯỢC MERGE VÀO MAP
+      const unsubscribe = service.onMarketDataReceived((rawData: any) => {
+        const timestamp = new Date().toISOString();
+        const elapsed = (Date.now() - loggingDataRef.current.startTime) / 1000;
+        loggingDataRef.current.totalEvents++;
+
+        // Xác định ticker từ raw data
+        const ticker = rawData.ticker || rawData.Ticker || rawData.symbol || 'UNKNOWN';
+
+        // Track symbol statistics
+        const currentCount = loggingDataRef.current.symbolStats.get(ticker) || 0;
+        loggingDataRef.current.symbolStats.set(ticker, currentCount + 1);
+
+        // ✅ LOG RAW DATA - CHÍNH XÁC NHỮNG GÌ BACKEND GỬI
+        loggingDataRef.current.signalREvents.push({
+          timestamp,
+          elapsed: parseFloat(elapsed.toFixed(1)),
+          eventNumber: loggingDataRef.current.totalEvents,
+          ticker: ticker,
+          rawData: { ...rawData }, // Clone RAW data từ SignalR (chỉ fields thay đổi)
+        });
+
+        // Console log để debug real-time (chỉ log mỗi 10 events để tránh spam)
+        if (loggingDataRef.current.totalEvents % 10 === 0) {
+          console.log(`[StockScreener] 📡 Logged ${loggingDataRef.current.totalEvents} RAW events | Latest:`, {
+            ticker,
+            fieldsCount: Object.keys(rawData).length,
+            fields: Object.keys(rawData).join(', '),
+          });
+        }
       });
+
+      // Cleanup khi unmount hoặc stop logging
+      return () => {
+        unsubscribe();
+      };
+    });
+  }, [isLogging]);
+
+  /**
+   * Update row data khi nhận được market data từ SignalR
+   * SỬ DỤNG AG GRID TRANSACTION API - Chỉ update cells thay đổi, KHÔNG reload toàn bộ grid
+   * Grid LUÔN LUÔN update từ marketData Map (từ Context), BẤT KỂ có logging hay không
+   */
+  useEffect(() => {
+    console.log(`[StockScreener] 🔄 marketData changed: ${marketData.size} symbols`);
+    
+    if (marketData.size === 0 || !gridApi) {
+      console.log('[StockScreener] ⚠️ Skip update: marketData empty or grid not ready');
+      return;
+    }
+
+    // Chuyển đổi marketData Map thành array để update grid
+    const updatedRows = Array.from(marketData.values());
+    
+    // VALIDATE: Loại bỏ rows không có ticker (invalid data)
+    const validRows = updatedRows.filter(row => {
+      if (!row || !row.ticker) {
+        console.warn('[StockScreener] Invalid row data detected (missing ticker):', row);
+        return false;
+      }
+      return true;
+    });
+
+    if (validRows.length === 0) {
+      console.warn('[StockScreener] No valid rows to process');
+      return;
+    }
+
+    console.log(`[StockScreener] 📊 Processing ${validRows.length} valid rows for grid update`);
+
+    // LẤY danh sách ticker hiện có trong grid
+    const existingTickers = new Set<string>();
+    gridApi.forEachNode((node: any) => {
+      if (node.data?.ticker) {
+        existingTickers.add(node.data.ticker);
+      }
+    });
+
+    console.log(`[StockScreener] 📋 Grid currently has ${existingTickers.size} rows`);
+
+    // PHÂN LOẠI: Rows cần ADD (mới) vs UPDATE (đã tồn tại)
+    const rowsToAdd: MarketSymbolDto[] = [];
+    const rowsToUpdate: MarketSymbolDto[] = [];
+
+    validRows.forEach(row => {
+      if (existingTickers.has(row.ticker)) {
+        rowsToUpdate.push(row); // Row đã tồn tại → update
+      } else {
+        rowsToAdd.push(row); // Row mới → add
+      }
+    });
+
+    console.log(`[StockScreener] 🎯 Will ADD ${rowsToAdd.length} rows, UPDATE ${rowsToUpdate.length} rows`);
+
+    // SỬ DỤNG TRANSACTION API - CHỈ UPDATE CELLS THAY ĐỔI
+    if (rowsToAdd.length > 0 || rowsToUpdate.length > 0) {
+      // Apply transaction - AG Grid tự động xác định cells nào thay đổi
+      const transaction: any = {};
+      if (rowsToAdd.length > 0) transaction.add = rowsToAdd;
+      if (rowsToUpdate.length > 0) transaction.update = rowsToUpdate;
+
+      const result = gridApi.applyTransaction(transaction);
+      
+      // Debug log để kiểm tra transaction result
+      if (result) {
+        console.log(`[StockScreener] ✅ Grid transaction applied:`, {
+          added: result.add?.length || 0,
+          updated: result.update?.length || 0,
+          totalRows: gridApi.getDisplayedRowCount(),
+        });
+        
+        // Log sample của data được update
+        if (rowsToUpdate.length > 0) {
+          const sampleRow = rowsToUpdate[0];
+          console.log(`[StockScreener] 📝 Sample updated row:`, {
+            ticker: sampleRow.ticker,
+            lastPrice: sampleRow.lastPrice,
+            bidPrice1: sampleRow.bidPrice1,
+            askPrice1: sampleRow.askPrice1,
+          });
+        }
+        
+        // ✅ FLASH ANIMATION - Chỉ flash cells thực sự thay đổi
+        if (result.update && result.update.length > 0) {
+          // AG Grid tự động flash cells có value thay đổi nhờ enableCellChangeFlash: true
+          // KHÔNG cần force refresh vì sẽ flash tất cả cells (kể cả không đổi)
+          console.log(`[StockScreener] 💫 Transaction applied - AG Grid auto-flashing changed cells only`);
+        }
+      }
+
+      // KHÔNG CẬP NHẬT rowData STATE - để AG Grid tự quản lý data qua Transaction API
+      // Việc update state sẽ gây conflict với Transaction API
+    } else {
+      console.log('[StockScreener] ⏭️ No changes needed - all rows already exist and up-to-date');
+    }
+  }, [marketData, gridApi]);
+
+  // Persist column width changes to Zustand
+  const onColumnResized = useCallback((event: any) => {
+    // Chỉ lưu khi user thực sự resize (không phải từ applyColumnState)
+    if (event.finished && event.column && event.source === 'uiColumnDragged') {
+      const field = event.column.getColId();
+      const width = event.column.getActualWidth();
+      console.log(`[StockScreener] Column resized: ${field} -> ${width}px`);
+      setColumnWidth(field, width);
+    }
+  }, [setColumnWidth]);
+
+  // Apply saved column state to AG Grid - CHỈ 1 LẦN khi grid ready
+  useEffect(() => {
+    if (!gridApi) return;
+    
+    try {
+      // LẤY danh sách tất cả column IDs hiện có trong grid
+      const existingColumnIds = new Set<string>();
+      gridApi.getAllGridColumns()?.forEach((col: any) => {
+        const colId = col.getColId();
+        if (colId) existingColumnIds.add(colId);
+      });
+
+      // CHỈ apply state cho các cột thực sự tồn tại
+      const validColumnState = Object.values(columns)
+        .filter(col => existingColumnIds.has(col.field)) // Filter out non-existent columns
+        .sort((a, b) => a.order - b.order)
+        .map(col => ({
+          colId: col.field,
+          hide: !col.visible,
+          width: col.width,
+        }));
+
+      if (validColumnState.length > 0) {
+        gridApi.applyColumnState({ 
+          state: validColumnState,
+          applyOrder: false // Không apply order để tránh conflict
+        });
+        console.log('[StockScreener] ✅ Applied saved column state');
+      }
+    } catch (error) {
+      console.error('[StockScreener] Error applying column state:', error);
+    }
+  }, [gridApi]); // CHỈ dependency gridApi - KHÔNG có columns!
+
+  // Handle save layout
+  const handleSaveLayout = async () => {
+    setIsSaving(true);
+    try {
+      await saveLayoutToDB();
+      alert('Layout đã được lưu thành công!');
+    } catch (error) {
+      alert('Có lỗi khi lưu layout. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Định nghĩa cột và nhóm cột
+  // Handle load layout
+  const handleLoadLayout = async () => {
+    setIsLoading(true);
+    try {
+      await loadLayoutFromDB();
+      alert('Layout đã được tải thành công!');
+    } catch (error) {
+      alert('Có lỗi khi tải layout. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Start logging
+  const handleStartLogging = () => {
+    // Reset logging data
+    loggingDataRef.current = {
+      startTime: Date.now(),
+      signalREvents: [],
+      symbolStats: new Map(),
+      totalEvents: 0,
+    };
+    
+    setIsLogging(true);
+    console.log('[StockScreener] Started logging ALL SignalR events');
+    console.log(`[StockScreener] Tracking ${marketData.size} symbols`);
+  };
+  
+  // Stop logging and save to file
+  const handleStopLogging = async () => {
+    setIsLogging(false);
+    
+    const endTime = Date.now();
+    const duration = (endTime - loggingDataRef.current.startTime) / 1000;
+    const totalEvents = loggingDataRef.current.totalEvents;
+    
+    console.log('[StockScreener] Stopped logging. Statistics:');
+    console.log(`  Total SignalR events: ${totalEvents}`);
+    console.log(`  Unique symbols: ${loggingDataRef.current.symbolStats.size}`);
+    console.log(`  Duration: ${duration.toFixed(1)}s`);
+    console.log(`  Average rate: ${(totalEvents / duration).toFixed(2)} events/sec`);
+    console.log(`  Top 5 active symbols:`, 
+      Array.from(loggingDataRef.current.symbolStats.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([ticker, count]) => `${ticker}(${count})`)
+    );
+    
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      
+      // SỬ DỤNG JSONL (JSON Lines) - STREAMING FORMAT
+      // Mỗi event = 1 dòng JSON → KHÔNG cần stringify toàn bộ array
+      const EVENTS_PER_FILE = 500; // Tăng lên vì JSONL nhẹ hơn
+      const totalFiles = Math.ceil(totalEvents / EVENTS_PER_FILE);
+      
+      console.log(`[StockScreener] Creating ${totalFiles} JSONL files (${EVENTS_PER_FILE} events each)...`);
+      
+      // 1. TẠO FILE SUMMARY
+      const summaryData = {
+        format: 'JSONL (JSON Lines) - One event per line',
+        testInfo: {
+          startTime: new Date(loggingDataRef.current.startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          duration: duration.toFixed(1) + 's',
+          component: 'StockScreenerModule - Full Raw Data (JSONL)',
+          subscribedSymbols: Array.from(marketData.keys()),
+          totalDataFiles: totalFiles,
+        },
+        summary: {
+          totalSignalREvents: totalEvents,
+          uniqueSymbols: loggingDataRef.current.symbolStats.size,
+          averageRate: (totalEvents / duration).toFixed(2) + ' events/sec',
+          eventsPerFile: EVENTS_PER_FILE,
+          symbolStats: Array.from(loggingDataRef.current.symbolStats.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([ticker, count]) => ({ ticker, count })),
+          topActiveSymbols: Array.from(loggingDataRef.current.symbolStats.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([ticker, count]) => ({ ticker, eventCount: count })),
+        },
+        howToRead: 'Each .jsonl file contains one JSON object per line. Use JSON.parse() for each line.',
+        dataFiles: [] as string[],
+      };
+      
+      // Download summary file
+      const summaryBlob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
+      const summaryUrl = URL.createObjectURL(summaryBlob);
+      const summaryLink = document.createElement('a');
+      summaryLink.href = summaryUrl;
+      summaryLink.download = `signalr-summary-${timestamp}.json`;
+      document.body.appendChild(summaryLink);
+      summaryLink.click();
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      document.body.removeChild(summaryLink);
+      URL.revokeObjectURL(summaryUrl);
+      
+      // 2. TẠO CÁC FILE JSONL - STREAMING WRITE
+      for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
+        const startIdx = fileIdx * EVENTS_PER_FILE;
+        const endIdx = Math.min(startIdx + EVENTS_PER_FILE, totalEvents);
+        
+        // BUILD JSONL STRING - MỖI EVENT = 1 DÒNG
+        let jsonlContent = '';
+        
+        // Header line (metadata)
+        jsonlContent += JSON.stringify({
+          _fileInfo: {
+            fileNumber: fileIdx + 1,
+            totalFiles: totalFiles,
+            eventsInThisFile: endIdx - startIdx,
+            eventRange: `${startIdx + 1} - ${endIdx}`,
+          }
+        }) + '\n';
+        
+        // Data lines - MỖI EVENT TRÊN 1 DÒNG
+        for (let i = startIdx; i < endIdx; i++) {
+          const event = loggingDataRef.current.signalREvents[i];
+          
+          // TẠO 1 DÒNG JSON - KHÔNG stringify cả array
+          const eventLine = JSON.stringify({
+            timestamp: event.timestamp,
+            elapsed: event.elapsed,
+            eventNumber: event.eventNumber,
+            ticker: event.ticker,
+            data: event.rawData, // Full raw data
+          });
+          
+          jsonlContent += eventLine + '\n';
+        }
+        
+        // Create blob và download
+        const blob = new Blob([jsonlContent], { type: 'application/x-ndjson' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = `signalr-data-${timestamp}-part${(fileIdx + 1).toString().padStart(3, '0')}.jsonl`;
+        link.download = filename;
+        
+        summaryData.dataFiles.push(filename);
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Đợi giữa các downloads
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        console.log(`[StockScreener] Downloaded file ${fileIdx + 1}/${totalFiles} (${endIdx - startIdx} events)`);
+      }
+      
+      alert(`✅ Log đã được lưu thành công!\n\n` +
+            `📊 Thống kê:\n` +
+            `• Format: JSONL (JSON Lines - streaming)\n` +
+            `• Tổng: ${totalEvents} SignalR events (FULL raw data)\n` +
+            `• ${loggingDataRef.current.symbolStats.size} mã chứng khoán\n` +
+            `• Thời gian: ${duration.toFixed(1)}s\n` +
+            `• Tốc độ: ${(totalEvents / duration).toFixed(2)} events/giây\n\n` +
+            `💾 Đã tải xuống:\n` +
+            `• 1 file summary.json (tổng quan)\n` +
+            `• ${totalFiles} file .jsonl (${EVENTS_PER_FILE} events/file)\n\n` +
+            `📁 Tổng cộng: ${totalFiles + 1} files\n\n` +
+            `💡 Cách đọc: Mỗi dòng trong .jsonl là 1 JSON object`);
+            
+    } catch (error) {
+      console.error('[StockScreener] Error saving log:', error);
+      alert('❌ Lỗi khi tải log file!\n\n' + 
+            `Lỗi: ${error instanceof Error ? error.message : 'Unknown error'}\n\n` +
+            'Kiểm tra Console (F12) để xem chi tiết.');
+    }
+  };
+  
+  // Add FPT symbol for testing
+  const handleAddFPTSymbol = async () => {
+    if (!isConnected) {
+      alert('SignalR chưa kết nối! Vui lòng đợi kết nối.');
+      return;
+    }
+    
+    // Kiểm tra xem FPT đã được subscribe chưa
+    if (marketData.has('FPT')) {
+      alert('⚠️ Mã FPT đã được subscribe rồi!\n\n' + 
+            `Tổng số mã đang theo dõi: ${marketData.size}\n` +
+            `Trạng thái logging: ${isLogging ? 'Đang ghi log (' + loggingDataRef.current.totalEvents + ' events)' : 'Chưa bật'}\n\n` +
+            'Để test logging:\n' +
+            '1. Click "Start Logging" để bắt đầu ghi log\n' +
+            '2. Đợi một vài giây để nhận dữ liệu real-time\n' +
+            '3. Click "Stop & Save Log" để tải file log');
+      return;
+    }
+    
+    setIsSubscribing(true);
+    try {
+      console.log('[StockScreener] 🧪 Testing: Adding FPT symbol to subscription list');
+      await subscribeToSymbols(['FPT']);
+      console.log('[StockScreener] ✅ Successfully subscribed to FPT');
+      alert('✅ Đã subscribe thành công mã FPT!\n\n' + 
+            'Hướng dẫn test logging:\n\n' +
+            '1️⃣ Click "Start Logging" để bắt đầu ghi log\n' +
+            '2️⃣ Đợi ít nhất 10-30 giây để nhận dữ liệu real-time từ SignalR\n' +
+            '3️⃣ Quan sát số events tăng lên trên nút "Stop & Save Log"\n' +
+            '4️⃣ Click "Stop & Save Log" để tải file JSON với đầy đủ dữ liệu\n\n' +
+            '💡 Tip: Kiểm tra Console (F12) để xem log chi tiết');
+    } catch (error) {
+      console.error('[StockScreener] ❌ Failed to subscribe to FPT:', error);
+      alert('❌ Lỗi khi subscribe mã FPT. Kiểm tra console để xem chi tiết.');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
   const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => [
+    // CỘT CỐ ĐỊNH BÊN TRÁI
     {
-      headerName: 'THÔNG TIN TỔNG QUAN',
+      field: 'ticker',
+      headerName: 'CK',
+      width: 80,
+      pinned: 'left',
+      filter: true,
+      cellClass: 'font-bold text-blue-500 cursor-pointer text-xs',
+    },
+    {
+      field: 'referencePrice',
+      headerName: 'TC',
+      width: 80,
+      pinned: 'left',
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+      cellClass: 'text-yellow-500 font-semibold text-xs',
+    },
+    {
+      field: 'ceilingPrice',
+      headerName: 'Trần',
+      width: 80,
+      pinned: 'left',
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+      cellClass: 'text-purple-500 font-semibold text-xs',
+    },
+    {
+      field: 'floorPrice',
+      headerName: 'Sàn',
+      width: 80,
+      pinned: 'left',
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+      cellClass: 'text-cyan-500 font-semibold text-xs',
+    },
+    
+    // NHÓM BÊN MUA (ORDER BOOK - LEFT SIDE)
+    {
+      headerName: 'Bên mua',
       children: [
         { 
-          field: 'MA',
-          headerName: 'Mã',
-          width: 100,
-          filter: true,
-          cellClass: 'font-bold underline text-blue-500 cursor-pointer',
-          hide: !columnVisibility.MA
+          field: 'bidPrice3',
+          headerName: 'Giá 3', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-red-600 text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 text-xs';
+            if (diff < 0) return 'text-red-500 text-xs';
+            return 'text-yellow-500 text-xs';
+          },
         },
         { 
-          field: 'NGANH', 
-          headerName: 'Ngành (ICB lv3)', 
-          width: 150, 
-          filter: true,
-          hide: !columnVisibility.NGANH
-        },
-        { 
-          field: 'GIA', 
-          headerName: 'Giá', 
+          field: 'bidVol3',
+          headerName: 'KL 3', 
           width: 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.GIA
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.bidPrice3) return 'text-red-600 text-xs';
+            const diff = params.data.bidPrice3 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 text-xs';
+            if (diff < 0) return 'text-red-500 text-xs';
+            return 'text-yellow-500 text-xs';
+          },
         },
         { 
-          field: 'THAYDOI',
-          headerName: '+/-', 
+          field: 'bidPrice2',
+          headerName: 'Giá 2', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'bidVol2',
+          headerName: 'KL 2', 
           width: 100, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          cellClass: (params) => params.value > 0 ? 'text-green-500' : params.value < 0 ? 'text-red-500' : 'text-yellow-500',
-          hide: !columnVisibility.THAYDOI
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.bidPrice2) return 'text-red-600 font-semibold text-xs';
+            const diff = params.data.bidPrice2 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
         },
         { 
-          field: 'THANHKHOAN', 
-          headerName: 'GTGD (vnđ)',
-          width: 120, 
-          filter: 'agNumberColumnFilter', 
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.THANHKHOAN
+          field: 'bidPrice1',
+          headerName: 'Giá 1', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-bold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-bold text-xs';
+            if (diff < 0) return 'text-red-500 font-bold text-xs';
+            return 'text-yellow-500 font-bold text-xs';
+          },
         },
         { 
-          field: 'volume', 
-          headerName: 'KLGD (cp)',
-          width: 120, 
-          filter: 'agNumberColumnFilter', 
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.volume
+          field: 'bidVol1',
+          headerName: 'KL 1', 
+          width: 100, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.bidPrice1) return 'text-red-600 font-bold text-xs';
+            const diff = params.data.bidPrice1 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-bold text-xs';
+            if (diff < 0) return 'text-red-500 font-bold text-xs';
+            return 'text-yellow-500 font-bold text-xs';
+          },
         },
       ]
     },
+    
+    // NHÓM KHỚP LỆNH (CENTER - MATCHED ORDERS)
+    {
+      headerName: 'Khớp lệnh',
+      children: [
+        { 
+          field: 'lastPrice',
+          headerName: 'Giá', 
+          width: 95, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'font-bold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-bold text-xs';
+            if (diff < 0) return 'text-red-500 font-bold text-xs';
+            return 'text-yellow-500 font-bold text-xs';
+          },
+        },
+        { 
+          field: 'lastVol',
+          headerName: 'KL', 
+          width: 110, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.lastPrice) return 'font-semibold text-xs';
+            const diff = params.data.lastPrice - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'change',
+          headerName: '+/-', 
+          width: 80, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => {
+            if (!params.value) return '0';
+            return params.value > 0 ? `+${params.value.toFixed(2)}` : params.value.toFixed(2);
+          },
+          cellClass: (params) => {
+            if (!params.value) return 'text-xs';
+            return params.value > 0 ? 'text-green-500 font-semibold text-xs' : params.value < 0 ? 'text-red-500 font-semibold text-xs' : 'text-xs';
+          },
+        },
+        { 
+          field: 'ratioChange',
+          headerName: '+/- (%)', 
+          width: 90, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => {
+            if (!params.value) return '0%';
+            const pct = (params.value * 100).toFixed(2);
+            return params.value > 0 ? `+${pct}%` : `${pct}%`;
+          },
+          cellClass: (params) => {
+            if (!params.value) return 'text-xs';
+            return params.value > 0 ? 'text-green-500 font-bold text-xs' : params.value < 0 ? 'text-red-500 font-bold text-xs' : 'text-xs';
+          },
+        },
+      ]
+    },
+    
+    // NHÓM BÊN BÁN (ORDER BOOK - RIGHT SIDE)
+    {
+      headerName: 'Bên bán',
+      children: [
+        { 
+          field: 'askPrice1',
+          headerName: 'Giá 1', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-bold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-bold text-xs';
+            if (diff < 0) return 'text-red-500 font-bold text-xs';
+            return 'text-yellow-500 font-bold text-xs';
+          },
+        },
+        { 
+          field: 'askVol1',
+          headerName: 'KL 1', 
+          width: 100, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.askPrice1) return 'text-green-600 font-bold text-xs';
+            const diff = params.data.askPrice1 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-bold text-xs';
+            if (diff < 0) return 'text-red-500 font-bold text-xs';
+            return 'text-yellow-500 font-bold text-xs';
+          },
+        },
+        { 
+          field: 'askPrice2',
+          headerName: 'Giá 2', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'askVol2',
+          headerName: 'KL 2', 
+          width: 100, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.askPrice2) return 'text-green-600 font-semibold text-xs';
+            const diff = params.data.askPrice2 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'askPrice3',
+          headerName: 'Giá 3', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-green-600 text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 text-xs';
+            if (diff < 0) return 'text-red-500 text-xs';
+            return 'text-yellow-500 text-xs';
+          },
+        },
+        { 
+          field: 'askVol3',
+          headerName: 'KL 3', 
+          width: 100, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.data?.askPrice3) return 'text-green-600 text-xs';
+            const diff = params.data.askPrice3 - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 text-xs';
+            if (diff < 0) return 'text-red-500 text-xs';
+            return 'text-yellow-500 text-xs';
+          },
+        },
+      ]
+    },
+    
+    // NHÓM THỐNG KÊ PHIÊN
+    {
+      headerName: 'Tổng',
+      children: [
+        { 
+          field: 'totalVol',
+          headerName: 'Tổng KL', 
+          width: 120, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: 'font-semibold text-xs',
+        },
+        { 
+          field: 'highest',
+          headerName: 'Cao', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'lowest',
+          headerName: 'Thấp', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: (params) => {
+            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
+            const diff = params.value - params.data.referencePrice;
+            if (diff > 0) return 'text-green-500 font-semibold text-xs';
+            if (diff < 0) return 'text-red-500 font-semibold text-xs';
+            return 'text-yellow-500 font-semibold text-xs';
+          },
+        },
+        { 
+          field: 'avgPrice',
+          headerName: 'TB', 
+          width: 85, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          cellClass: 'text-xs',
+        },
+      ]
+    },
+    
+    // CÁC CỘT BỔ SUNG (Ẩn mặc định - có thể bật trong column manager)
+    {
+      headerName: 'Thông tin khác',
+      children: [
+        { 
+          field: 'totalVal',
+          headerName: 'Tổng GT', 
+          width: 120, 
+          filter: 'agNumberColumnFilter',
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          hide: true,
+          cellClass: 'text-xs',
+        },
+        { 
+          field: 'side',
+          headerName: 'Chiều', 
+          width: 70, 
+          filter: true,
+          cellClass: (params) => {
+            if (params.value === 'B') return 'text-green-500 font-bold text-xs';
+            if (params.value === 'S') return 'text-red-500 font-bold text-xs';
+            return 'text-xs';
+          },
+          hide: true,
+        },
+        { 
+          field: 'tradingSession',
+          headerName: 'Phiên', 
+          width: 80, 
+          filter: true,
+          hide: true,
+          cellClass: 'text-xs',
+        },
+        { 
+          field: 'tradingStatus',
+          headerName: 'Trạng thái', 
+          width: 100, 
+          filter: true,
+          cellClass: (params) => {
+            if (params.value === 'Active') return 'text-green-500 text-xs';
+            if (params.value === 'Halted') return 'text-orange-500 text-xs';
+            if (params.value === 'Suspended') return 'text-red-500 text-xs';
+            return 'text-xs';
+          },
+          hide: true,
+        },
+      ]
+    },
+    
+    // CÁC NHÓM CỘT PHÂN TÍCH (Các cột trùng lặp đã được xóa)
     {
       headerName: 'PHÂN TÍCH KỸ THUẬT',
       children: [
         { 
           field: 'ThanhKhoanTB50', 
           headerName: 'GTTB (50 phiên)',
-          width: 140, 
+          width: columns.ThanhKhoanTB50?.width || 140, 
           filter: 'agNumberColumnFilter', 
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.ThanhKhoanTB50
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'volTB50', 
           headerName: 'KLTB (50 phiên)',
-          width: 140, 
+          width: columns.volTB50?.width || 140, 
           filter: 'agNumberColumnFilter', 
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.volTB50
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'KL1KLTB',
           headerName: '%KLTB', 
-          width: 100, 
+          width: columns.KL1KLTB?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
-          hide: !columnVisibility.KL1KLTB
+          cellClass: 'text-xs',
         },
         { 
           field: 'bulVol',
           headerName: 'Bull Vol (5p)', 
-          width: 130, 
+          width: columns.bulVol?.width || 130, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.bulVol
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'bearVol',
           headerName: 'Bear Vol (5p)', 
-          width: 130, 
+          width: columns.bearVol?.width || 130, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toLocaleString(),
-          hide: !columnVisibility.bearVol
+          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'NGANHAN',
           headerName: 'Ngắn hạn', 
-          width: 110, 
+          width: columns.NGANHAN?.width || 110, 
           filter: true,
-          hide: !columnVisibility.NGANHAN
+          cellClass: 'text-xs',
         },
         { 
           field: 'TRUNGHAN',
           headerName: 'Trung hạn', 
-          width: 110, 
+          width: columns.TRUNGHAN?.width || 110, 
           filter: true,
-          hide: !columnVisibility.TRUNGHAN
+          cellClass: 'text-xs',
         },
         { 
           field: 'DAIHAN',
           headerName: 'Dài hạn', 
-          width: 110, 
+          width: columns.DAIHAN?.width || 110, 
           filter: true,
-          hide: !columnVisibility.DAIHAN
+          cellClass: 'text-xs',
         },
         { 
           field: 'SUCMANH',
           headerName: 'Sức mạnh', 
-          width: 120, 
+          width: columns.SUCMANH?.width || 120, 
           filter: true,
-          hide: !columnVisibility.SUCMANH
+          cellClass: 'text-xs',
         },
         { 
           field: 'RS',
           headerName: 'RS', 
-          width: 80, 
+          width: columns.RS?.width || 80, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.RS
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'rrg',
           headerName: 'RRG', 
-          width: 100, 
+          width: columns.rrg?.width || 100, 
           filter: true,
-          hide: !columnVisibility.rrg
+          cellClass: 'text-xs',
         },
         { 
           field: 'signalSMC',
           headerName: 'Signal SMC', 
-          width: 120, 
+          width: columns.signalSMC?.width || 120, 
           filter: true,
-          hide: !columnVisibility.signalSMC
+          cellClass: 'text-xs',
         },
         { 
           field: 'AiTrend',
           headerName: 'AI Trend', 
-          width: 110, 
+          width: columns.AiTrend?.width || 110, 
           filter: true,
-          hide: !columnVisibility.AiTrend
+          cellClass: 'text-xs',
         },
         { 
           field: 'pVWMA20',
           headerName: '%VWMA20', 
-          width: 110, 
+          width: columns.pVWMA20?.width || 110, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.pVWMA20
+          cellClass: 'text-xs',
         },
       ]
     },
@@ -367,51 +1008,50 @@ export default function StockScreenerModule() {
         { 
           field: 'ptop52W',
           headerName: '%Top 52W', 
-          width: 110, 
+          width: columns.ptop52W?.width || 110, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          cellClass: (params) => params.value > 0 ? 'text-green-500' : 'text-red-500',
-          hide: !columnVisibility.ptop52W
+          cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : 'text-red-500 text-xs',
         },
         { 
           field: 'plow52W',
           headerName: '%Low 52W', 
-          width: 110, 
+          width: columns.plow52W?.width || 110, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.plow52W
+          cellClass: 'text-xs',
         },
         { 
           field: 'pMA20',
           headerName: '%MA20', 
-          width: 100, 
+          width: columns.pMA20?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.pMA20
+          cellClass: 'text-xs',
         },
         { 
           field: 'pMA50',
           headerName: '%MA50', 
-          width: 100, 
+          width: columns.pMA50?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.pMA50
+          cellClass: 'text-xs',
         },
         { 
           field: 'pMA100',
           headerName: '%MA100', 
-          width: 100, 
+          width: columns.pMA100?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.pMA100
+          cellClass: 'text-xs',
         },
         { 
           field: 'pMA200',
           headerName: '%MA200', 
-          width: 100, 
+          width: columns.pMA200?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
-          hide: !columnVisibility.pMA200
+          cellClass: 'text-xs',
         },
       ]
     },
@@ -421,80 +1061,90 @@ export default function StockScreenerModule() {
         { 
           field: 'PE',
           headerName: 'P/E', 
-          width: 80, 
+          width: columns.PE?.width || 80, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.PE
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'ROE',
           headerName: 'ROE', 
-          width: 80, 
+          width: columns.ROE?.width || 80, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
-          hide: !columnVisibility.ROE
+          cellClass: 'text-xs',
         },
         { 
           field: 'BLNR',
           headerName: 'BLNR', 
-          width: 80, 
+          width: columns.BLNR?.width || 80, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.BLNR
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'diemBinhquan',
           headerName: 'Action Score', 
-          width: 120, 
+          width: columns.diemBinhquan?.width || 120, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.diemBinhquan
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'DG_bq',
           headerName: 'Định giá', 
-          width: 100, 
+          width: columns.DG_bq?.width || 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.DG_bq
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'skTaichinh',
           headerName: 'Sức khỏe TC', 
-          width: 120, 
+          width: columns.skTaichinh?.width || 120, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.skTaichinh
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'mohinhKinhdoanh',
           headerName: 'Mô hình KD', 
-          width: 120, 
+          width: columns.mohinhKinhdoanh?.width || 120, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.mohinhKinhdoanh
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'hieuquaHoatdong',
           headerName: 'Hiệu quả HĐ', 
-          width: 120, 
+          width: columns.hieuquaHoatdong?.width || 120, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.hieuquaHoatdong
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'diemKythuat',
           headerName: 'Điểm KT', 
-          width: 100, 
+          width: columns.diemKythuat?.width || 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.diemKythuat
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'BAT',
           headerName: 'BAT', 
-          width: 80, 
+          width: columns.BAT?.width || 80, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.BAT
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'AIPredict20d',
           headerName: 'AI Predict 20d', 
-          width: 130, 
+          width: columns.AIPredict20d?.width || 130, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.AIPredict20d
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
       ]
     },
@@ -504,67 +1154,67 @@ export default function StockScreenerModule() {
         { 
           field: 'candles',
           headerName: 'Candles', 
-          width: 150, 
+          width: columns.candles?.width || 150, 
           filter: true,
-          hide: !columnVisibility.candles
+          cellClass: 'text-xs',
         },
         { 
           field: 'pattern',
           headerName: 'Pattern', 
-          width: 150, 
+          width: columns.pattern?.width || 150, 
           filter: true,
-          hide: !columnVisibility.pattern
+          cellClass: 'text-xs',
         },
         { 
           field: 'vungcau',
           headerName: 'Vùng cầu', 
-          width: 120, 
+          width: columns.vungcau?.width || 120, 
           filter: true,
-          hide: !columnVisibility.vungcau
+          cellClass: 'text-xs',
         },
         { 
           field: 'vungcung',
           headerName: 'Vùng cung', 
-          width: 120, 
+          width: columns.vungcung?.width || 120, 
           filter: true,
-          hide: !columnVisibility.vungcung
+          cellClass: 'text-xs',
         },
         { 
           field: 'hotro',
           headerName: 'Hỗ trợ', 
-          width: 100, 
+          width: columns.hotro?.width || 100, 
           filter: true,
-          hide: !columnVisibility.hotro
+          cellClass: 'text-xs',
         },
         { 
           field: 'khangcu',
           headerName: 'Kháng cự', 
-          width: 100, 
+          width: columns.khangcu?.width || 100, 
           filter: true,
-          hide: !columnVisibility.khangcu
+          cellClass: 'text-xs',
         },
         { 
           field: 'kenhduoi',
           headerName: 'Kênh dưới', 
-          width: 120, 
+          width: columns.kenhduoi?.width || 120, 
           filter: true,
-          hide: !columnVisibility.kenhduoi
+          cellClass: 'text-xs',
         },
         { 
           field: 'kenhtren',
           headerName: 'Kênh trên', 
-          width: 120, 
+          width: columns.kenhtren?.width || 120, 
           filter: true,
-          hide: !columnVisibility.kenhtren
+          cellClass: 'text-xs',
         },
         { 
           field: 'cmtTA',
           headerName: 'Comment TA', 
-          width: 250, 
+          width: columns.cmtTA?.width || 250, 
           filter: true,
           wrapText: true,
           autoHeight: true,
-          hide: !columnVisibility.cmtTA
+          cellClass: 'text-xs',
         },
       ]
     },
@@ -574,64 +1224,66 @@ export default function StockScreenerModule() {
         { 
           field: 'CHIENLUOC',
           headerName: 'Chiến lược', 
-          width: 150, 
+          width: columns.CHIENLUOC?.width || 150, 
           filter: true,
-          hide: !columnVisibility.CHIENLUOC
+          cellClass: 'text-xs',
         },
         { 
           field: 'GIAMUA',
           headerName: 'Giá mua', 
-          width: 100, 
+          width: columns.GIAMUA?.width || 100, 
           filter: true,
-          hide: !columnVisibility.GIAMUA
+          cellClass: 'text-xs',
         },
         { 
           field: 'GIABAN',
           headerName: 'Giá bán', 
-          width: 100, 
+          width: columns.GIABAN?.width || 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.GIABAN
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'LAILO',
           headerName: 'Lãi/Lỗ', 
-          width: 100, 
+          width: columns.LAILO?.width || 100, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
-          cellClass: (params) => params.value > 0 ? 'text-green-500' : params.value < 0 ? 'text-red-500' : 'text-gray-500',
-          hide: !columnVisibility.LAILO
+          cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : params.value < 0 ? 'text-red-500 text-xs' : 'text-gray-500 text-xs',
         },
         { 
           field: 'NGAYMUA',
           headerName: 'Ngày mua', 
-          width: 120, 
+          width: columns.NGAYMUA?.width || 120, 
           filter: true,
-          hide: !columnVisibility.NGAYMUA
+          cellClass: 'text-xs',
         },
         { 
           field: 'NGAYBAN',
           headerName: 'Ngày bán', 
-          width: 120, 
+          width: columns.NGAYBAN?.width || 120, 
           filter: true,
-          hide: !columnVisibility.NGAYBAN
+          cellClass: 'text-xs',
         },
         { 
           field: 'TTDT',
           headerName: 'TTDT', 
-          width: 100, 
+          width: columns.TTDT?.width || 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.TTDT
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
         { 
           field: 'TTLN',
           headerName: 'TTLN', 
-          width: 100, 
+          width: columns.TTLN?.width || 100, 
           filter: 'agNumberColumnFilter',
-          hide: !columnVisibility.TTLN
+          valueFormatter: (params) => params.value || '0',
+          cellClass: 'text-xs',
         },
       ]
     }
-  ], [columnVisibility]);
+  ], [columns]);
 
   // Cấu hình mặc định cho tất cả các cột
   const defaultColDef = useMemo(() => ({
@@ -639,6 +1291,10 @@ export default function StockScreenerModule() {
     resizable: true,
     filter: true,
     floatingFilter: true,
+    // QUAN TRỌNG: Enable cell flash animation cho real-time updates
+    enableCellChangeFlash: true,
+    // Tắt auto-size để tránh grid resize liên tục
+    suppressSizeToFit: true,
   }), []);
 
   return (
@@ -646,184 +1302,172 @@ export default function StockScreenerModule() {
       isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
     }`}>
       <div className='flex justify-between items-center mb-4'>
-        <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Stock Screener
-        </h2>
-        
-        {/* Button mở panel quản lý cột */}
-        <button
-          onClick={() => setIsColumnPanelOpen(!isColumnPanelOpen)}
-          className={`px-4 py-2 rounded-lg border transition-colors ${
-            isDark 
-              ? 'bg-[#1e1e26] border-gray-700 text-white hover:bg-[#252530]' 
-              : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            Quản lý cột
-          </span>
-        </button>
-      </div>
-
-      {/* Custom Column Panel - thay thế AG-Grid Enterprise sidebar */}
-      {isColumnPanelOpen && (
-        <div className={`absolute right-4 top-20 w-80 max-h-[600px] overflow-y-auto rounded-lg shadow-lg border z-50 ${
-          isDark ? 'bg-[#1e1e26] border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-          <div className={`sticky top-0 p-4 border-b ${
-            isDark ? 'bg-[#282832] border-gray-700' : 'bg-gray-50 border-gray-200'
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Stock Screener
+            </h2>
+            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              {marketData.size > 0 ? `${marketData.size} stocks receiving real-time data` : 'Waiting for real-time data...'}
+              {marketData.size > 0 && ` • Last update: ${new Date().toLocaleTimeString()}`}
+            </p>
+          </div>
+          
+          {/* Connection Status Indicator */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+            isConnected 
+              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+              : 'bg-red-500/10 text-red-500 border border-red-500/20'
           }`}>
-            <div className="flex items-center justify-between">
-              <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Quản lý cột hiển thị
-              </h3>
-              <button
-                onClick={() => setIsColumnPanelOpen(false)}
-                className={`p-1 rounded hover:bg-gray-700 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            {isConnected ? (
+              <>
+                <Wifi size={14} className="animate-pulse" />
+                <span>Connected</span>
+              </>
+            ) : (
+              <>
+                <WifiOff size={14} />
+                <span>{connectionState}</span>
+              </>
+            )}
+          </div>
+          
+          {/* Real-time Data Stats */}
+          {isConnected && marketData.size > 0 && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
+              isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
+            }`}>
+              <span className="font-mono font-semibold">{marketData.size}</span>
+              <span>stocks streaming</span>
             </div>
-          </div>
-
-          <div className="p-2">
-            {/* Nhóm: THÔNG TIN TỔNG QUAN */}
-            <ColumnGroup
-              title="THÔNG TIN TỔNG QUAN"
-              fields={[
-                { field: 'MA', label: 'Mã' },
-                { field: 'NGANH', label: 'Ngành (ICB lv3)' },
-                { field: 'GIA', label: 'Giá' },
-                { field: 'THAYDOI', label: '+/-' },
-                { field: 'THANHKHOAN', label: 'GTGD (vnđ)' },
-                { field: 'volume', label: 'KLGD (cp)' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-
-            {/* Nhóm: PHÂN TÍCH KỸ THUẬT */}
-            <ColumnGroup
-              title="PHÂN TÍCH KỸ THUẬT"
-              fields={[
-                { field: 'ThanhKhoanTB50', label: 'GTTB (50 phiên)' },
-                { field: 'volTB50', label: 'KLTB (50 phiên)' },
-                { field: 'KL1KLTB', label: '%KLTB' },
-                { field: 'bulVol', label: 'Bull Vol (5p)' },
-                { field: 'bearVol', label: 'Bear Vol (5p)' },
-                { field: 'NGANHAN', label: 'Ngắn hạn' },
-                { field: 'TRUNGHAN', label: 'Trung hạn' },
-                { field: 'DAIHAN', label: 'Dài hạn' },
-                { field: 'SUCMANH', label: 'Sức mạnh' },
-                { field: 'RS', label: 'RS' },
-                { field: 'rrg', label: 'RRG' },
-                { field: 'signalSMC', label: 'Signal SMC' },
-                { field: 'AiTrend', label: 'AI Trend' },
-                { field: 'pVWMA20', label: '%VWMA20' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-
-            {/* Nhóm: CHỈ SỐ GIÁ */}
-            <ColumnGroup
-              title="CHỈ SỐ GIÁ"
-              fields={[
-                { field: 'ptop52W', label: '%Top 52W' },
-                { field: 'plow52W', label: '%Low 52W' },
-                { field: 'pMA20', label: '%MA20' },
-                { field: 'pMA50', label: '%MA50' },
-                { field: 'pMA100', label: '%MA100' },
-                { field: 'pMA200', label: '%MA200' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-
-            {/* Nhóm: PHÂN TÍCH CƠ BẢN */}
-            <ColumnGroup
-              title="PHÂN TÍCH CƠ BẢN"
-              fields={[
-                { field: 'PE', label: 'P/E' },
-                { field: 'ROE', label: 'ROE' },
-                { field: 'BLNR', label: 'BLNR' },
-                { field: 'diemBinhquan', label: 'Action Score' },
-                { field: 'DG_bq', label: 'Định giá' },
-                { field: 'skTaichinh', label: 'Sức khỏe TC' },
-                { field: 'mohinhKinhdoanh', label: 'Mô hình KD' },
-                { field: 'hieuquaHoatdong', label: 'Hiệu quả HĐ' },
-                { field: 'diemKythuat', label: 'Điểm KT' },
-                { field: 'BAT', label: 'BAT' },
-                { field: 'AIPredict20d', label: 'AI Predict 20d' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-
-            {/* Nhóm: PHÂN TÍCH KỸ THUẬT NÂNG CAO */}
-            <ColumnGroup
-              title="PHÂN TÍCH KỸ THUẬT NÂNG CAO"
-              fields={[
-                { field: 'candles', label: 'Candles' },
-                { field: 'pattern', label: 'Pattern' },
-                { field: 'vungcau', label: 'Vùng cầu' },
-                { field: 'vungcung', label: 'Vùng cung' },
-                { field: 'hotro', label: 'Hỗ trợ' },
-                { field: 'khangcu', label: 'Kháng cự' },
-                { field: 'kenhduoi', label: 'Kênh dưới' },
-                { field: 'kenhtren', label: 'Kênh trên' },
-                { field: 'cmtTA', label: 'Comment TA' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-
-            {/* Nhóm: CHIẾN LƯỢC */}
-            <ColumnGroup
-              title="CHIẾN LƯỢC"
-              fields={[
-                { field: 'CHIENLUOC', label: 'Chiến lược' },
-                { field: 'GIAMUA', label: 'Giá mua' },
-                { field: 'GIABAN', label: 'Giá bán' },
-                { field: 'LAILO', label: 'Lãi/Lỗ' },
-                { field: 'NGAYMUA', label: 'Ngày mua' },
-                { field: 'NGAYBAN', label: 'Ngày bán' },
-                { field: 'TTDT', label: 'TTDT' },
-                { field: 'TTLN', label: 'TTLN' },
-              ]}
-              columnVisibility={columnVisibility}
-              toggleColumnVisibility={toggleColumnVisibility}
-              toggleGroupVisibility={toggleGroupVisibility}
-              isDark={isDark}
-            />
-          </div>
+          )}
         </div>
-      )}
+        
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* Test Subscribe Button - Add FPT Symbol */}
+          <button
+            onClick={handleAddFPTSymbol}
+            disabled={!isConnected || isSubscribing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isDark 
+                ? 'bg-orange-600 hover:bg-orange-700 text-white disabled:bg-orange-800 disabled:opacity-50' 
+                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:bg-orange-300'
+            }`}
+            title="Test subscribe: Thêm mã FPT vào danh sách theo dõi"
+          >
+            <span className="text-lg">🧪</span>
+            {isSubscribing ? 'Đang subscribe...' : 'Test FPT'}
+          </button>
+          
+          {/* Data Logging Button */}
+          {!isLogging ? (
+            <button
+              onClick={handleStartLogging}
+              disabled={!isConnected || marketData.size === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                isDark 
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-800 disabled:opacity-50' 
+                  : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-purple-300'
+              }`}
+              title="Start logging real-time data from Redis"
+            >
+              <Save size={18} />
+              Start Logging
+            </button>
+          ) : (
+            <button
+              onClick={handleStopLogging}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors animate-pulse ${
+                isDark 
+                  ? 'bg-red-600 hover:bg-red-700 text-white' 
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+              title={`Stop logging (${loggingDataRef.current.totalEvents} SignalR events recorded)`}
+            >
+              <Download size={18} />
+              Stop & Save Log ({loggingDataRef.current.totalEvents})
+            </button>
+          )}
+          
+          {/* Save Layout Button */}
+          <button
+            onClick={handleSaveLayout}
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isDark 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
+                : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+            }`}
+          >
+            <Save size={18} />
+            {isSaving ? 'Đang lưu...' : 'Lưu Layout'}
+          </button>
+          
+          {/* Load Layout Button */}
+          <button
+            onClick={handleLoadLayout}
+            disabled={isLoading}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isDark 
+                ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
+                : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
+            }`}
+          >
+            <Download size={18} />
+            {isLoading ? 'Đang tải...' : 'Load Layout'}
+          </button>
+          
+          {/* Column Manager Button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isDark 
+                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+            }`}
+          >
+            <Settings size={18} />
+            Quản lý cột
+          </button>
+        </div>
+      </div>
+      
+      {/* Column Sidebar */}
+      <ColumnSidebar />
       
       <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
         <AgGridReact
-          rowData={rowData}
+          rowData={undefined}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           rowSelection="multiple"
           animateRows={true}
           theme="legacy"
-          onGridReady={(params) => setGridApi(params.api)}
+          onGridReady={(params) => {
+            setGridApi(params.api);
+            console.log('[StockScreener] ✅ AG Grid ready - using Transaction API mode (no rowData prop)');
+          }}
+          onColumnResized={onColumnResized}
+          // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
+          getRowId={(params) => {
+            // Validate ticker exists
+            if (!params.data || !params.data.ticker) {
+              console.error('[StockScreener] ❌ Invalid row data - missing ticker:', params.data);
+              return 'invalid-' + Math.random(); // Fallback ID
+            }
+            return params.data.ticker;
+          }}
+          // Optimize performance
+          suppressAnimationFrame={false}
+          suppressColumnVirtualisation={false}
+          // Debug callbacks
+          onRowDataUpdated={(event) => {
+            console.log(`[StockScreener] 📊 Grid updated: ${event.api.getDisplayedRowCount()} rows displayed`);
+          }}
+          onCellValueChanged={(event) => {
+            console.log(`[StockScreener] 🔥 Cell changed: ${event.data.ticker} - ${event.colDef.field} = ${event.newValue}`);
+          }}
         />
       </div>
     </div>
