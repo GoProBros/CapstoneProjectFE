@@ -2,8 +2,11 @@
 
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function FinancialReportModule() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState('annual');
   const [reportType, setReportType] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [yearRangeIndex, setYearRangeIndex] = useState(0);
@@ -521,7 +524,9 @@ export default function FinancialReportModule() {
   };
 
   return (
-    <div className="w-full h-full bg-moduleBackground rounded-2xl border-2 border-gray-700/40 flex flex-col overflow-hidden text-sm">
+    <div className={`dashboard-module w-full h-full rounded-2xl border-2 flex flex-col overflow-hidden text-sm ${
+      isDark ? 'bg-moduleBackground border-gray-700/40 text-white' : 'bg-white border-gray-200 text-gray-900'
+    }`}>
       {/* Header with BCTC logo and tabs */}
       <div className="flex justify-between flex-none">
         {/* Left: BCTC Logo */}
@@ -547,7 +552,7 @@ export default function FinancialReportModule() {
                 className={`rounded-md px-3 py-1 border border-transparent ${
                   reportType === 'income' 
                     ? 'bg-accentGreen text-black' 
-                    : 'border-gray-700 text-gray-400'
+                    : isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-600'
                 }`}
               >
                 Kết quả kinh doanh
@@ -557,7 +562,7 @@ export default function FinancialReportModule() {
                 className={`rounded-md px-3 py-1 border border-transparent ${
                   reportType === 'balance' 
                     ? 'bg-accentGreen text-black' 
-                    : 'border-gray-700 text-gray-400'
+                    : isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-600'
                 }`}
               >
                 Bảng cân đối kế toán
@@ -567,7 +572,7 @@ export default function FinancialReportModule() {
                 className={`rounded-md px-3 py-1 border border-transparent ${
                   reportType === 'cashflow' 
                     ? 'bg-accentGreen text-black' 
-                    : 'border-gray-700 text-gray-400'
+                    : isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-600'
                 }`}
               >
                 Bảng dòng tiền
@@ -625,7 +630,7 @@ export default function FinancialReportModule() {
                 className={`px-3 py-1 rounded-full ${
                   activeTab === 'annual'
                     ? 'bg-accentGreen text-black'
-                    : 'bg-transparent text-gray-400'
+                    : isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600'
                 }`}
               >
                 Hàng Năm
@@ -635,7 +640,7 @@ export default function FinancialReportModule() {
                 className={`px-3 py-1 rounded-full ${
                   activeTab === 'quarterly'
                     ? 'bg-accentGreen text-black'
-                    : 'bg-transparent text-gray-400'
+                    : isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600'
                 }`}
               >
                 Hàng Quý
@@ -653,11 +658,11 @@ export default function FinancialReportModule() {
                       ? yearRangeIndex === yearRanges.length - 1
                       : quarterRangeIndex === quarterRanges.length - 1
                   }
-                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
+                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset inline-flex items-center ${
                     (activeTab === 'annual' && yearRangeIndex === yearRanges.length - 1) ||
                     (activeTab === 'quarterly' && quarterRangeIndex === quarterRanges.length - 1)
-                      ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
-                      : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
+                      ? isDark ? 'text-gray-500 bg-gray-800 ring-gray-700 cursor-not-allowed opacity-50' : 'text-gray-400 bg-gray-100 ring-gray-300 cursor-not-allowed opacity-50'
+                      : isDark ? 'text-gray-200 bg-gray-800 ring-gray-700 hover:bg-gray-700 cursor-pointer' : 'text-gray-700 bg-white ring-gray-300 hover:bg-gray-50 cursor-pointer'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -667,7 +672,9 @@ export default function FinancialReportModule() {
               </div>
               <div className="flex gap-2 text-center">
                 {currentPeriods.map((period) => (
-                  <div key={period} className="font-semibold w-14 text-white">
+                  <div key={period} className={`font-semibold w-14 ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {period}
                   </div>
                 ))}
@@ -681,11 +688,11 @@ export default function FinancialReportModule() {
                       ? yearRangeIndex === 0
                       : quarterRangeIndex === 0
                   }
-                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset ring-gray-700 inline-flex items-center ${
+                  className={`rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset inline-flex items-center ${
                     (activeTab === 'annual' && yearRangeIndex === 0) ||
                     (activeTab === 'quarterly' && quarterRangeIndex === 0)
-                      ? 'text-gray-500 bg-gray-800 cursor-not-allowed opacity-50' 
-                      : 'text-gray-200 bg-gray-800 hover:bg-gray-700 cursor-pointer'
+                      ? isDark ? 'text-gray-500 bg-gray-800 ring-gray-700 cursor-not-allowed opacity-50' : 'text-gray-400 bg-gray-100 ring-gray-300 cursor-not-allowed opacity-50'
+                      : isDark ? 'text-gray-200 bg-gray-800 ring-gray-700 hover:bg-gray-700 cursor-pointer' : 'text-gray-700 bg-white ring-gray-300 hover:bg-gray-50 cursor-pointer'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -702,13 +709,16 @@ export default function FinancialReportModule() {
         <div className="px-6 pb-4">
           {currentMetrics.map((metric) => (
             <div key={metric} className="flex justify-between items-center">
-              <div className="flex flex-wrap gap-1 min-w-32 text-white">
+              <div className={`flex flex-wrap gap-1 min-w-32 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
                 {metric}
               </div>
               <div className="relative">
                 <div className="flex gap-2 text-center">
                   {currentPeriods.map((period) => {
-                    const value = currentData[period][metric];
+                    const periodData = currentData[period as keyof typeof currentData];
+                    const value = periodData ? periodData[metric as keyof typeof periodData] as number : 0;
                     const isPercentage = metric.includes('%');
                     const isNegative = value < 0;
                     const isPositive = value > 0;
@@ -722,10 +732,10 @@ export default function FinancialReportModule() {
                               ? 'text-green-400'
                               : isNegative
                               ? 'text-red-400'
-                              : 'text-white'
+                              : isDark ? 'text-white' : 'text-gray-900'
                             : isNegative
                             ? 'text-red-400'
-                            : 'text-white'
+                            : isDark ? 'text-white' : 'text-gray-900'
                         }`}
                       >
                         {isPercentage ? `${value.toFixed(1)}%` : value}

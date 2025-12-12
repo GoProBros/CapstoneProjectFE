@@ -3,6 +3,7 @@
 import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFontSize } from '@/contexts/FontSizeContext';
 import { useRouter } from 'next/navigation';
 
 interface PageData {
@@ -30,7 +31,7 @@ export default function Sidebar({
     onSwitchPage, 
     onDeletePage 
 }: SidebarProps) {
-    const [fontSize, setFontSize] = useState(6);
+    const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
@@ -43,14 +44,6 @@ export default function Sidebar({
 
     const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFontSize(Number(e.target.value));
-    };
-
-    const increaseFontSize = () => {
-        if (fontSize < 10) setFontSize(fontSize + 1);
-    };
-
-    const decreaseFontSize = () => {
-        if (fontSize > 0) setFontSize(fontSize - 1);
     };
 
     const handleLogout = () => {
@@ -80,8 +73,15 @@ export default function Sidebar({
                 <div className="flex flex-col items-center gap-6">
                     {/* Default Page Icon - Image (TopIcon.webp) */}
                     <div className="relative group">
-                        <button className="rounded-lg flex items-center justify-center transition-colors shadow-sm overflow-hidden hover:bg-white dark:hover:bg-transparent p-1">
-                            <img src="/assets/Dashboard/SidebarComponent/TopIcon.webp" alt="Top icon" className="w-[40px] h-[40px]" />
+                        <button className="rounded-lg flex items-center justify-center transition-colors shadow-sm overflow-hidden hover:bg-gray-100 dark:hover:bg-transparent p-1">
+                            <img 
+                                src={theme === 'dark' 
+                                    ? "/assets/Dashboard/SidebarComponent/TopIcon.webp" 
+                                    : "/assets/Dashboard/SidebarComponent/BlackHomePage.webp"
+                                } 
+                                alt="Top icon" 
+                                className="w-[40px] h-[40px]" 
+                            />
                         </button>
                         <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                             Trang chủ
@@ -100,9 +100,13 @@ export default function Sidebar({
                         >
                             <button 
                                 onClick={() => onSwitchPage(page.id)}
-                                className="w-8 h-8 rounded-full border-2 border-white-500 flex items-center justify-center hover:border-white-400 transition-colors"
+                                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                    theme === 'dark' ? 'border-white-500 hover:border-white-400' : 'border-gray-400 hover:border-gray-600'
+                                }`}
                             >
-                                <span className="text-white text-xl">{page.initial}</span>
+                                <span className={`text-xl ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                                }`}>{page.initial}</span>
                             </button>
                             
                             {/* Delete button for custom pages */}
@@ -132,9 +136,13 @@ export default function Sidebar({
                         >
                             <button 
                                 onClick={() => onSwitchPage('default')}
-                                className="w-8 h-8 rounded-full border-2 border-white-500 flex items-center justify-center hover:border-white-400 transition-colors"
+                                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                    theme === 'dark' ? 'border-white-500 hover:border-white-400' : 'border-gray-400 hover:border-gray-600'
+                                }`}
                             >
-                                <span className="text-white text-xl">G</span>
+                                <span className={`text-xl ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                                }`}>G</span>
                             </button>
                             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                                 {page.name}
@@ -148,7 +156,9 @@ export default function Sidebar({
                             onClick={onAddPage}
                             className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
                         >
-                            <LayoutGrid className="w-10 h-10 text-white-400" strokeWidth={2} />
+                            <LayoutGrid className={`w-10 h-10 ${
+                                theme === 'dark' ? 'text-white-400' : 'text-gray-700'
+                            }`} strokeWidth={2} />
                         </button>
                         <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                             Thêm page tùy chọn
@@ -170,7 +180,9 @@ export default function Sidebar({
                                     <div className="h-5 w-5 animate-ping rounded-full bg-green-500 opacity-75"></div>
                                 </span>
                                 <button type="button" onClick={handleAddModuleClick} className="relative z-10 ani-pop font-medium rounded-full text-sm gap-x-1.5 p-1.5 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400 inline-flex items-center">
-                                    <SquarePlus className="flex-shrink-0 h-6 w-6 text-gray-200" strokeWidth={2} />
+                                    <SquarePlus className={`flex-shrink-0 h-6 w-6 ${
+                                        theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                                    }`} strokeWidth={2} />
                                 </button>
                             </div>
                             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
@@ -202,14 +214,18 @@ export default function Sidebar({
                                     <button 
                                         onClick={increaseFontSize}
                                         type="button" 
-                                        className="ani-pop font-medium rounded-full text-xs gap-x-1 p-[0.4rem] text-white-900 dark:text-white hover:bg-dark dark:hover:bg-gray-900 inline-flex items-center"
+                                        className={`ani-pop font-medium rounded-full text-xs gap-x-1 p-[0.4rem] inline-flex items-center ${
+                                            theme === 'dark' ? 'text-white hover:bg-gray-900' : 'text-gray-800 hover:bg-gray-200'
+                                        }`}
                                     >
                                         <Plus className="h-5 w-5" strokeWidth={2} />
                                     </button>
                                     <button 
                                         onClick={decreaseFontSize}
                                         type="button" 
-                                        className="ani-pop font-medium rounded-full text-xs gap-x-1 p-[0.4rem] text-white-900 dark:text-white hover:bg-dark dark:hover:bg-gray-900 inline-flex items-center"
+                                        className={`ani-pop font-medium rounded-full text-xs gap-x-1 p-[0.4rem] inline-flex items-center ${
+                                            theme === 'dark' ? 'text-white hover:bg-gray-900' : 'text-gray-800 hover:bg-gray-200'
+                                        }`}
                                     >
                                         <Minus className="h-5 w-5" strokeWidth={2} />
                                     </button>
@@ -217,7 +233,9 @@ export default function Sidebar({
                                 <input 
                                     className="w-9 h-20 appearance-none rounded-full cursor-pointer [writing-mode:vertical-lr]"
                                     style={{
-                                        background: `linear-gradient(to top, rgba(107, 114, 128, 0.4) ${fontSize * 10}%, #1a1a1a ${fontSize * 10}%)`
+                                        background: theme === 'dark' 
+                                            ? `linear-gradient(to top, rgba(107, 114, 128, 0.4) ${fontSize * 10}%, #1a1a1a ${fontSize * 10}%)`
+                                            : `linear-gradient(to top, rgba(156, 163, 175, 0.5) ${fontSize * 10}%, #e5e7eb ${fontSize * 10}%)`
                                     }}
                                     type="range" 
                                     min="0" 

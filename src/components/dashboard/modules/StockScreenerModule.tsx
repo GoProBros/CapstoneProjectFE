@@ -642,7 +642,7 @@ export default function StockScreenerModule() {
   }), []);
 
   return (
-    <div className={`w-full h-full rounded-lg p-4 border ${
+    <div className={`dashboard-module w-full h-full rounded-lg p-4 border ${
       isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
     }`}>
       <div className='flex justify-between items-center mb-4'>

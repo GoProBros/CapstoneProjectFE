@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function GlobalStockChartModule() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     // Clean up any existing script
@@ -71,7 +74,9 @@ export default function GlobalStockChartModule() {
   }, []);
 
   return (
-    <div className="w-full h-full bg-[#282832] rounded-lg border border-gray-800 overflow-hidden">
+    <div className={`w-full h-full rounded-lg border overflow-hidden ${
+      isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
+    }`}>
       <div 
         ref={containerRef}
         className="tradingview-widget-container"

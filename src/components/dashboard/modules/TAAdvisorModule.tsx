@@ -1,18 +1,26 @@
 "use client";
 
 import React from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TAAdvisorModule() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  
   return (
-    <div className="rounded-lg overflow-hidden h-full w-full bg-[#282832] flex flex-col text-sm">
+    <div className={`dashboard-module rounded-lg overflow-hidden h-full w-full flex flex-col text-sm ${
+      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header Section */}
       <div className="flex justify-between">
         <div className="p-4">
           <div className="relative">
             <div className="text-2xl" style={{ color: '#34C85E' }}>Technical</div>
-            <div className="absolute -bottom-2 -right-6 text-gray-400 text-xs">Analysis</div>
+            <div className={`absolute -bottom-2 -right-6 text-xs ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}>Analysis</div>
           </div>
-          <div className="text-gray-300">Tứ trụ TA</div>
+          <div className={isDark ? 'text-gray-300' : 'text-gray-600'}>Tứ trụ TA</div>
         </div>
 
         {/* SVG Background with Chart Icon */}
