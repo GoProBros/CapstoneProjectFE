@@ -68,6 +68,23 @@ body {
   100% { background-color: transparent; }
 }
 
+/* Hide row drag grip icon but keep drag functionality */
+.ag-theme-alpine .ag-row-drag,
+.ag-theme-alpine-dark .ag-row-drag {
+  display: none !important;
+}
+
+/* Show grab cursor on ticker cell to indicate draggable */
+.ag-theme-alpine .ag-cell[col-id="ticker"],
+.ag-theme-alpine-dark .ag-cell[col-id="ticker"] {
+  cursor: grab;
+}
+
+.ag-theme-alpine .ag-cell[col-id="ticker"]:active,
+.ag-theme-alpine-dark .ag-cell[col-id="ticker"]:active {
+  cursor: grabbing;
+}
+
 @layer base {
   .bg-base-300 {
     @apply bg-gray-800 dark:bg-gray-900;

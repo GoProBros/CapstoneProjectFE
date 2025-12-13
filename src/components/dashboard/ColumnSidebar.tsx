@@ -7,8 +7,15 @@ import { X, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 
 const columnGroups = [
   {
-    title: 'THÔNG TIN TỔNG QUAN',
-    fields: ['MA', 'NGANH', 'GIA', 'THAYDOI', 'THANHKHOAN', 'volume']
+    title: 'THÔNG TIN GIAO DỊCH',
+    fields: [
+      'ticker', 'ceilingPrice', 'floorPrice', 'referencePrice',
+      'bidPrice3', 'bidVol3', 'bidPrice2', 'bidVol2', 'bidPrice1', 'bidVol1',
+      'lastPrice', 'lastVol', 'change', 'ratioChange',
+      'askPrice1', 'askVol1', 'askPrice2', 'askVol2', 'askPrice3', 'askVol3',
+      'totalVol', 'highest', 'lowest', 'avgPrice',
+      'totalVal', 'side', 'tradingSession', 'tradingStatus'
+    ]
   },
   {
     title: 'PHÂN TÍCH KỸ THUẬT',
@@ -33,12 +40,37 @@ const columnGroups = [
 ];
 
 const columnLabels: Record<string, string> = {
-  MA: 'Mã', 
-  NGANH: 'Ngành (ICB lv3)', 
-  GIA: 'Giá', 
-  THAYDOI: '+/-', 
-  THANHKHOAN: 'GTGD (vnđ)', 
-  volume: 'KLGD (cp)',
+  // SSI Stream columns
+  ticker: 'Mã CK',
+  ceilingPrice: 'Giá trần',
+  floorPrice: 'Giá sàn',
+  referencePrice: 'Tham chiếu',
+  bidPrice3: 'Giá mua 3',
+  bidVol3: 'KL mua 3',
+  bidPrice2: 'Giá mua 2',
+  bidVol2: 'KL mua 2',
+  bidPrice1: 'Giá mua 1',
+  bidVol1: 'KL mua 1',
+  lastPrice: 'Giá khớp',
+  lastVol: 'KL khớp',
+  change: '+/-',
+  ratioChange: '+/- (%)',
+  askPrice1: 'Giá bán 1',
+  askVol1: 'KL bán 1',
+  askPrice2: 'Giá bán 2',
+  askVol2: 'KL bán 2',
+  askPrice3: 'Giá bán 3',
+  askVol3: 'KL bán 3',
+  totalVol: 'Tổng KL',
+  highest: 'Cao nhất',
+  lowest: 'Thấp nhất',
+  avgPrice: 'Giá TB',
+  totalVal: 'Tổng GT',
+  side: 'Chiều',
+  tradingSession: 'Phiên',
+  tradingStatus: 'Trạng thái',
+  
+  // Analysis columns
   ThanhKhoanTB50: 'GTTB (50 phiên)', 
   volTB50: 'KLTB (50 phiên)', 
   KL1KLTB: '%KLTB', 
@@ -95,8 +127,12 @@ export function ColumnSidebar() {
   const { columns, isSidebarOpen, setSidebarOpen, toggleColumnVisibility, setGroupVisibility, resetColumns } = useColumnStore();
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'THÔNG TIN TỔNG QUAN': true,
-    'PHÂN TÍCH KỸ THUẬT': true,
+    'THÔNG TIN GIAO DỊCH': true,
+    'PHÂN TÍCH KỸ THUẬT': false,
+    'CHỈ SỐ GIÁ': false,
+    'PHÂN TÍCH CƠ BẢN': false,
+    'PHÂN TÍCH KỸ THUẬT NÂNG CAO': false,
+    'CHIẾN LƯỢC': false,
   });
 
   const toggleGroup = (title: string) => {
