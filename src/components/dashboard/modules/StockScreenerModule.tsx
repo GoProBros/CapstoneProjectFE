@@ -8,12 +8,21 @@ import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
-import { Settings, Save, Download, Wifi, WifiOff } from 'lucide-react';
+ import { Settings, Save, Download, Wifi, WifiOff, Search } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+/**
+ * Helper function: Format giá VND chia cho 1000
+ * VD: 86500 → 86.5, 24300 → 24.3
+ */
+const formatPrice = (value: number | null | undefined): string => {
+  if (!value) return '0';
+  return (value / 1000).toFixed(2);
+};
 
 export default function StockScreenerModule() {
   const { theme } = useTheme();
@@ -23,9 +32,12 @@ export default function StockScreenerModule() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
+  const [searchTicker, setSearchTicker] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
   
   // Get column config from Zustand store
-  const { columns, setColumnWidth, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
+  const { columns, setColumnWidth, setColumnVisibility, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
 
   // Get SignalR connection và market data
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
@@ -244,6 +256,32 @@ export default function StockScreenerModule() {
     }
   }, [setColumnWidth]);
 
+  // Sync column visibility changes when user hides/shows columns via AG Grid UI
+  const onColumnVisible = useCallback((event: any) => {
+    // Bắt MỌI thay đổi visibility (drag column, drag group, toolPanel, API, etc.)
+    // KHÔNG filter by source để sync đầy đủ
+    
+    // CASE 1: Single column change (event.column)
+    if (event.column && !event.columns) {
+      const field = event.column.getColId();
+      const visible = event.visible;
+      console.log(`[StockScreener] Column visibility changed: ${field} -> ${visible} (source: ${event.source})`);
+      setColumnVisibility(field, visible);
+    }
+    
+    // CASE 2: Multiple columns change (event.columns) - XẢY RA KHI DRAG COLUMN GROUP
+    if (event.columns && Array.isArray(event.columns)) {
+      console.log(`[StockScreener] 🔄 Group visibility changed: ${event.columns.length} columns (source: ${event.source})`);
+      
+      event.columns.forEach((column: any) => {
+        const field = column.getColId();
+        const visible = event.visible;
+        console.log(`  - ${field} -> ${visible}`);
+        setColumnVisibility(field, visible);
+      });
+    }
+  }, [setColumnVisibility]);
+
   // Apply saved column state to AG Grid - CHỈ 1 LẦN khi grid ready
   useEffect(() => {
     if (!gridApi) return;
@@ -278,12 +316,58 @@ export default function StockScreenerModule() {
     }
   }, [gridApi]); // CHỈ dependency gridApi - KHÔNG có columns!
 
+  // Sync column visibility changes from sidebar to AG Grid
+  // CHỈ update các cột được specify, KHÔNG override toàn bộ grid state
+  useEffect(() => {
+    if (!gridApi) return;
+    
+    try {
+      const existingColumnIds = new Set<string>();
+      gridApi.getAllGridColumns()?.forEach((col: any) => {
+        const colId = col.getColId();
+        if (colId) existingColumnIds.add(colId);
+      });
+
+      const validColumnState = Object.values(columns)
+        .filter(col => existingColumnIds.has(col.field))
+        .map(col => ({
+          colId: col.field,
+          hide: !col.visible,
+        }));
+
+      if (validColumnState.length > 0) {
+        gridApi.applyColumnState({ 
+          state: validColumnState,
+          applyOrder: false,
+          // QUAN TRỌNG: defaultColState giữ nguyên state của các cột KHÔNG được specify
+          // Tránh các cột đã hide bị show lại khi user click checkbox cột khác
+          defaultState: { hide: undefined } // Không thay đổi visibility của cột không được specify
+        });
+        console.log('[StockScreener] 🔄 Synced column visibility from sidebar (partial update)');
+      }
+    } catch (error) {
+      console.error('[StockScreener] Error syncing column visibility:', error);
+    }
+  }, [columns, gridApi]); // Re-run khi columns thay đổi
+
   // Handle save layout
   const handleSaveLayout = async () => {
     setIsSaving(true);
     try {
-      await saveLayoutToDB();
-      alert('Layout đã được lưu thành công!');
+      // Lấy column widths từ AG Grid
+      const columnWidths = gridApi ? gridApi.getColumnState() : [];
+      
+      // Lấy danh sách tickers đang hiển thị
+      const symbols = Array.from(marketData.keys());
+      
+      console.log('[StockScreener] Saving layout with:');
+      console.log(`  - ${columnWidths.length} column widths`);
+      console.log(`  - ${symbols.length} symbols: ${symbols.join(', ')}`);
+      
+      await saveLayoutToDB(columnWidths, symbols);
+      alert(`Layout đã được lưu thành công!\n\n` +
+            `• ${columnWidths.length} cột với chiều rộng\n` +
+            `• ${symbols.length} mã chứng khoán: ${symbols.join(', ')}`);
     } catch (error) {
       alert('Có lỗi khi lưu layout. Vui lòng thử lại.');
     } finally {
@@ -303,6 +387,92 @@ export default function StockScreenerModule() {
       setIsLoading(false);
     }
   };
+  
+  // Handle search and subscribe to new symbol
+  const handleSearchAndSubscribe = async () => {
+    if (!searchTicker.trim()) return;
+    
+    const ticker = searchTicker.trim().toUpperCase();
+    
+    // Kiểm tra xem mã đã được subscribe chưa
+    if (marketData.has(ticker)) {
+      alert(`⚠️ Mã ${ticker} đã được theo dõi rồi!`);
+      setSearchTicker('');
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      console.log(`[StockScreener] 🔍 Searching and subscribing to: ${ticker}`);
+      await subscribeToSymbols([ticker]);
+      console.log(`[StockScreener] ✅ Successfully subscribed to ${ticker}`);
+      setSearchTicker('');
+      alert(`✅ Đã subscribe thành công mã ${ticker}!`);
+    } catch (error) {
+      console.error(`[StockScreener] ❌ Failed to subscribe to ${ticker}:`, error);
+      alert(`❌ Lỗi khi subscribe mã ${ticker}. Vui lòng kiểm tra mã và thử lại.`);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle row drag end - unsubscribe nếu kéo ra ngoài grid
+  const handleRowDragEnd = useCallback(async (event: any) => {
+    console.log('[StockScreener] 🔍 Row drag end event:', {
+      hasNode: !!event.node,
+      ticker: event.node?.data?.ticker,
+      hasOverNode: !!event.overNode,
+      overIndex: event.overIndex,
+      y: event.y,
+      vDirection: event.vDirection,
+    });
+    
+    const ticker = event.node?.data?.ticker;
+    if (!ticker) {
+      console.warn('[StockScreener] No ticker found in drag event');
+      return;
+    }
+    
+    // Kiểm tra nếu drag ra ngoài grid
+    // AG Grid rowDrag không reliable cho "outside grid" detection
+    // Workaround: Check if overNode is null AND not dragging to reorder
+    const isOutsideGrid = !event.overNode && event.overIndex === -1;
+    
+    console.log('[StockScreener] isOutsideGrid:', isOutsideGrid);
+    
+    if (isOutsideGrid) {
+      const confirmUnsubscribe = window.confirm(
+        `Bạn có muốn bỏ theo dõi mã ${ticker}?\n\n` +
+        'Mã này sẽ được xóa khỏi danh sách và không nhận dữ liệu real-time nữa.'
+      );
+      
+      if (confirmUnsubscribe) {
+        try {
+          console.log(`[StockScreener] Unsubscribing from ticker: ${ticker}`);
+          
+          // 1. Unsubscribe từ SignalR
+          await unsubscribeFromSymbols([ticker]);
+          
+          // 2. Xóa row khỏi grid
+          if (gridApi) {
+            const rowNode = gridApi.getRowNode(ticker);
+            if (rowNode) {
+              gridApi.applyTransaction({ remove: [rowNode.data] });
+              console.log(`[StockScreener] ✅ Removed ${ticker} from grid`);
+            }
+          }
+          
+          // 3. Thông báo thành công
+          console.log(`[StockScreener] ✅ Unsubscribed from ${ticker}`);
+        } catch (error) {
+          console.error(`[StockScreener] Error unsubscribing from ${ticker}:`, error);
+          alert(`Lỗi khi bỏ theo dõi mã ${ticker}. Vui lòng thử lại.`);
+        }
+      }
+    } else {
+      console.log('[StockScreener] Drag within grid - no action');
+    }
+  }, [gridApi, unsubscribeFromSymbols]);
   
   // Start logging
   const handleStartLogging = () => {
@@ -508,23 +678,15 @@ export default function StockScreenerModule() {
 
   // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
   const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => [
-    // CỘT CỐ ĐỊNH BÊN TRÁI
+    // CỘT CỐ ĐỊNH BÊN TRÁI - Thứ tự: CK → Trần → Sàn → TC
     {
       field: 'ticker',
       headerName: 'CK',
       width: 80,
       pinned: 'left',
       filter: true,
+      rowDrag: true, // Enable drag & drop để unsubscribe
       cellClass: 'font-bold text-blue-500 cursor-pointer text-xs',
-    },
-    {
-      field: 'referencePrice',
-      headerName: 'TC',
-      width: 80,
-      pinned: 'left',
-      filter: 'agNumberColumnFilter',
-      valueFormatter: (params) => params.value?.toFixed(2) || '0',
-      cellClass: 'text-yellow-500 font-semibold text-xs',
     },
     {
       field: 'ceilingPrice',
@@ -532,7 +694,7 @@ export default function StockScreenerModule() {
       width: 80,
       pinned: 'left',
       filter: 'agNumberColumnFilter',
-      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+      valueFormatter: (params) => formatPrice(params.value),
       cellClass: 'text-purple-500 font-semibold text-xs',
     },
     {
@@ -541,8 +703,17 @@ export default function StockScreenerModule() {
       width: 80,
       pinned: 'left',
       filter: 'agNumberColumnFilter',
-      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+      valueFormatter: (params) => formatPrice(params.value),
       cellClass: 'text-cyan-500 font-semibold text-xs',
+    },
+    {
+      field: 'referencePrice',
+      headerName: 'TC',
+      width: 80,
+      pinned: 'left',
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => formatPrice(params.value),
+      cellClass: 'text-yellow-500 font-semibold text-xs',
     },
     
     // NHÓM BÊN MUA (ORDER BOOK - LEFT SIDE)
@@ -554,7 +725,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 3', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-red-600 text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -582,7 +753,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 2', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -610,7 +781,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 1', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -645,7 +816,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá', 
           width: 95, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -709,7 +880,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 1', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -737,7 +908,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 2', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -765,7 +936,7 @@ export default function StockScreenerModule() {
           headerName: 'Giá 3', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-green-600 text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -808,7 +979,7 @@ export default function StockScreenerModule() {
           headerName: 'Cao', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -822,7 +993,7 @@ export default function StockScreenerModule() {
           headerName: 'Thấp', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
             if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
@@ -836,7 +1007,7 @@ export default function StockScreenerModule() {
           headerName: 'TB', 
           width: 85, 
           filter: 'agNumberColumnFilter',
-          valueFormatter: (params) => params.value?.toFixed(2) || '0',
+          valueFormatter: (params) => formatPrice(params.value),
           cellClass: 'text-xs',
         },
       ]
@@ -1290,7 +1461,7 @@ export default function StockScreenerModule() {
     sortable: true,
     resizable: true,
     filter: true,
-    floatingFilter: true,
+    floatingFilter: true, // ✅ Community Edition - Filter ngay dưới header
     // QUAN TRỌNG: Enable cell flash animation cho real-time updates
     enableCellChangeFlash: true,
     // Tắt auto-size để tránh grid resize liên tục
@@ -1311,6 +1482,49 @@ export default function StockScreenerModule() {
               {marketData.size > 0 ? `${marketData.size} stocks receiving real-time data` : 'Waiting for real-time data...'}
               {marketData.size > 0 && ` • Last update: ${new Date().toLocaleTimeString()}`}
             </p>
+          </div>
+          
+          {/* Search Box - Subscribe to new symbols */}
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`} />
+            <input
+              type="text"
+              placeholder="Nhập mã CK để subscribe..."
+              value={searchTicker}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase();
+                setSearchTicker(value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearchAndSubscribe();
+                }
+              }}
+              disabled={!isConnected || isSearching}
+              className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 disabled:opacity-50' 
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 disabled:opacity-50'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+            />
+            {isSearching ? (
+              <div className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                <span className="animate-spin">⏳</span>
+              </div>
+            ) : searchTicker && (
+              <button
+                onClick={() => setSearchTicker('')}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
+                  isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                ✕
+              </button>
+            )}
           </div>
           
           {/* Connection Status Indicator */}
@@ -1390,32 +1604,32 @@ export default function StockScreenerModule() {
             </button>
           )}
           
-          {/* Save Layout Button */}
+          {/* Save Layout Button - Icon Only */}
           <button
             onClick={handleSaveLayout}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+            title="Lưu layout"
+            className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
               isDark 
                 ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
                 : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
             }`}
           >
             <Save size={18} />
-            {isSaving ? 'Đang lưu...' : 'Lưu Layout'}
           </button>
           
-          {/* Load Layout Button */}
+          {/* Load Layout Button - Icon Only */}
           <button
             onClick={handleLoadLayout}
             disabled={isLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+            title="Load layout"
+            className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
               isDark 
                 ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
                 : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
             }`}
           >
             <Download size={18} />
-            {isLoading ? 'Đang tải...' : 'Load Layout'}
           </button>
           
           {/* Column Manager Button */}
@@ -1444,11 +1658,15 @@ export default function StockScreenerModule() {
           rowSelection="multiple"
           animateRows={true}
           theme="legacy"
+          rowDragManaged={false}
+          suppressMoveWhenRowDragging={true}
           onGridReady={(params) => {
             setGridApi(params.api);
             console.log('[StockScreener] ✅ AG Grid ready - using Transaction API mode (no rowData prop)');
           }}
           onColumnResized={onColumnResized}
+          onColumnVisible={onColumnVisible}
+          onRowDragEnd={handleRowDragEnd}
           // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
           getRowId={(params) => {
             // Validate ticker exists
