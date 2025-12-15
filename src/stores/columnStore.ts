@@ -19,8 +19,8 @@ export interface ColumnState {
   toggleColumnVisibility: (field: string) => void;
   setGroupVisibility: (fields: string[], visible: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
-  saveLayoutToDB: (columnWidths?: any[], symbols?: string[]) => Promise<void>;
-  loadLayoutFromDB: () => Promise<void>;
+  saveLayoutToDB: (columnWidths?: any[], symbols?: string[], name?: string) => Promise<void>;
+  loadLayoutFromDB: () => Promise<any>;
 }
 
 // Default column configuration - SSI STREAM MARKET DATA
@@ -191,9 +191,10 @@ export const useColumnStore = create<ColumnState>()(
       
       setSidebarOpen: (open) => set({ isSidebarOpen: open }),
       
-      saveLayoutToDB: async (columnWidths?: any[], symbols?: string[]) => {
+      saveLayoutToDB: async (columnWidths?: any[], symbols?: string[], name?: string) => {
         const state = get();
         const layoutData = {
+          name: name || 'Layout gốc', // Lưu tên layout
           columns: state.columns,
           columnWidths: columnWidths || [], // Lưu column widths từ AG Grid
           symbols: symbols || [], // Lưu danh sách tickers
@@ -213,6 +214,7 @@ export const useColumnStore = create<ColumnState>()(
           }
           
           console.log('Layout saved successfully:', layoutData);
+          console.log(`  - Name: ${name || 'Layout gốc'}`);
           console.log(`  - Column widths: ${columnWidths?.length || 0} columns`);
           console.log(`  - Symbols: ${symbols?.length || 0} tickers`);
         } catch (error) {
@@ -240,6 +242,7 @@ export const useColumnStore = create<ColumnState>()(
           if (result.success && result.data) {
             set({ columns: result.data.columns });
             console.log('Layout loaded successfully from DB:', result.data);
+            return result.data; // Trả về layoutData để lấy name
           } else {
             // Fallback: load from localStorage
             const savedLayout = localStorage.getItem('stock-screener-layout');
@@ -247,6 +250,7 @@ export const useColumnStore = create<ColumnState>()(
               const layoutData = JSON.parse(savedLayout);
               set({ columns: layoutData.columns });
               console.log('Layout loaded from localStorage:', layoutData);
+              return layoutData; // Trả về layoutData để lấy name
             } else {
               throw new Error('No saved layout found');
             }
@@ -259,6 +263,7 @@ export const useColumnStore = create<ColumnState>()(
             const layoutData = JSON.parse(savedLayout);
             set({ columns: layoutData.columns });
             console.log('Layout loaded from localStorage fallback:', layoutData);
+            return layoutData; // Trả về layoutData để lấy name
           } else {
             throw error;
           }
