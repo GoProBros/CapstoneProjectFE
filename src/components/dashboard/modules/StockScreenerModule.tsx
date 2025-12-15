@@ -8,7 +8,7 @@ import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
- import { Settings, Save, Download, Wifi, WifiOff, Search } from 'lucide-react';
+ import { Settings, Save, Download, Wifi, WifiOff, Search, Table2, FolderOpen } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 
@@ -31,36 +31,18 @@ export default function StockScreenerModule() {
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubscribing, setIsSubscribing] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [searchTicker, setSearchTicker] = useState<string>('');
   const [isSearching, setIsSearching] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  // const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout gốc');
   
   // Get column config from Zustand store
   const { columns, setColumnWidth, setColumnVisibility, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
 
   // Get SignalR connection và market data
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
-  
-  // Logging state - Log MỌI event SignalR nhận được
-  const [isLogging, setIsLogging] = useState(false);
-  const loggingDataRef = React.useRef<{
-    startTime: number;
-    signalREvents: Array<{
-      timestamp: string;
-      elapsed: number;
-      eventNumber: number;
-      ticker: string;
-      rawData: any; // RAW data từ SignalR event (chỉ fields thay đổi hoặc partial data)
-    }>;
-    symbolStats: Map<string, number>;
-    totalEvents: number;
-  }>({
-    startTime: Date.now(),
-    signalREvents: [],
-    symbolStats: new Map(),
-    totalEvents: 0,
-  });
 
   /**
    * Subscribe to ALL symbols từ backend API
@@ -93,58 +75,6 @@ export default function StockScreenerModule() {
     // Cleanup: Unsubscribe khi component unmount
     // Note: Không cần unsubscribe explicitly vì Context sẽ tự cleanup
   }, [isConnected, subscribeToSymbols]);
-
-  /**
-   * Subscribe TRỰC TIẾP vào SignalR service để log RAW events
-   * Điều này cho phép bắt CHÍNH XÁC data backend gửi lên (chỉ fields thay đổi)
-   * KHÔNG ẢNH HƯỞNG đến việc update grid (grid vẫn nhận từ Context bình thường)
-   */
-  useEffect(() => {
-    if (!isLogging) return;
-
-    // Import SignalR service
-    import('@/services/signalRService').then((module) => {
-      const SignalRService = module.default;
-      const service = SignalRService.getInstance();
-
-      // Subscribe to RAW SignalR events - BẮT DATA TRƯỚC KHI NÓ ĐƯỢC MERGE VÀO MAP
-      const unsubscribe = service.onMarketDataReceived((rawData: any) => {
-        const timestamp = new Date().toISOString();
-        const elapsed = (Date.now() - loggingDataRef.current.startTime) / 1000;
-        loggingDataRef.current.totalEvents++;
-
-        // Xác định ticker từ raw data
-        const ticker = rawData.ticker || rawData.Ticker || rawData.symbol || 'UNKNOWN';
-
-        // Track symbol statistics
-        const currentCount = loggingDataRef.current.symbolStats.get(ticker) || 0;
-        loggingDataRef.current.symbolStats.set(ticker, currentCount + 1);
-
-        // ✅ LOG RAW DATA - CHÍNH XÁC NHỮNG GÌ BACKEND GỬI
-        loggingDataRef.current.signalREvents.push({
-          timestamp,
-          elapsed: parseFloat(elapsed.toFixed(1)),
-          eventNumber: loggingDataRef.current.totalEvents,
-          ticker: ticker,
-          rawData: { ...rawData }, // Clone RAW data từ SignalR (chỉ fields thay đổi)
-        });
-
-        // Console log để debug real-time (chỉ log mỗi 10 events để tránh spam)
-        if (loggingDataRef.current.totalEvents % 10 === 0) {
-          console.log(`[StockScreener] 📡 Logged ${loggingDataRef.current.totalEvents} RAW events | Latest:`, {
-            ticker,
-            fieldsCount: Object.keys(rawData).length,
-            fields: Object.keys(rawData).join(', '),
-          });
-        }
-      });
-
-      // Cleanup khi unmount hoặc stop logging
-      return () => {
-        unsubscribe();
-      };
-    });
-  }, [isLogging]);
 
   /**
    * Update row data khi nhận được market data từ SignalR
@@ -210,6 +140,9 @@ export default function StockScreenerModule() {
       if (rowsToUpdate.length > 0) transaction.update = rowsToUpdate;
 
       const result = gridApi.applyTransaction(transaction);
+      
+      // Cập nhật last update time
+      setLastUpdateTime(new Date());
       
       // Debug log để kiểm tra transaction result
       if (result) {
@@ -352,6 +285,14 @@ export default function StockScreenerModule() {
 
   // Handle save layout
   const handleSaveLayout = async () => {
+    // Prompt user to enter layout name
+    const layoutName = prompt('Nhập tên layout:', currentLayoutName !== 'Layout gốc' ? currentLayoutName : '');
+    
+    if (!layoutName || !layoutName.trim()) {
+      alert('Tên layout không được để trống!');
+      return;
+    }
+    
     setIsSaving(true);
     try {
       // Lấy column widths từ AG Grid
@@ -361,11 +302,14 @@ export default function StockScreenerModule() {
       const symbols = Array.from(marketData.keys());
       
       console.log('[StockScreener] Saving layout with:');
+      console.log(`  - Name: ${layoutName.trim()}`);
       console.log(`  - ${columnWidths.length} column widths`);
       console.log(`  - ${symbols.length} symbols: ${symbols.join(', ')}`);
       
-      await saveLayoutToDB(columnWidths, symbols);
+      await saveLayoutToDB(columnWidths, symbols, layoutName.trim());
+      setCurrentLayoutName(layoutName.trim());
       alert(`Layout đã được lưu thành công!\n\n` +
+            `• Tên: ${layoutName.trim()}\n` +
             `• ${columnWidths.length} cột với chiều rộng\n` +
             `• ${symbols.length} mã chứng khoán: ${symbols.join(', ')}`);
     } catch (error) {
@@ -379,7 +323,15 @@ export default function StockScreenerModule() {
   const handleLoadLayout = async () => {
     setIsLoading(true);
     try {
-      await loadLayoutFromDB();
+      const layoutData = await loadLayoutFromDB();
+      
+      // Update current layout name
+      if (layoutData?.name) {
+        setCurrentLayoutName(layoutData.name);
+      } else {
+        setCurrentLayoutName('Layout gốc');
+      }
+      
       alert('Layout đã được tải thành công!');
     } catch (error) {
       alert('Có lỗi khi tải layout. Vui lòng thử lại.');
@@ -473,208 +425,6 @@ export default function StockScreenerModule() {
       console.log('[StockScreener] Drag within grid - no action');
     }
   }, [gridApi, unsubscribeFromSymbols]);
-  
-  // Start logging
-  const handleStartLogging = () => {
-    // Reset logging data
-    loggingDataRef.current = {
-      startTime: Date.now(),
-      signalREvents: [],
-      symbolStats: new Map(),
-      totalEvents: 0,
-    };
-    
-    setIsLogging(true);
-    console.log('[StockScreener] Started logging ALL SignalR events');
-    console.log(`[StockScreener] Tracking ${marketData.size} symbols`);
-  };
-  
-  // Stop logging and save to file
-  const handleStopLogging = async () => {
-    setIsLogging(false);
-    
-    const endTime = Date.now();
-    const duration = (endTime - loggingDataRef.current.startTime) / 1000;
-    const totalEvents = loggingDataRef.current.totalEvents;
-    
-    console.log('[StockScreener] Stopped logging. Statistics:');
-    console.log(`  Total SignalR events: ${totalEvents}`);
-    console.log(`  Unique symbols: ${loggingDataRef.current.symbolStats.size}`);
-    console.log(`  Duration: ${duration.toFixed(1)}s`);
-    console.log(`  Average rate: ${(totalEvents / duration).toFixed(2)} events/sec`);
-    console.log(`  Top 5 active symbols:`, 
-      Array.from(loggingDataRef.current.symbolStats.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([ticker, count]) => `${ticker}(${count})`)
-    );
-    
-    try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      
-      // SỬ DỤNG JSONL (JSON Lines) - STREAMING FORMAT
-      // Mỗi event = 1 dòng JSON → KHÔNG cần stringify toàn bộ array
-      const EVENTS_PER_FILE = 500; // Tăng lên vì JSONL nhẹ hơn
-      const totalFiles = Math.ceil(totalEvents / EVENTS_PER_FILE);
-      
-      console.log(`[StockScreener] Creating ${totalFiles} JSONL files (${EVENTS_PER_FILE} events each)...`);
-      
-      // 1. TẠO FILE SUMMARY
-      const summaryData = {
-        format: 'JSONL (JSON Lines) - One event per line',
-        testInfo: {
-          startTime: new Date(loggingDataRef.current.startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
-          duration: duration.toFixed(1) + 's',
-          component: 'StockScreenerModule - Full Raw Data (JSONL)',
-          subscribedSymbols: Array.from(marketData.keys()),
-          totalDataFiles: totalFiles,
-        },
-        summary: {
-          totalSignalREvents: totalEvents,
-          uniqueSymbols: loggingDataRef.current.symbolStats.size,
-          averageRate: (totalEvents / duration).toFixed(2) + ' events/sec',
-          eventsPerFile: EVENTS_PER_FILE,
-          symbolStats: Array.from(loggingDataRef.current.symbolStats.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(([ticker, count]) => ({ ticker, count })),
-          topActiveSymbols: Array.from(loggingDataRef.current.symbolStats.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 20)
-            .map(([ticker, count]) => ({ ticker, eventCount: count })),
-        },
-        howToRead: 'Each .jsonl file contains one JSON object per line. Use JSON.parse() for each line.',
-        dataFiles: [] as string[],
-      };
-      
-      // Download summary file
-      const summaryBlob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
-      const summaryUrl = URL.createObjectURL(summaryBlob);
-      const summaryLink = document.createElement('a');
-      summaryLink.href = summaryUrl;
-      summaryLink.download = `signalr-summary-${timestamp}.json`;
-      document.body.appendChild(summaryLink);
-      summaryLink.click();
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      document.body.removeChild(summaryLink);
-      URL.revokeObjectURL(summaryUrl);
-      
-      // 2. TẠO CÁC FILE JSONL - STREAMING WRITE
-      for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
-        const startIdx = fileIdx * EVENTS_PER_FILE;
-        const endIdx = Math.min(startIdx + EVENTS_PER_FILE, totalEvents);
-        
-        // BUILD JSONL STRING - MỖI EVENT = 1 DÒNG
-        let jsonlContent = '';
-        
-        // Header line (metadata)
-        jsonlContent += JSON.stringify({
-          _fileInfo: {
-            fileNumber: fileIdx + 1,
-            totalFiles: totalFiles,
-            eventsInThisFile: endIdx - startIdx,
-            eventRange: `${startIdx + 1} - ${endIdx}`,
-          }
-        }) + '\n';
-        
-        // Data lines - MỖI EVENT TRÊN 1 DÒNG
-        for (let i = startIdx; i < endIdx; i++) {
-          const event = loggingDataRef.current.signalREvents[i];
-          
-          // TẠO 1 DÒNG JSON - KHÔNG stringify cả array
-          const eventLine = JSON.stringify({
-            timestamp: event.timestamp,
-            elapsed: event.elapsed,
-            eventNumber: event.eventNumber,
-            ticker: event.ticker,
-            data: event.rawData, // Full raw data
-          });
-          
-          jsonlContent += eventLine + '\n';
-        }
-        
-        // Create blob và download
-        const blob = new Blob([jsonlContent], { type: 'application/x-ndjson' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const filename = `signalr-data-${timestamp}-part${(fileIdx + 1).toString().padStart(3, '0')}.jsonl`;
-        link.download = filename;
-        
-        summaryData.dataFiles.push(filename);
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        // Đợi giữa các downloads
-        await new Promise(resolve => setTimeout(resolve, 150));
-        
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        console.log(`[StockScreener] Downloaded file ${fileIdx + 1}/${totalFiles} (${endIdx - startIdx} events)`);
-      }
-      
-      alert(`✅ Log đã được lưu thành công!\n\n` +
-            `📊 Thống kê:\n` +
-            `• Format: JSONL (JSON Lines - streaming)\n` +
-            `• Tổng: ${totalEvents} SignalR events (FULL raw data)\n` +
-            `• ${loggingDataRef.current.symbolStats.size} mã chứng khoán\n` +
-            `• Thời gian: ${duration.toFixed(1)}s\n` +
-            `• Tốc độ: ${(totalEvents / duration).toFixed(2)} events/giây\n\n` +
-            `💾 Đã tải xuống:\n` +
-            `• 1 file summary.json (tổng quan)\n` +
-            `• ${totalFiles} file .jsonl (${EVENTS_PER_FILE} events/file)\n\n` +
-            `📁 Tổng cộng: ${totalFiles + 1} files\n\n` +
-            `💡 Cách đọc: Mỗi dòng trong .jsonl là 1 JSON object`);
-            
-    } catch (error) {
-      console.error('[StockScreener] Error saving log:', error);
-      alert('❌ Lỗi khi tải log file!\n\n' + 
-            `Lỗi: ${error instanceof Error ? error.message : 'Unknown error'}\n\n` +
-            'Kiểm tra Console (F12) để xem chi tiết.');
-    }
-  };
-  
-  // Add FPT symbol for testing
-  const handleAddFPTSymbol = async () => {
-    if (!isConnected) {
-      alert('SignalR chưa kết nối! Vui lòng đợi kết nối.');
-      return;
-    }
-    
-    // Kiểm tra xem FPT đã được subscribe chưa
-    if (marketData.has('FPT')) {
-      alert('⚠️ Mã FPT đã được subscribe rồi!\n\n' + 
-            `Tổng số mã đang theo dõi: ${marketData.size}\n` +
-            `Trạng thái logging: ${isLogging ? 'Đang ghi log (' + loggingDataRef.current.totalEvents + ' events)' : 'Chưa bật'}\n\n` +
-            'Để test logging:\n' +
-            '1. Click "Start Logging" để bắt đầu ghi log\n' +
-            '2. Đợi một vài giây để nhận dữ liệu real-time\n' +
-            '3. Click "Stop & Save Log" để tải file log');
-      return;
-    }
-    
-    setIsSubscribing(true);
-    try {
-      console.log('[StockScreener] 🧪 Testing: Adding FPT symbol to subscription list');
-      await subscribeToSymbols(['FPT']);
-      console.log('[StockScreener] ✅ Successfully subscribed to FPT');
-      alert('✅ Đã subscribe thành công mã FPT!\n\n' + 
-            'Hướng dẫn test logging:\n\n' +
-            '1️⃣ Click "Start Logging" để bắt đầu ghi log\n' +
-            '2️⃣ Đợi ít nhất 10-30 giây để nhận dữ liệu real-time từ SignalR\n' +
-            '3️⃣ Quan sát số events tăng lên trên nút "Stop & Save Log"\n' +
-            '4️⃣ Click "Stop & Save Log" để tải file JSON với đầy đủ dữ liệu\n\n' +
-            '💡 Tip: Kiểm tra Console (F12) để xem log chi tiết');
-    } catch (error) {
-      console.error('[StockScreener] ❌ Failed to subscribe to FPT:', error);
-      alert('❌ Lỗi khi subscribe mã FPT. Kiểm tra console để xem chi tiết.');
-    } finally {
-      setIsSubscribing(false);
-    }
-  };
 
   // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
   const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => [
@@ -727,7 +477,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-red-600 text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 text-xs';
             if (diff < 0) return 'text-red-500 text-xs';
@@ -755,7 +505,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -783,7 +533,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-bold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-bold text-xs';
             if (diff < 0) return 'text-red-500 font-bold text-xs';
@@ -818,7 +568,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'font-bold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-bold text-xs';
             if (diff < 0) return 'text-red-500 font-bold text-xs';
@@ -845,11 +595,22 @@ export default function StockScreenerModule() {
           width: 80, 
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => {
-            if (!params.value) return '0';
-            return params.value > 0 ? `+${params.value.toFixed(2)}` : params.value.toFixed(2);
+            if (params.value == null) return '0';
+            // Chia 1000 để chuyển từ VND sang nghìn đồng
+            const valueInThousands = params.value / 1000;
+            return valueInThousands > 0 ? `+${valueInThousands.toFixed(2)}` : valueInThousands.toFixed(2);
           },
           cellClass: (params) => {
-            if (!params.value) return 'text-xs';
+            // Khi change = 0, hiển thị theo màu của lastPrice so với referencePrice
+            if (params.value === 0) {
+              if (!params.data?.referencePrice || !params.data?.lastPrice) return 'text-xs';
+              const diff = params.data.lastPrice - params.data.referencePrice;
+              if (diff > 0) return 'text-green-500 font-semibold text-xs';
+              if (diff < 0) return 'text-red-500 font-semibold text-xs';
+              return 'text-yellow-500 font-semibold text-xs';
+            }
+            // Khi change != 0, hiển thị theo dấu của change
+            if (params.value == null) return 'text-xs';
             return params.value > 0 ? 'text-green-500 font-semibold text-xs' : params.value < 0 ? 'text-red-500 font-semibold text-xs' : 'text-xs';
           },
         },
@@ -860,7 +621,8 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => {
             if (!params.value) return '0%';
-            const pct = (params.value * 100).toFixed(2);
+            // Backend đã trả về %, chỉ cần format
+            const pct = params.value.toFixed(2);
             return params.value > 0 ? `+${pct}%` : `${pct}%`;
           },
           cellClass: (params) => {
@@ -882,7 +644,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-bold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-bold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-bold text-xs';
             if (diff < 0) return 'text-red-500 font-bold text-xs';
@@ -910,7 +672,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -938,7 +700,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-green-600 text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 text-xs';
             if (diff < 0) return 'text-red-500 text-xs';
@@ -981,7 +743,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-green-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -995,7 +757,7 @@ export default function StockScreenerModule() {
           filter: 'agNumberColumnFilter',
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.value) return 'text-red-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-semibold text-xs';
             const diff = params.value - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -1461,7 +1223,6 @@ export default function StockScreenerModule() {
     sortable: true,
     resizable: true,
     filter: true,
-    floatingFilter: true, // ✅ Community Edition - Filter ngay dưới header
     // QUAN TRỌNG: Enable cell flash animation cho real-time updates
     enableCellChangeFlash: true,
     // Tắt auto-size để tránh grid resize liên tục
@@ -1527,83 +1288,22 @@ export default function StockScreenerModule() {
             )}
           </div>
           
-          {/* Connection Status Indicator */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+          {/* Connection Status Indicator - Icon only */}
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
             isConnected 
-              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
-              : 'bg-red-500/10 text-red-500 border border-red-500/20'
+              ? 'bg-green-500/20 text-green-500' 
+              : 'bg-red-500/20 text-red-500'
           }`}>
             {isConnected ? (
-              <>
-                <Wifi size={14} className="animate-pulse" />
-                <span>Connected</span>
-              </>
+              <Wifi size={16} />
             ) : (
-              <>
-                <WifiOff size={14} />
-                <span>{connectionState}</span>
-              </>
+              <WifiOff size={16} />
             )}
           </div>
-          
-          {/* Real-time Data Stats */}
-          {isConnected && marketData.size > 0 && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
-              isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
-            }`}>
-              <span className="font-mono font-semibold">{marketData.size}</span>
-              <span>stocks streaming</span>
-            </div>
-          )}
         </div>
         
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Test Subscribe Button - Add FPT Symbol */}
-          <button
-            onClick={handleAddFPTSymbol}
-            disabled={!isConnected || isSubscribing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isDark 
-                ? 'bg-orange-600 hover:bg-orange-700 text-white disabled:bg-orange-800 disabled:opacity-50' 
-                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:bg-orange-300'
-            }`}
-            title="Test subscribe: Thêm mã FPT vào danh sách theo dõi"
-          >
-            <span className="text-lg">🧪</span>
-            {isSubscribing ? 'Đang subscribe...' : 'Test FPT'}
-          </button>
-          
-          {/* Data Logging Button */}
-          {!isLogging ? (
-            <button
-              onClick={handleStartLogging}
-              disabled={!isConnected || marketData.size === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                isDark 
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-purple-800 disabled:opacity-50' 
-                  : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-purple-300'
-              }`}
-              title="Start logging real-time data from Redis"
-            >
-              <Save size={18} />
-              Start Logging
-            </button>
-          ) : (
-            <button
-              onClick={handleStopLogging}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors animate-pulse ${
-                isDark 
-                  ? 'bg-red-600 hover:bg-red-700 text-white' 
-                  : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-              title={`Stop logging (${loggingDataRef.current.totalEvents} SignalR events recorded)`}
-            >
-              <Download size={18} />
-              Stop & Save Log ({loggingDataRef.current.totalEvents})
-            </button>
-          )}
-          
           {/* Save Layout Button - Icon Only */}
           <button
             onClick={handleSaveLayout}
@@ -1618,37 +1318,39 @@ export default function StockScreenerModule() {
             <Save size={18} />
           </button>
           
-          {/* Load Layout Button - Icon Only */}
+          {/* Load Layout Button - Hiển thị tên layout */}
           <button
             onClick={handleLoadLayout}
             disabled={isLoading}
             title="Load layout"
-            className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
               isDark 
                 ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
                 : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
             }`}
           >
-            <Download size={18} />
-          </button>
-          
-          {/* Column Manager Button */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isDark 
-                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-            }`}
-          >
-            <Settings size={18} />
-            Quản lý cột
+            <FolderOpen size={18} />
+            <span className="text-sm">{currentLayoutName}</span>
           </button>
         </div>
       </div>
       
       {/* Column Sidebar */}
       <ColumnSidebar />
+      
+      {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        title="Quản lý cột"
+        className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
+          isDark 
+            ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
+            : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
+        }`}
+      >
+        <Table2 size={16} />
+        <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
+      </button>
       
       <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
         <AgGridReact
