@@ -1,25 +1,12 @@
 "use client";
 
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
-
-interface Module {
-  id: string;
-  type: string;
-  title: string;
-}
-
-interface LayoutItem {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+import { DashboardContext, type Module, type LayoutItem } from "@/contexts/DashboardContext";
 
 interface PageData {
   id: string;
@@ -28,25 +15,6 @@ interface PageData {
   modules: Module[];
   layout: LayoutItem[];
 }
-
-interface DashboardContextType {
-  modules: Module[];
-  addModule: (moduleType: string, moduleTitle: string) => void;
-  layout: LayoutItem[];
-  updateLayout: (newLayout: LayoutItem[]) => void;
-  removeModule: (moduleId: string) => void;
-  currentPageId: string;
-}
-
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
-
-export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within DashboardLayout');
-  }
-  return context;
-};
 
 export default function DashboardLayout({
   children,
