@@ -69,9 +69,9 @@ export default function DashboardPage() {
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
             return (
-              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300">
-                {/* Drag handle - invisible overlay */}
-                <div className="drag-handle absolute inset-0 cursor-move z-0" />
+              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300 flex flex-col">
+                {/* Drag handle bar - top invisible bar for dragging */}
+                <div className="drag-handle absolute top-0 left-0 right-0 h-8 cursor-move z-10 pointer-events-auto" />
                 
                 {/* Remove button - shows on hover */}
                 <button
@@ -83,7 +83,7 @@ export default function DashboardPage() {
                   onMouseDown={(e) => {
                     e.stopPropagation();
                   }}
-                  className="absolute top-2 right-2 z-20 opacity-0 group-hover/module:opacity-100 transition-opacity duration-200 flex items-center gap-2 text-gray-400 hover:text-red-500 cursor-pointer"
+                  className="absolute top-2 right-2 z-20 opacity-0 group-hover/module:opacity-100 transition-opacity duration-200 flex items-center gap-2 text-gray-400 hover:text-red-500 cursor-pointer pointer-events-auto"
                 >
                   <span className="hidden group-hover:inline-block text-xs font-medium bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-lg">Remove</span>
                   <div className="w-7 h-7 rounded-full border-2 border-current hover:bg-red-500 hover:border-red-500 flex items-center justify-center transition-all bg-white dark:bg-gray-800 shadow-lg">
@@ -91,8 +91,8 @@ export default function DashboardPage() {
                   </div>
                 </button>
 
-                {/* Module Content */}
-                <div className="h-full overflow-auto relative z-10">
+                {/* Module Content - scrollable */}
+                <div className="flex-1 overflow-auto relative z-0 pointer-events-auto">
                   {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
                 </div>
               </div>

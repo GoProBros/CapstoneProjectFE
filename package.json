@@ -23,7 +23,7 @@
     "framer-motion": "^12.23.24",
     "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.554.0",
-    "next": "15.0.3",
+    "next": "^16.0.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-grid-layout": "^1.5.2",
