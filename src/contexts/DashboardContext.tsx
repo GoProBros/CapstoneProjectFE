@@ -1,14 +1,12 @@
-"use client";
+import { createContext, useContext } from 'react';
 
-import { createContext, useContext } from "react";
-
-export interface Module {
+interface Module {
   id: string;
   type: string;
   title: string;
 }
 
-export interface LayoutItem {
+interface LayoutItem {
   i: string;
   x: number;
   y: number;

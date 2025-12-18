@@ -23,6 +23,90 @@ body {
   background: var(--background);
   font-family: 'Quicksand', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Responsive utilities */
+@media (max-width: 640px) {
+  :root {
+    --base-font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root {
+    --base-font-size: 0.8125rem;
+  }
+}
+
+/* Prevent horizontal scroll on small screens */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+/* AG Grid Flash Animation với màu theo giá */
+.ag-theme-alpine .ag-cell-data-changed,
+.ag-theme-alpine-dark .ag-cell-data-changed {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  transition: background-color 0.5s ease-out;
+}
+
+/* Flash GREEN khi giá tăng (> TC) */
+.ag-theme-alpine .text-green-500.ag-cell-data-changed,
+.ag-theme-alpine-dark .text-green-500.ag-cell-data-changed {
+  background-color: rgba(34, 197, 94, 0.3) !important;
+  animation: flashGreen 0.8s ease-out;
+}
+
+/* Flash RED khi giá giảm (< TC) */
+.ag-theme-alpine .text-red-500.ag-cell-data-changed,
+.ag-theme-alpine-dark .text-red-500.ag-cell-data-changed {
+  background-color: rgba(239, 68, 68, 0.3) !important;
+  animation: flashRed 0.8s ease-out;
+}
+
+/* Flash YELLOW khi giá bằng TC */
+.ag-theme-alpine .text-yellow-500.ag-cell-data-changed,
+.ag-theme-alpine-dark .text-yellow-500.ag-cell-data-changed {
+  background-color: rgba(234, 179, 8, 0.3) !important;
+  animation: flashYellow 0.8s ease-out;
+}
+
+@keyframes flashGreen {
+  0% { background-color: rgba(34, 197, 94, 0.6); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashRed {
+  0% { background-color: rgba(239, 68, 68, 0.6); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashYellow {
+  0% { background-color: rgba(234, 179, 8, 0.6); }
+  100% { background-color: transparent; }
+}
+
+/* Hide row drag grip icon but keep drag functionality */
+.ag-theme-alpine .ag-row-drag,
+.ag-theme-alpine-dark .ag-row-drag {
+  display: none !important;
+}
+
+/* Show grab cursor on ticker cell to indicate draggable */
+.ag-theme-alpine .ag-cell[col-id="ticker"],
+.ag-theme-alpine-dark .ag-cell[col-id="ticker"] {
+  cursor: grab;
+}
+
+.ag-theme-alpine .ag-cell[col-id="ticker"]:active,
+.ag-theme-alpine-dark .ag-cell[col-id="ticker"]:active {
+  cursor: grabbing;
 }
 
 @layer base {
