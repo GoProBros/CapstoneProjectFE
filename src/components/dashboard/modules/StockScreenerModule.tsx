@@ -8,9 +8,10 @@ import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
- import { Settings, Save, Download, Wifi, WifiOff, Search, Table2, FolderOpen } from 'lucide-react';
+import { Save, Wifi, WifiOff, Table2, FolderOpen } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
+import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -33,10 +34,7 @@ export default function StockScreenerModule() {
   const [isLoading, setIsLoading] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
-  const [searchTicker, setSearchTicker] = useState<string>('');
-  const [isSearching, setIsSearching] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  // const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout gốc');
   
   // Get column config from Zustand store
@@ -324,29 +322,22 @@ export default function StockScreenerModule() {
     }
   };
   
-  // Handle search and subscribe to new symbol
-  const handleSearchAndSubscribe = async () => {
-    if (!searchTicker.trim()) return;
-    
-    const ticker = searchTicker.trim().toUpperCase();
-    
+  /**
+   * Handle symbol selection from search box
+   */
+  const handleSymbolSelect = async (ticker: string) => {
     // Kiểm tra xem mã đã được subscribe chưa
     if (marketData.has(ticker)) {
       alert(`⚠️ Mã ${ticker} đã được theo dõi rồi!`);
-      setSearchTicker('');
       return;
     }
     
-    setIsSearching(true);
     try {
       await subscribeToSymbols([ticker]);
-      setSearchTicker('');
       alert(`✅ Đã subscribe thành công mã ${ticker}!`);
     } catch (error) {
       console.error(`[StockScreener] Failed to subscribe to ${ticker}:`, error);
       alert(`❌ Lỗi khi subscribe mã ${ticker}. Vui lòng kiểm tra mã và thử lại.`);
-    } finally {
-      setIsSearching(false);
     }
   };
 
@@ -1102,48 +1093,11 @@ export default function StockScreenerModule() {
             </h2>
           </div>
           
-          {/* Search Box - Subscribe to new symbols */}
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-            <input
-              type="text"
-              placeholder="Nhập mã CK để subscribe..."
-              value={searchTicker}
-              onChange={(e) => {
-                const value = e.target.value.toUpperCase();
-                setSearchTicker(value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearchAndSubscribe();
-                }
-              }}
-              disabled={!isConnected || isSearching}
-              className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors ${
-                isDark 
-                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 disabled:opacity-50' 
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 disabled:opacity-50'
-              } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-            />
-            {isSearching ? (
-              <div className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                <span className="animate-spin">⏳</span>
-              </div>
-            ) : searchTicker && (
-              <button
-                onClick={() => setSearchTicker('')}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
-                  isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          {/* Symbol Search Box Component */}
+          <SymbolSearchBox 
+            isConnected={isConnected}
+            onSymbolSelect={handleSymbolSelect}
+          />
           
           {/* Connection Status Indicator - Icon only */}
           <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
