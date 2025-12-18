@@ -12,6 +12,8 @@ import { Save, Wifi, WifiOff, Table2, FolderOpen } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Toast, { ToastType } from '@/components/ui/Toast';
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -36,6 +38,19 @@ export default function StockScreenerModule() {
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout gốc');
+  
+  // Dialog and Toast state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [toast, setToast] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: ToastType;
+  }>({ isOpen: false, message: '', type: 'info' });
   
   // Get column config from Zustand store
   const { columns, setColumnWidth, setColumnVisibility, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
@@ -82,28 +97,40 @@ export default function StockScreenerModule() {
         // Reset state TRƯỚC KHI hiện dialog để tránh duplicate
         setIsDraggingOutside(null);
         
-        const confirmUnsubscribe = window.confirm(
-          `Bạn có muốn bỏ theo dõi mã ${ticker}?\n\n` +
-          'Mã này sẽ được xóa khỏi danh sách và không nhận dữ liệu real-time nữa.'
-        );
-        
-        if (confirmUnsubscribe) {
-          try {
-            // 1. Unsubscribe từ SignalR
-            await unsubscribeFromSymbols([ticker]);
-            
-            // 2. Xóa row khỏi grid
-            if (gridApi) {
-              const rowNode = gridApi.getRowNode(ticker);
-              if (rowNode) {
-                gridApi.applyTransaction({ remove: [rowNode.data] });
+        // Show confirmation dialog
+        setConfirmDialog({
+          isOpen: true,
+          title: 'Xác nhận bỏ theo dõi',
+          message: `Bạn có muốn bỏ theo dõi mã ${ticker}?\n\nMã này sẽ được xóa khỏi danh sách và không nhận dữ liệu real-time nữa.`,
+          onConfirm: async () => {
+            try {
+              // 1. Unsubscribe từ SignalR
+              await unsubscribeFromSymbols([ticker]);
+              
+              // 2. Xóa row khỏi grid
+              if (gridApi) {
+                const rowNode = gridApi.getRowNode(ticker);
+                if (rowNode) {
+                  gridApi.applyTransaction({ remove: [rowNode.data] });
+                }
               }
+              
+              // 3. Show success toast
+              setToast({
+                isOpen: true,
+                message: `Đã bỏ theo dõi mã ${ticker}`,
+                type: 'success'
+              });
+            } catch (error) {
+              console.error(`[StockScreener] Error unsubscribing from ${ticker}:`, error);
+              setToast({
+                isOpen: true,
+                message: `Lỗi khi bỏ theo dõi mã ${ticker}. Vui lòng thử lại.`,
+                type: 'error'
+              });
             }
-          } catch (error) {
-            console.error(`[StockScreener] Error unsubscribing from ${ticker}:`, error);
-            alert(`Lỗi khi bỏ theo dõi mã ${ticker}. Vui lòng thử lại.`);
           }
-        }
+        });
       }
     };
 
@@ -328,16 +355,28 @@ export default function StockScreenerModule() {
   const handleSymbolSelect = async (ticker: string) => {
     // Kiểm tra xem mã đã được subscribe chưa
     if (marketData.has(ticker)) {
-      alert(`⚠️ Mã ${ticker} đã được theo dõi rồi!`);
+      setToast({
+        isOpen: true,
+        message: `Mã ${ticker} đã được theo dõi rồi!`,
+        type: 'warning'
+      });
       return;
     }
     
     try {
       await subscribeToSymbols([ticker]);
-      alert(`✅ Đã subscribe thành công mã ${ticker}!`);
+      setToast({
+        isOpen: true,
+        message: `Đã subscribe thành công mã ${ticker} !`,
+        type: 'success'
+      });
     } catch (error) {
       console.error(`[StockScreener] Failed to subscribe to ${ticker}:`, error);
-      alert(`❌ Lỗi khi subscribe mã ${ticker}. Vui lòng kiểm tra mã và thử lại.`);
+      setToast({
+        isOpen: true,
+        message: `Lỗi khi subscribe mã ${ticker}. Vui lòng kiểm tra mã và thử lại.`,
+        type: 'error'
+      });
     }
   };
 
@@ -1082,9 +1121,34 @@ export default function StockScreenerModule() {
   }), []);
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-lg p-4 border ${
-      isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
-    }`}>
+    <>
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Xác nhận"
+        cancelText="Hủy"
+        variant="danger"
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
+      
+      {/* Toast Notification */}
+      <Toast
+        isOpen={toast.isOpen}
+        message={toast.message}
+        type={toast.type}
+        duration={3000}
+        onClose={() => setToast({ ...toast, isOpen: false })}
+      />
+      
+      <div className={`w-full h-full rounded-lg p-4 border ${
+        isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
+      }`}>
       <div className='flex justify-between items-center mb-4'>
         <div className="flex items-center gap-3">
           <div>
@@ -1196,5 +1260,6 @@ export default function StockScreenerModule() {
         />
       </div>
     </div>
+    </>
   );
 }
