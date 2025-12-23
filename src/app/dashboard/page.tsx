@@ -1,6 +1,6 @@
 "use client";
 
-import { useDashboard } from "./layout";
+import { useDashboard } from "@/contexts/DashboardContext";
 import * as Modules from "@/components/dashboard/modules";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -47,51 +47,52 @@ export default function DashboardPage() {
   return (
     <div className="p-6" ref={containerRef}>
       {modules.length === 0 ? (
-        <div className="w-full h-[400px] bg-cardBackground rounded-lg overflow-hidden flex items-center justify-center border border-borderDark">
-          <div className="text-center">
-            <p className="text-gray-400 text-lg mb-2">Chưa có module nào</p>
-            <p className="text-gray-500 text-sm">Nhấn vào nút "Thêm Module" để bắt đầu</p>
-          </div>
+        <div className="">
         </div>
       ) : (
         <GridLayout
           className="layout"
           layout={layout}
-          cols={12}
-          rowHeight={100}
+          cols={96}
+          rowHeight={20}
           width={containerWidth}
           onLayoutChange={updateLayout}
           draggableHandle=".drag-handle"
           isResizable={true}
           isDraggable={true}
           margin={[16, 16]}
+          compactType="vertical"
+          preventCollision={false}
+          resizeHandles={['se']}
+          allowOverlap={false}
         >
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
             return (
-              <div key={module.id} className="bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300">
-                {/* Module Header with drag handle and close button */}
-                <div className="drag-handle bg-white dark:bg-componentBackground px-4 py-2 flex items-center justify-between cursor-move border-b border-gray-200 dark:border-borderDark transition-colors duration-300">
-                  <h3 className="text-gray-900 dark:text-white text-sm font-medium">{module.title}</h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      removeModule(module.id);
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                    }}
-                    className="group flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all cursor-pointer"
-                  >
-                    <span className="hidden group-hover:inline-block text-xs font-medium">Remove</span>
-                    <div className="w-6 h-6 rounded-full border-2 border-current group-hover:bg-red-500 group-hover:border-red-500 flex items-center justify-center transition-all">
-                      <X className="w-3.5 h-3.5 group-hover:text-white" />
-                    </div>
-                  </button>
-                </div>
-                {/* Module Content */}
-                <div className="h-[calc(100%-40px)] overflow-auto">
+              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300 flex flex-col">
+                {/* Drag handle bar - top invisible bar for dragging */}
+                <div className="drag-handle absolute top-0 left-0 right-0 h-8 cursor-move z-10 pointer-events-auto" />
+                
+                {/* Remove button - shows on hover */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    removeModule(module.id);
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="absolute top-2 right-2 z-20 opacity-0 group-hover/module:opacity-100 transition-opacity duration-200 flex items-center gap-2 text-gray-400 hover:text-red-500 cursor-pointer pointer-events-auto"
+                >
+                  <span className="hidden group-hover:inline-block text-xs font-medium bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-lg">Remove</span>
+                  <div className="w-7 h-7 rounded-full border-2 border-current hover:bg-red-500 hover:border-red-500 flex items-center justify-center transition-all bg-white dark:bg-gray-800 shadow-lg">
+                    <X className="w-4 h-4 hover:text-white" />
+                  </div>
+                </button>
+
+                {/* Module Content - scrollable */}
+                <div className="flex-1 overflow-auto relative z-0 pointer-events-auto">
                   {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
                 </div>
               </div>
