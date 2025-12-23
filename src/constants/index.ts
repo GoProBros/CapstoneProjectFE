@@ -1,6 +1,6 @@
 // Application constants
 
-export const APP_NAME = 'Capstone Project';
+export const APP_NAME = 'kafi-stock';
 export const APP_VERSION = '1.0.0';
 
 export const ROUTES = {
