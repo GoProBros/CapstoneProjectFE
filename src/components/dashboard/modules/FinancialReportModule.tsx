@@ -627,7 +627,7 @@ export default function FinancialReportModule() {
             <div className="flex flex-wrap gap-1 min-w-32">
               <button
                 onClick={() => setActiveTab('annual')}
-                className={`px-3 py-1 rounded-full ${
+                className={`px-2 py-0.5 text-xs rounded-full ${
                   activeTab === 'annual'
                     ? 'bg-accentGreen text-black'
                     : isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600'
@@ -637,7 +637,7 @@ export default function FinancialReportModule() {
               </button>
               <button
                 onClick={() => setActiveTab('quarterly')}
-                className={`px-3 py-1 rounded-full ${
+                className={`px-2 py-0.5 text-xs rounded-full ${
                   activeTab === 'quarterly'
                     ? 'bg-accentGreen text-black'
                     : isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600'
@@ -672,7 +672,7 @@ export default function FinancialReportModule() {
               </div>
               <div className="flex gap-2 text-center">
                 {currentPeriods.map((period) => (
-                  <div key={period} className={`font-semibold w-14 ${
+                  <div key={period} className={`font-semibold text-xs w-12 ${
                     isDark ? 'text-white' : 'text-gray-900'
                   }`}>
                     {period}
@@ -709,7 +709,7 @@ export default function FinancialReportModule() {
         <div className="px-6 pb-4">
           {currentMetrics.map((metric) => (
             <div key={metric} className="flex justify-between items-center">
-              <div className={`flex flex-wrap gap-1 min-w-32 ${
+              <div className={`flex flex-wrap gap-1 min-w-32 text-xs ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}>
                 {metric}
@@ -726,7 +726,7 @@ export default function FinancialReportModule() {
                     return (
                       <div
                         key={`${metric}-${period}`}
-                        className={`w-14 my-1 ${
+                        className={`w-12 my-0.5 text-xs ${
                           isPercentage
                             ? isPositive
                               ? 'text-green-400'
