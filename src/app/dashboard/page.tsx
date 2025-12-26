@@ -23,6 +23,7 @@ const moduleComponents: Record<string, React.ComponentType> = {
   'canslim': Modules.CanslimModule,
   'stock-screener': Modules.StockScreenerModule,
   'trading-map': Modules.TradingMapModule,
+  'heatmap': Modules.HeatmapModule,
   'analysis-report': Modules.AnalysisReportModule,
 };
 

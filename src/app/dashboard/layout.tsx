@@ -400,6 +400,12 @@ export default function DashboardLayout({
       height = 24; // 24 units = 480px (square)
     }
 
+    // Heatmap - full width, large height
+    else if (moduleType === "heatmap") {
+      width = 96; // 96 columns = 100% width (full width)
+      height = 35; // 35 units = 700px (large height for heatmap visualization)
+    }
+
     // Analysis Report - medium width, tall
     else if (moduleType === "analysis-report") {
       width = 48; // 48 columns = 50% width
