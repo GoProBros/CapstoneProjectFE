@@ -12,5 +12,6 @@ export { default as TAAdvisorModule } from './TAAdvisorModule';
 export { default as CanslimModule } from './CanslimModule';
 export { default as StockScreenerModule } from './StockScreenerModule';
 export { default as TradingMapModule } from './TradingMapModule';
+export { default as HeatmapModule } from './HeatmapModule';
 export { default as AnalysisReportModule } from './AnalysisReportModule';
 export { default as TradingViewWidget } from './TradingViewWidget';

@@ -107,6 +107,11 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
       preview: '/assets/Dashboard/ModulePreviews/trading-map.png'
     },
     { 
+      id: 'heatmap', 
+      title: 'Heatmap - Bản đồ nhiệt',
+      preview: '/assets/Dashboard/ModulePreviews/heatmap.png'
+    },
+    { 
       id: 'analysis-report', 
       title: 'Báo cáo phân tích',
       preview: '/assets/Dashboard/ModulePreviews/analysis-report.png'
