@@ -156,7 +156,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
                 <img 
                   src={module.preview} 
                   alt={module.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   onError={(e) => {
                     // Fallback nếu ảnh không load được
                     e.currentTarget.style.display = 'none';
