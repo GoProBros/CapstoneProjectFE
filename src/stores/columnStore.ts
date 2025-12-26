@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { saveColumnLayout, loadColumnLayout } from '@/services/columnLayoutService';
 
 export interface ColumnConfig {
   field: string;
@@ -194,79 +195,33 @@ export const useColumnStore = create<ColumnState>()(
       saveLayoutToDB: async (columnWidths?: any[], symbols?: string[], name?: string) => {
         const state = get();
         const layoutData = {
-          name: name || 'Layout gốc', // Lưu tên layout
+          name: name || 'Layout gốc',
           columns: state.columns,
-          columnWidths: columnWidths || [], // Lưu column widths từ AG Grid
-          symbols: symbols || [], // Lưu danh sách tickers
+          columnWidths: columnWidths || [],
+          symbols: symbols || [],
           savedAt: new Date().toISOString(),
         };
         
         try {
-          // TODO: Replace with actual API call
-          const response = await fetch('/api/column-layout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(layoutData),
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to save layout');
-          }
-          
-          console.log('Layout saved successfully:', layoutData);
-          console.log(`  - Name: ${name || 'Layout gốc'}`);
-          console.log(`  - Column widths: ${columnWidths?.length || 0} columns`);
-          console.log(`  - Symbols: ${symbols?.length || 0} tickers`);
+          await saveColumnLayout(layoutData);
         } catch (error) {
-          console.error('Error saving layout:', error);
-          // Fallback: save to localStorage
-          localStorage.setItem('stock-screener-layout', JSON.stringify(layoutData));
-          console.log('Layout saved to localStorage as fallback');
+          console.error('Error in saveLayoutToDB:', error);
         }
       },
       
       loadLayoutFromDB: async () => {
         try {
-          // TODO: Replace with actual API call
-          const response = await fetch('/api/column-layout', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
+          const layoutData = await loadColumnLayout();
           
-          if (!response.ok) {
-            throw new Error('Failed to load layout');
-          }
-          
-          const result = await response.json();
-          
-          if (result.success && result.data) {
-            set({ columns: result.data.columns });
-            console.log('Layout loaded successfully from DB:', result.data);
-            return result.data; // Trả về layoutData để lấy name
-          } else {
-            // Fallback: load from localStorage
-            const savedLayout = localStorage.getItem('stock-screener-layout');
-            if (savedLayout) {
-              const layoutData = JSON.parse(savedLayout);
-              set({ columns: layoutData.columns });
-              console.log('Layout loaded from localStorage:', layoutData);
-              return layoutData; // Trả về layoutData để lấy name
-            } else {
-              throw new Error('No saved layout found');
-            }
-          }
-        } catch (error) {
-          console.error('Error loading layout:', error);
-          // Try localStorage as fallback
-          const savedLayout = localStorage.getItem('stock-screener-layout');
-          if (savedLayout) {
-            const layoutData = JSON.parse(savedLayout);
+          if (layoutData) {
             set({ columns: layoutData.columns });
-            console.log('Layout loaded from localStorage fallback:', layoutData);
-            return layoutData; // Trả về layoutData để lấy name
-          } else {
-            throw error;
+            return layoutData;
           }
+          
+          return null;
+        } catch (error) {
+          console.error('Error in loadLayoutFromDB:', error);
+          return null;
         }
       },
     }),
