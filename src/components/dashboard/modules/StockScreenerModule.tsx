@@ -13,10 +13,11 @@ import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
 import ExchangeFilter from './StockScreener/ExchangeFilter';
+import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Toast, { ToastType } from '@/components/ui/Toast';
-import { fetchSymbolsByExchange } from '@/services/symbolService';
-import type { ExchangeCode } from '@/types/symbol';
+import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
+import type { ExchangeCode, SymbolType } from '@/types/symbol';
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -38,6 +39,7 @@ export default function StockScreenerModule() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingExchange, setIsLoadingExchange] = useState(false);
+  const [isLoadingSymbolType, setIsLoadingSymbolType] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
@@ -120,6 +122,83 @@ export default function StockScreenerModule() {
       });
     } finally {
       setIsLoadingExchange(false);
+    }
+  };
+
+  /**
+   * Handle symbol type filter change
+   */
+  const handleSymbolTypeChange = async (type: SymbolType | null) => {
+    if (!isConnected) {
+      setToast({
+        isOpen: true,
+        message: 'Chưa kết nối tới server. Vui lòng đợi...',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setIsLoadingSymbolType(true);
+    
+    try {
+      // 1. Get current subscribed tickers
+      const currentTickers = Array.from(marketData.keys());
+      
+      // 2. Unsubscribe all current symbols
+      if (currentTickers.length > 0) {
+        await unsubscribeFromSymbols(currentTickers);
+        
+        // 3. Clear grid data
+        if (gridApi) {
+          gridApi.setGridOption('rowData', []);
+        }
+      }
+      
+      // 4. If type is null, load default symbols
+      if (type === null) {
+        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
+        await subscribeToSymbols(symbols);
+        setToast({
+          isOpen: true,
+          message: `Đã tải ${symbols.length} mã mặc định`,
+          type: 'success'
+        });
+        return;
+      }
+      
+      // 5. Fetch symbols by type (returns SymbolData[] directly)
+      const symbols = await fetchSymbols({ Type: type, PageSize: 5000 });
+      
+      // Check for empty array
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        const typeLabel = type === 1 ? 'Cổ phiếu' : type === 2 ? 'ETF' : type === 3 ? 'Trái phiếu' : 'Phái sinh';
+        setToast({
+          isOpen: true,
+          message: `Không tìm thấy mã nào thuộc loại ${typeLabel}`,
+          type: 'warning'
+        });
+        return;
+      }
+      
+      // 6. Extract tickers and subscribe
+      const newTickers = symbols.map(symbol => symbol.ticker);
+      await subscribeToSymbols(newTickers);
+      
+      const typeLabel = type === 1 ? 'Cổ phiếu' : type === 2 ? 'ETF' : type === 3 ? 'Trái phiếu' : 'Phái sinh';
+      setToast({
+        isOpen: true,
+        message: `Đã tải ${newTickers.length} mã ${typeLabel}`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error(`[StockScreener] Error changing symbol type:`, error);
+      setToast({
+        isOpen: true,
+        message: `Lỗi khi tải dữ liệu theo loại. Vui lòng thử lại.`,
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingSymbolType(false);
     }
   };
 
@@ -1228,6 +1307,12 @@ export default function StockScreenerModule() {
           <ExchangeFilter 
             onExchangeChange={handleExchangeChange}
             isLoading={isLoadingExchange}
+          />
+          
+          {/* Symbol Type Filter Dropdown */}
+          <SymbolTypeFilter
+            onSymbolTypeChange={handleSymbolTypeChange}
+            isLoading={isLoadingSymbolType}
           />
           
           {/* Symbol Search Box Component */}
