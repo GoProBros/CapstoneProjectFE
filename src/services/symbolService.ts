@@ -5,7 +5,11 @@
 import { 
   SymbolSearchParams, 
   PaginatedSymbolSearchResponse,
-  ApiResponse 
+  ApiResponse,
+  SymbolApiResponse,
+  SymbolQueryParams,
+  SymbolData,
+  ExchangeCode
 } from '@/types/symbol';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7148';
@@ -48,6 +52,65 @@ export async function searchSymbols(params: SymbolSearchParams): Promise<Paginat
     }
   } catch (error) {
     console.error('[SymbolService] Search error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch symbols từ API với filters
+ */
+export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolData[]> {
+  const queryParams = new URLSearchParams();
+  
+  if (params.Type !== undefined) queryParams.append('Type', params.Type.toString());
+  if (params.Exchange) queryParams.append('Exchange', params.Exchange);
+  if (params.Sector) queryParams.append('Sector', params.Sector);
+  if (params.PageIndex !== undefined) queryParams.append('PageIndex', params.PageIndex.toString());
+  if (params.PageSize !== undefined) queryParams.append('PageSize', params.PageSize.toString());
+  
+  const url = `${API_BASE_URL}/api/v1/symbol?${queryParams.toString()}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Fetch symbols failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result: SymbolApiResponse = await response.json();
+    
+    if (result.isSuccess && result.data?.items) {
+      return result.data.items;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('[SymbolService] Fetch symbols error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch symbols by exchange với default pageSize = 5000
+ */
+export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<string[]> {
+  try {
+    const symbols = await fetchSymbols({
+      Exchange: exchange,
+      Type: 1, // Stock only
+      PageSize: 5000,
+      PageIndex: 1,
+    });
+    
+    // Extract tickers
+    return symbols.map(symbol => symbol.ticker);
+  } catch (error) {
+    console.error(`[SymbolService] Error fetching ${exchange} symbols:`, error);
     throw error;
   }
 }
