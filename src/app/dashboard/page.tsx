@@ -31,22 +31,62 @@ export default function DashboardPage() {
   const { modules, layout, updateLayout, removeModule } = useDashboard();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [cols, setCols] = useState(96);
+  const [rowHeight, setRowHeight] = useState(20);
+  const [margin, setMargin] = useState<[number, number]>([16, 16]);
+  const [padding, setPadding] = useState(24);
 
   useEffect(() => {
-    const updateWidth = () => {
+    const updateResponsive = () => {
       if (containerRef.current) {
-        // Subtract padding (24px on each side = 48px total) to match margin
-        setContainerWidth(containerRef.current.offsetWidth - 48);
+        const width = window.innerWidth;
+        
+        // Breakpoints
+        if (width < 640) {
+          // Mobile: sm
+          setCols(12);
+          setRowHeight(15);
+          setMargin([8, 8]);
+          setPadding(16);
+        } else if (width < 768) {
+          // Small tablet: md
+          setCols(24);
+          setRowHeight(18);
+          setMargin([12, 12]);
+          setPadding(20);
+        } else if (width < 1024) {
+          // Tablet: lg
+          setCols(48);
+          setRowHeight(20);
+          setMargin([14, 14]);
+          setPadding(20);
+        } else if (width < 1280) {
+          // Small desktop: xl
+          setCols(72);
+          setRowHeight(20);
+          setMargin([16, 16]);
+          setPadding(24);
+        } else {
+          // Large desktop: 2xl
+          setCols(96);
+          setRowHeight(20);
+          setMargin([16, 16]);
+          setPadding(24);
+        }
+        
+        // Update container width
+        const paddingTotal = padding * 2;
+        setContainerWidth(containerRef.current.offsetWidth - paddingTotal);
       }
     };
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
+    updateResponsive();
+    window.addEventListener('resize', updateResponsive);
+    return () => window.removeEventListener('resize', updateResponsive);
+  }, [padding]);
 
   return (
-    <div className="p-6" ref={containerRef}>
+    <div className="p-4 sm:p-5 md:p-6" ref={containerRef}>
       {modules.length === 0 ? (
         <div className="">
         </div>
@@ -54,14 +94,14 @@ export default function DashboardPage() {
         <GridLayout
           className="layout"
           layout={layout}
-          cols={96}
-          rowHeight={20}
+          cols={cols}
+          rowHeight={rowHeight}
           width={containerWidth}
           onLayoutChange={updateLayout}
           draggableHandle=".drag-handle"
           isResizable={true}
           isDraggable={true}
-          margin={[16, 16]}
+          margin={margin}
           compactType="vertical"
           preventCollision={false}
           resizeHandles={['se']}

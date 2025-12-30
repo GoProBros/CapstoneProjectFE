@@ -1,0 +1,22 @@
+/**
+ * Custom AG Grid styles (Community version only)
+ * Using Theming API instead of CSS file themes
+ */
+
+/* Cell classes for positive/negative values */
+.tx_t {
+  color: #10b981 !important; /* green-500 */
+}
+
+.tx_g {
+  color: #ef4444 !important; /* red-500 */
+}
+
+/* Dark theme adjustments */
+.dark .tx_t {
+  color: #34d399 !important; /* green-400 */
+}
+
+.dark .tx_g {
+  color: #f87171 !important; /* red-400 */
+}
