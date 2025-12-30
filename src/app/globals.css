@@ -23,6 +23,30 @@ body {
   background: var(--background);
   font-family: 'Quicksand', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Responsive utilities */
+@media (max-width: 640px) {
+  :root {
+    --base-font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root {
+    --base-font-size: 0.8125rem;
+  }
+}
+
+/* Prevent horizontal scroll on small screens */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 /* AG Grid Flash Animation với màu theo giá */
