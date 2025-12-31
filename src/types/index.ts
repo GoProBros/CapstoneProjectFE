@@ -8,9 +8,11 @@ export interface User {
 }
 
 export interface ApiResponse<T> {
+  isSuccess: boolean;
+  message: string;
+  validationErrors?: Record<string, string[]>;
+  responseTime: string;
   data: T;
-  message?: string;
-  success: boolean;
 }
 
 // Re-export all types

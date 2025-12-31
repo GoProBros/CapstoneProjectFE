@@ -39,7 +39,7 @@ export async function loadColumnLayout(): Promise<ColumnLayoutData | null> {
   try {
     const result = await get<ColumnLayoutData>('/column-layout');
 
-    if (result.success && result.data) {
+    if (result.isSuccess && result.data) {
       console.log('Layout loaded successfully from DB:', result.data);
       return result.data;
     }

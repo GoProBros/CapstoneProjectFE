@@ -4,6 +4,7 @@ import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus, X } from '
 import { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 interface PageData {
@@ -33,6 +34,7 @@ export default function Sidebar({
 }: SidebarProps) {
     const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
+    const { logout } = useAuth();
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
     const [pageToDelete, setPageToDelete] = useState<string | null>(null);
@@ -46,8 +48,15 @@ export default function Sidebar({
         setFontSize(Number(e.target.value));
     };
 
-    const handleLogout = () => {
-        router.push('/login');
+    const handleLogout = async () => {
+        try {
+            await logout();
+            // AuthContext will handle redirect to /login
+        } catch (error) {
+            console.error('Logout failed:', error);
+            // Even if logout fails, redirect to login
+            router.push('/login');
+        }
     };
 
     const handleDeleteClick = (e: React.MouseEvent, pageId: string) => {

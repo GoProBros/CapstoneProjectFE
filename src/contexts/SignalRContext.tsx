@@ -137,7 +137,9 @@ export function SignalRProvider({
     
     // Auto connect nếu được bật
     if (autoConnect) {
-      service.connect().catch(() => {});
+      service.connect().catch((error) => {
+        console.error('[SignalRContext] Auto connect failed:', error);
+      });
     }
     
     // Cleanup khi unmount
@@ -145,8 +147,14 @@ export function SignalRProvider({
       unsubscribeState();
       unsubscribeData();
       
-      // Disconnect khi component unmount
-      service.disconnect().catch(() => {});
+      // Chỉ disconnect nếu đang connected hoặc đang connecting
+      // Tránh stop connection trong khi đang negotiation (gây lỗi)
+      const currentState = service.getConnectionState();
+      if (currentState === ConnectionState.Connected) {
+        service.disconnect().catch((error) => {
+          console.error('[SignalRContext] Disconnect failed:', error);
+        });
+      }
     };
   }, [apiUrl, autoConnect, autoReconnect]);
   
