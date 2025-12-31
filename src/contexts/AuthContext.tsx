@@ -143,13 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      const userStr = localStorage.getItem(USER_KEY);
+      const accessToken = localStorage.getItem(TOKEN_KEY);
       
-      if (refreshToken && userStr) {
-        const userData: User = JSON.parse(userStr);
+      if (refreshToken && accessToken) {
         await authService.logout({
           refreshToken,
-          userId: userData.id,
+          accessToken,
         });
       }
     } catch (error) {

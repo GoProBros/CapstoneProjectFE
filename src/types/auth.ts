@@ -38,12 +38,5 @@ export interface RefreshTokenRequest {
 
 export interface LogoutRequest {
   refreshToken: string;
-  userId: string;
-}
-
-export interface ApiResponse<T> {
-  data: T;
-  isSuccess: boolean;
-  message: string;
-  responseTime: string;
+  accessToken: string;
 }
