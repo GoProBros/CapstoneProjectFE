@@ -19,6 +19,7 @@ export interface ApiResponse<T> {
 export * from './market';
 export * from './symbol';
 export * from './columnLayout';
+export * from './layout';
 
 export interface PaginationParams {
   page: number;

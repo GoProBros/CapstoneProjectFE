@@ -8,7 +8,7 @@ import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
-import { Save, Wifi, WifiOff, Table2, FolderOpen } from 'lucide-react';
+import { Save, Wifi, WifiOff, Table2 } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
@@ -18,6 +18,13 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Toast, { ToastType } from '@/components/ui/Toast';
 import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
+import { SaveLayoutModal, LayoutSelector } from '@/components/dashboard/layout';
+import { HEADER_GREEN } from '@/constants/colors';
+import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
+import * as layoutService from '@/services/layoutService';
+
+// Module type constant for Stock Screener
+const MODULE_TYPE_STOCK_SCREENER = 1;
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -37,13 +44,17 @@ export default function StockScreenerModule() {
   const [gridApi, setGridApi] = useState<any>(null);
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
   const [isLoadingExchange, setIsLoadingExchange] = useState(false);
   const [isLoadingSymbolType, setIsLoadingSymbolType] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout gốc');
+  
+  // Layout state
+  const [layouts, setLayouts] = useState<ModuleLayoutSummary[]>([]);
+  const [currentLayoutId, setCurrentLayoutId] = useState<number | null>(null);
+  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout mặc định');
   
   // Dialog and Toast state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -58,8 +69,11 @@ export default function StockScreenerModule() {
     type: ToastType;
   }>({ isOpen: false, message: '', type: 'info' });
   
+  // Save Layout Modal state
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  
   // Get column config from Zustand store
-  const { columns, setColumnWidth, setColumnVisibility, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
+  const { columns, setColumns, setColumnWidth, setColumnVisibility, setSidebarOpen, resetColumns } = useColumnStore();
 
   // Get SignalR connection và market data
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
@@ -449,56 +463,164 @@ export default function StockScreenerModule() {
     }
   }, [columns, gridApi]); // Re-run khi columns thay đổi
 
-  // Handle save layout
-  const handleSaveLayout = async () => {
-    // Prompt user to enter layout name
-    const layoutName = prompt('Nhập tên layout:', currentLayoutName !== 'Layout gốc' ? currentLayoutName : '');
-    
-    if (!layoutName || !layoutName.trim()) {
-      alert('Tên layout không được để trống!');
-      return;
+  // Fetch layouts from API
+  const fetchLayouts = useCallback(async () => {
+    setIsLoadingLayouts(true);
+    try {
+      const layoutList = await layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER);
+      setLayouts(layoutList);
+      
+      // If no layouts exist, create default layout
+      if (layoutList.length === 0) {
+        const defaultConfig = layoutService.convertColumnsToConfigJson(columns);
+        const defaultLayout = await layoutService.ensureDefaultLayout(
+          MODULE_TYPE_STOCK_SCREENER,
+          defaultConfig,
+          'Layout mặc định'
+        );
+        setLayouts([defaultLayout]);
+        setCurrentLayoutId(defaultLayout.id);
+        setCurrentLayoutName(defaultLayout.layoutName);
+      }
+    } catch (error) {
+      console.error('[StockScreener] Error fetching layouts:', error);
+      setToast({
+        isOpen: true,
+        message: 'Không thể tải danh sách layout',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingLayouts(false);
     }
-    
+  }, [columns]);
+
+  // Handle save layout - mở modal
+  const handleSaveLayout = () => {
+    setIsSaveModalOpen(true);
+  };
+
+  // Handle save layout submit from modal
+  const handleSaveLayoutSubmit = async (layoutName: string) => {
     setIsSaving(true);
     try {
-      // Lấy column widths từ AG Grid
-      const columnWidths = gridApi ? gridApi.getColumnState() : [];
+      // Save layout using layoutService
+      const createdLayout = await layoutService.saveUserLayout(
+        MODULE_TYPE_STOCK_SCREENER,
+        layoutName,
+        columns
+      );
       
-      // Lấy danh sách tickers đang hiển thị
-      const symbols = Array.from(marketData.keys());
+      // Update state
+      setCurrentLayoutId(createdLayout.id);
+      setCurrentLayoutName(createdLayout.layoutName);
       
-      await saveLayoutToDB(columnWidths, symbols, layoutName.trim());
-      setCurrentLayoutName(layoutName.trim());
-      alert(`Layout đã được lưu thành công!\n\n` +
-            `• Tên: ${layoutName.trim()}\n` +
-            `• ${columnWidths.length} cột với chiều rộng\n` +
-            `• ${symbols.length} mã chứng khoán: ${symbols.join(', ')}`);
+      // Refresh layouts list
+      await fetchLayouts();
+      
+      setToast({
+        isOpen: true,
+        message: `Layout "${layoutName}" đã được lưu thành công!`,
+        type: 'success'
+      });
     } catch (error) {
-      alert('Có lỗi khi lưu layout. Vui lòng thử lại.');
+      console.error('[StockScreener] Error saving layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi lưu layout. Vui lòng thử lại.',
+        type: 'error'
+      });
+      throw error;
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle load layout
-  const handleLoadLayout = async () => {
-    setIsLoading(true);
+  // Handle select layout from dropdown
+  const handleSelectLayout = async (layout: ModuleLayoutSummary) => {
+    setIsLoadingLayouts(true);
     try {
-      const layoutData = await loadLayoutFromDB();
+      // Fetch full layout detail with configJson
+      const layoutDetail = await layoutService.getLayoutById(layout.id);
       
-      // Update current layout name
-      if (layoutData?.name) {
-        setCurrentLayoutName(layoutData.name);
-      } else {
-        setCurrentLayoutName('Layout gốc');
+      // Apply layout config to column store
+      if (layoutDetail.configJson?.state?.columns) {
+        // Merge saved columns with current columns from localStorage
+        // This preserves new fields and only updates saved properties
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        
+        // Update zustand store with merged columns
+        // This will automatically sync to localStorage 'stock-screener-columns'
+        setColumns(mergedColumns);
       }
       
-      alert('Layout đã được tải thành công!');
+      // Update current layout state
+      setCurrentLayoutId(layout.id);
+      setCurrentLayoutName(layout.layoutName);
+      
+      setToast({
+        isOpen: true,
+        message: `Đã tải layout "${layout.layoutName}"`,
+        type: 'success'
+      });
     } catch (error) {
-      alert('Có lỗi khi tải layout. Vui lòng thử lại.');
+      console.error('[StockScreener] Error loading layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tải layout. Vui lòng thử lại.',
+        type: 'error'
+      });
     } finally {
-      setIsLoading(false);
+      setIsLoadingLayouts(false);
     }
+  };
+
+  // Handle delete layout
+  const handleDeleteLayout = async (layout: ModuleLayoutSummary) => {
+    if (layout.isSystemDefault) {
+      setToast({
+        isOpen: true,
+        message: 'Không thể xóa layout mặc định của hệ thống',
+        type: 'warning'
+      });
+      return;
+    }
+    
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xác nhận xóa layout',
+      message: `Bạn có chắc muốn xóa layout "${layout.layoutName}"? Hành động này không thể hoàn tác.`,
+      onConfirm: async () => {
+        try {
+          await layoutService.deleteLayout(layout.id);
+          
+          // Refresh layouts list
+          await fetchLayouts();
+          
+          // If deleted current layout, reset to first available or default
+          if (currentLayoutId === layout.id) {
+            setCurrentLayoutId(null);
+            setCurrentLayoutName('Layout mặc định');
+            resetColumns();
+          }
+          
+          setToast({
+            isOpen: true,
+            message: `Đã xóa layout "${layout.layoutName}"`,
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('[StockScreener] Error deleting layout:', error);
+          setToast({
+            isOpen: true,
+            message: 'Có lỗi khi xóa layout. Vui lòng thử lại.',
+            type: 'error'
+          });
+        }
+      }
+    });
   };
   
   /**
@@ -1298,126 +1420,151 @@ export default function StockScreenerModule() {
         onClose={() => setToast({ ...toast, isOpen: false })}
       />
       
-      <div className={`w-full h-full rounded-lg p-4 border ${
+      {/* Save Layout Modal */}
+      <SaveLayoutModal
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        onSave={handleSaveLayoutSubmit}
+        currentLayoutName={currentLayoutName}
+        isLoading={isSaving}
+      />
+      
+      <div className={`w-full h-full rounded-lg overflow-hidden border flex flex-col ${
         isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
       }`}>
-      <div className='flex justify-between items-center mb-4'>
-        <div className="flex items-center gap-3">
-          {/* Exchange Filter Buttons */}
-          <ExchangeFilter 
-            onExchangeChange={handleExchangeChange}
-            isLoading={isLoadingExchange}
-          />
-          
-          {/* Symbol Type Filter Dropdown */}
-          <SymbolTypeFilter
-            onSymbolTypeChange={handleSymbolTypeChange}
-            isLoading={isLoadingSymbolType}
-          />
-          
-          {/* Symbol Search Box Component */}
-          <SymbolSearchBox 
-            isConnected={isConnected}
-            onSymbolSelect={handleSymbolSelect}
-          />
-          
-          {/* Connection Status Indicator - Icon only */}
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            isConnected 
-              ? 'bg-green-500/20 text-green-500' 
-              : 'bg-red-500/20 text-red-500'
-          }`}>
-            {isConnected ? (
-              <Wifi size={16} />
-            ) : (
-              <WifiOff size={16} />
-            )}
+        
+        {/* Module Header - Trapezoid Design */}
+        <div className="module-header flex items-center justify-center px-4 pt-0 pb-2 relative">
+          {/* Trapezoid Title Container - Only this part has green background and is draggable */}
+          <div 
+            className="drag-handle relative px-8 py-1.5 flex items-center gap-2 cursor-move select-none"
+            style={{
+              backgroundColor: HEADER_GREEN,
+              clipPath: 'polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%)',
+              minWidth: '400px',
+              justifyContent: 'center'
+            }}
+          >
+            <span className="text-borderDark font-semibold text-md">Bảng giá</span>
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Save Layout Button - Icon Only */}
-          <button
-            onClick={handleSaveLayout}
-            disabled={isSaving}
-            title="Lưu layout"
-            className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
-              isDark 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
-            }`}
-          >
-            <Save size={18} />
-          </button>
+        {/* Content Area */}
+        <div className="flex-1 p-4 overflow-hidden flex flex-col">
+          <div className='flex justify-between items-center mb-4'>
+            <div className="flex items-center gap-3">
+              {/* Exchange Filter Buttons */}
+              <ExchangeFilter 
+                onExchangeChange={handleExchangeChange}
+                isLoading={isLoadingExchange}
+              />
           
-          {/* Load Layout Button - Hiển thị tên layout */}
+              {/* Symbol Type Filter Dropdown */}
+              <SymbolTypeFilter
+                onSymbolTypeChange={handleSymbolTypeChange}
+                isLoading={isLoadingSymbolType}
+              />
+          
+              {/* Symbol Search Box Component */}
+              <SymbolSearchBox 
+                isConnected={isConnected}
+                onSymbolSelect={handleSymbolSelect}
+              />
+          
+              {/* Connection Status Indicator - Icon only */}
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                isConnected 
+                  ? 'bg-green-500/20 text-green-500' 
+                  : 'bg-red-500/20 text-red-500'
+              }`}>
+                {isConnected ? (
+                  <Wifi size={16} />
+                ) : (
+                  <WifiOff size={16} />
+                )}
+              </div>
+            </div>
+        
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Save Layout Button - Icon Only */}
+              <button
+                onClick={handleSaveLayout}
+                disabled={isSaving}
+                title="Lưu layout mới"
+                className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
+                  isDark 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
+                    : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+                }`}
+              >
+                <Save size={18} />
+              </button>
+          
+              {/* Layout Selector Dropdown */}
+              <LayoutSelector
+                layouts={layouts}
+                currentLayoutId={currentLayoutId}
+                currentLayoutName={currentLayoutName}
+                isLoading={isLoadingLayouts}
+                onSelect={handleSelectLayout}
+                onDelete={handleDeleteLayout}
+                onRefresh={fetchLayouts}
+              />
+            </div>
+          </div>
+      
+          {/* Column Sidebar */}
+          <ColumnSidebar />
+      
+          {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
           <button
-            onClick={handleLoadLayout}
-            disabled={isLoading}
-            title="Load layout"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+            onClick={() => setSidebarOpen(true)}
+            title="Quản lý cột"
+            className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
               isDark 
-                ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
-                : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
+                ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
+                : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
             }`}
           >
-            <FolderOpen size={18} />
-            <span className="text-sm">{currentLayoutName}</span>
+            <Table2 size={16} />
+            <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
           </button>
+      
+          <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
+            <AgGridReact
+              rowData={undefined}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              rowSelection="multiple"
+              animateRows={true}
+              theme="legacy"
+              rowDragManaged={false}
+              rowDragEntireRow={true}
+              suppressMoveWhenRowDragging={true}
+              onGridReady={(params) => {
+                setGridApi(params.api);
+              }}
+              onColumnResized={onColumnResized}
+              onColumnVisible={onColumnVisible}
+              onRowDragEnter={handleRowDragEnter}
+              onRowDragLeave={handleRowDragLeave}
+              // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
+              getRowId={(params) => {
+                // Validate ticker exists
+                if (!params.data || !params.data.ticker) {
+                  console.error('[StockScreener] ❌ Invalid row data - missing ticker:', params.data);
+                  return 'invalid-' + Math.random(); // Fallback ID
+                }
+                return params.data.ticker;
+              }}
+              // Optimize performance
+              suppressAnimationFrame={false}
+              suppressColumnVirtualisation={false}
+            />
+          </div>
         </div>
       </div>
-      
-      {/* Column Sidebar */}
-      <ColumnSidebar />
-      
-      {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
-      <button
-        onClick={() => setSidebarOpen(true)}
-        title="Quản lý cột"
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
-          isDark 
-            ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
-            : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
-        }`}
-      >
-        <Table2 size={16} />
-        <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
-      </button>
-      
-      <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
-        <AgGridReact
-          rowData={undefined}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          rowSelection="multiple"
-          animateRows={true}
-          theme="legacy"
-          rowDragManaged={false}
-          rowDragEntireRow={true}
-          suppressMoveWhenRowDragging={true}
-          onGridReady={(params) => {
-            setGridApi(params.api);
-          }}
-          onColumnResized={onColumnResized}
-          onColumnVisible={onColumnVisible}
-          onRowDragEnter={handleRowDragEnter}
-          onRowDragLeave={handleRowDragLeave}
-          // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
-          getRowId={(params) => {
-            // Validate ticker exists
-            if (!params.data || !params.data.ticker) {
-              console.error('[StockScreener] ❌ Invalid row data - missing ticker:', params.data);
-              return 'invalid-' + Math.random(); // Fallback ID
-            }
-            return params.data.ticker;
-          }}
-          // Optimize performance
-          suppressAnimationFrame={false}
-          suppressColumnVirtualisation={false}
-        />
-      </div>
-    </div>
     </>
   );
 }

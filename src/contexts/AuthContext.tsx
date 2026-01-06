@@ -86,6 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Schedule token refresh before expiration
+   * Note: expiresAt from backend is in UTC (GMT+0), new Date() automatically
+   * converts UTC string to local time for comparison
    */
   const scheduleTokenRefresh = useCallback((expiresAt: string) => {
     // Clear existing timer
@@ -93,9 +95,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(refreshTimerRef.current);
     }
     
+    // Parse expiration time - Date automatically handles UTC to local conversion
     const expirationTime = new Date(expiresAt).getTime();
     const currentTime = Date.now();
     const timeUntilExpiry = expirationTime - currentTime;
+    
+    // Log for debugging timezone issues
+    console.log(`[Auth] Token expires at: ${expiresAt} (UTC)`);
+    console.log(`[Auth] Local expiration: ${new Date(expirationTime).toLocaleString()}`);
+    console.log(`[Auth] Current local time: ${new Date(currentTime).toLocaleString()}`);
+    console.log(`[Auth] Time until expiry: ${Math.round(timeUntilExpiry / 1000)} seconds`);
     
     // Refresh 5 minutes before expiration (or immediately if already expired)
     const refreshTime = Math.max(0, timeUntilExpiry - 5 * 60 * 1000);
@@ -103,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log(`[Auth] Scheduling token refresh in ${Math.round(refreshTime / 1000)} seconds`);
     
     refreshTimerRef.current = setTimeout(() => {
+      console.log('[Auth] Token refresh timer triggered');
       refreshAccessToken();
     }, refreshTime);
   }, [refreshAccessToken]);
