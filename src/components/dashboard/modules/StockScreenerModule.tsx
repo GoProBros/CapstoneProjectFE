@@ -55,6 +55,7 @@ export default function StockScreenerModule() {
   const [layouts, setLayouts] = useState<ModuleLayoutSummary[]>([]);
   const [currentLayoutId, setCurrentLayoutId] = useState<number | null>(null);
   const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout mặc định');
+  const [currentLayoutIsSystemDefault, setCurrentLayoutIsSystemDefault] = useState<boolean>(false);
   
   // Dialog and Toast state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -481,6 +482,8 @@ export default function StockScreenerModule() {
         setLayouts([defaultLayout]);
         setCurrentLayoutId(defaultLayout.id);
         setCurrentLayoutName(defaultLayout.layoutName);
+        setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
+        setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
       }
     } catch (error) {
       console.error('[StockScreener] Error fetching layouts:', error);
@@ -499,7 +502,7 @@ export default function StockScreenerModule() {
     setIsSaveModalOpen(true);
   };
 
-  // Handle save layout submit from modal
+  // Handle save layout submit from modal (create new layout)
   const handleSaveLayoutSubmit = async (layoutName: string) => {
     setIsSaving(true);
     try {
@@ -535,6 +538,50 @@ export default function StockScreenerModule() {
     }
   };
 
+  // Handle update existing layout
+  const handleUpdateLayoutSubmit = async (layoutName: string) => {
+    if (!currentLayoutId) {
+      setToast({
+        isOpen: true,
+        message: 'Không có layout để cập nhật',
+        type: 'error'
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Update layout using layoutService
+      await layoutService.updateUserLayout(
+        currentLayoutId,
+        layoutName,
+        columns
+      );
+      
+      // Update current layout name
+      setCurrentLayoutName(layoutName);
+      
+      // Refresh layouts list
+      await fetchLayouts();
+      
+      setToast({
+        isOpen: true,
+        message: `Layout "${layoutName}" đã được cập nhật!`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('[StockScreener] Error updating layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi cập nhật layout. Vui lòng thử lại.',
+        type: 'error'
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Handle select layout from dropdown
   const handleSelectLayout = async (layout: ModuleLayoutSummary) => {
     setIsLoadingLayouts(true);
@@ -559,6 +606,7 @@ export default function StockScreenerModule() {
       // Update current layout state
       setCurrentLayoutId(layout.id);
       setCurrentLayoutName(layout.layoutName);
+      setCurrentLayoutIsSystemDefault(layout.isSystemDefault);
       
       setToast({
         isOpen: true,
@@ -1420,18 +1468,21 @@ export default function StockScreenerModule() {
         onClose={() => setToast({ ...toast, isOpen: false })}
       />
       
-      {/* Save Layout Modal */}
-      <SaveLayoutModal
-        isOpen={isSaveModalOpen}
-        onClose={() => setIsSaveModalOpen(false)}
-        onSave={handleSaveLayoutSubmit}
-        currentLayoutName={currentLayoutName}
-        isLoading={isSaving}
-      />
-      
-      <div className={`w-full h-full rounded-lg overflow-hidden border flex flex-col ${
+      <div className={`relative w-full h-full rounded-lg overflow-hidden border flex flex-col ${
         isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
       }`}>
+        
+        {/* Save Layout Modal - inside module container */}
+        <SaveLayoutModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          onSave={handleSaveLayoutSubmit}
+          onUpdate={handleUpdateLayoutSubmit}
+          currentLayoutId={currentLayoutId}
+          currentLayoutName={currentLayoutName}
+          isSystemDefault={currentLayoutIsSystemDefault}
+          isLoading={isSaving}
+        />
         
         {/* Module Header - Trapezoid Design */}
         <div className="module-header flex items-center justify-center px-4 pt-0 pb-2 relative">

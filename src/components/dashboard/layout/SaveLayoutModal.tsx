@@ -9,23 +9,33 @@ interface SaveLayoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (layoutName: string) => Promise<void>;
+  onUpdate?: (layoutName: string) => Promise<void>;
+  currentLayoutId?: number | null;
   currentLayoutName?: string;
+  isSystemDefault?: boolean;
   isLoading?: boolean;
 }
 
 /**
- * Modal component cho phép user nhập tên layout để lưu
+ * Modal component cho phép user nhập tên layout để lưu hoặc cập nhật
  */
 export default function SaveLayoutModal({
   isOpen,
   onClose,
   onSave,
+  onUpdate,
+  currentLayoutId,
   currentLayoutName = '',
+  isSystemDefault = false,
   isLoading = false,
 }: SaveLayoutModalProps) {
   const [layoutName, setLayoutName] = useState(currentLayoutName);
   const [error, setError] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<'create' | 'update'>('create');
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Determine if we can update (has existing layout and it's not system default)
+  const canUpdate = currentLayoutId && !isSystemDefault && onUpdate;
 
   // Focus input khi modal mở
   useEffect(() => {
@@ -38,10 +48,12 @@ export default function SaveLayoutModal({
   // Reset state khi modal mở
   useEffect(() => {
     if (isOpen) {
-      setLayoutName(currentLayoutName !== 'Layout gốc' ? currentLayoutName : '');
+      setLayoutName(currentLayoutName !== 'Layout gốc' && currentLayoutName !== 'Layout mặc định' ? currentLayoutName : '');
       setError(null);
+      // Default to update if we can update, otherwise create
+      setActionType(canUpdate ? 'update' : 'create');
     }
-  }, [isOpen, currentLayoutName]);
+  }, [isOpen, currentLayoutName, canUpdate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +75,11 @@ export default function SaveLayoutModal({
     }
 
     try {
-      await onSave(layoutName.trim());
+      if (actionType === 'update' && onUpdate) {
+        await onUpdate(layoutName.trim());
+      } else {
+        await onSave(layoutName.trim());
+      }
       onClose();
     } catch (err: any) {
       setError(err.message || 'Lưu layout thất bại');
@@ -80,23 +96,23 @@ export default function SaveLayoutModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - absolute positioning within module */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[100]"
             onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - absolute positioning within module */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
+            className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 z-[101] w-[90%] max-w-md px-4"
             onKeyDown={handleKeyDown}
           >
             <div className="bg-[#282832] rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden">
@@ -107,7 +123,7 @@ export default function SaveLayoutModal({
               >
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Save size={20} />
-                  Lưu Layout
+                  {actionType === 'update' ? 'Cập nhật Layout' : 'Tạo Layout Mới'}
                 </h3>
                 <button
                   onClick={onClose}
@@ -156,6 +172,30 @@ export default function SaveLayoutModal({
                   )}
                 </div>
 
+                {/* Action Type Toggle - Only show if can update */}
+                {canUpdate && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                      <span className="text-sm text-gray-300">
+                        {actionType === 'update' ? 'Cập nhật layout hiện tại' : 'Tạo layout mới'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActionType(actionType === 'update' ? 'create' : 'update')}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
+                          actionType === 'update' ? 'bg-green-600' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            actionType === 'update' ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Buttons */}
                 <div className="flex gap-3 justify-end">
                   <button
@@ -175,12 +215,12 @@ export default function SaveLayoutModal({
                     {isLoading ? (
                       <>
                         <Loader2 size={18} className="animate-spin" />
-                        Đang lưu...
+                        {actionType === 'update' ? 'Đang cập nhật...' : 'Đang lưu...'}
                       </>
                     ) : (
                       <>
                         <Save size={18} />
-                        Lưu
+                        {actionType === 'update' ? 'Cập nhật' : 'Lưu mới'}
                       </>
                     )}
                   </button>

@@ -88,7 +88,7 @@ export default function LayoutSelector({
       {/* Dropdown Menu */}
       {isOpen && (
         <div 
-          className={`absolute top-full left-0 mt-2 w-64 rounded-lg shadow-lg border z-50 overflow-hidden ${
+          className={`absolute top-full right-0 mt-2 w-64 rounded-lg shadow-lg border z-50 overflow-hidden ${
             isDark 
               ? 'bg-gray-800 border-gray-700' 
               : 'bg-white border-gray-200'
