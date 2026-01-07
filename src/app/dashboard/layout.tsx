@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
@@ -13,6 +13,7 @@ interface Module {
   id: string;
   type: string;
   title: string;
+  layoutId?: number; // Optional: Layout ID for modules with configurable layouts (StockScreener, FinancialReportPro, Heatmap)
 }
 
 interface LayoutItem {
@@ -471,6 +472,53 @@ export default function DashboardLayout({
     );
   };
 
+  /**
+   * Update layoutId for a specific module in the current page
+   * Used by modules with configurable layouts (StockScreener, FinancialReportPro, Heatmap)
+   * to persist their selected layout to workspace
+   */
+  const updateModuleLayoutId = (moduleId: string, layoutId: number | null) => {
+    setPages(
+      pages.map((page) => {
+        if (page.id === currentPageId) {
+          return {
+            ...page,
+            modules: page.modules.map((m) => {
+              if (m.id === moduleId) {
+                // If layoutId is null, remove the property
+                if (layoutId === null) {
+                  const { layoutId: _, ...moduleWithoutLayoutId } = m;
+                  return moduleWithoutLayoutId;
+                }
+                // Otherwise, set/update layoutId
+                return { ...m, layoutId };
+              }
+              return m;
+            }),
+          };
+        }
+        return page;
+      })
+    );
+  };
+
+  /**
+   * Get module data by ID from current page
+   * Used by modules to access their layoutId
+   * Memoized for better performance
+   */
+  const getModuleById = useMemo(() => {
+    // Create a Map for O(1) lookup instead of O(n) array.find()
+    const moduleMap = new Map<string, Module>();
+    currentPage?.modules.forEach((m) => {
+      moduleMap.set(m.id, m);
+    });
+    
+    return (moduleId: string): Module | undefined => {
+      return moduleMap.get(moduleId);
+    };
+  }, [currentPage?.modules]);
+
   console.log("Modal state:", isModalOpen);
 
   return (
@@ -489,6 +537,8 @@ export default function DashboardLayout({
               updateLayout,
               removeModule,
               currentPageId,
+              updateModuleLayoutId,
+              getModuleById,
             }}
           >
             <div className="flex h-screen bg-[#E0E3EB] dark:bg-pageBackground transition-colors duration-300">

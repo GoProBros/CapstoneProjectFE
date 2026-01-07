@@ -6,6 +6,8 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { useModule } from '@/contexts/ModuleContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
 import { Wifi, WifiOff, Table2 } from 'lucide-react';
@@ -42,6 +44,48 @@ export default function StockScreenerModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [gridApi, setGridApi] = useState<any>(null);
+  
+  // Get module context (moduleId and moduleType)
+  const moduleContext = useModule();
+  const moduleId = moduleContext?.moduleId;
+  
+  // Get dashboard context to access workspace data
+  const { getModuleById, updateModuleLayoutId, currentPageId } = useDashboard();
+  
+  // Get workspace layoutId if this module has one saved
+  const [workspaceLayoutId, setWorkspaceLayoutId] = useState<number | null>(null);
+  const [isWorkspaceLayoutIdLoaded, setIsWorkspaceLayoutIdLoaded] = useState(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false); // NEW: Track if layout is fully loaded
+  
+  // Load workspace layoutId on mount AND when page changes
+  useEffect(() => {
+    if (moduleId) {
+      const moduleData = getModuleById(moduleId);
+      const newLayoutId = moduleData?.layoutId || null;
+      
+      console.log('[StockScreener] Loading workspace layoutId:', newLayoutId, 'for module:', moduleId);
+      
+      // CRITICAL: Reset layout ready state when page changes
+      setIsLayoutReady(false);
+      
+      // OPTIMIZATION: Clear grid data immediately when switching workspace
+      // This prevents showing old layout's columns with wrong data
+      if (gridApi) {
+        gridApi.setGridOption('rowData', []);
+      }
+      
+      // Always update, even if same value (to ensure flag is set)
+      setWorkspaceLayoutId(newLayoutId);
+      setIsWorkspaceLayoutIdLoaded(true);
+    } else {
+      // FIX: If no moduleId yet (newly added module), set ready immediately
+      // This prevents infinite loading overlay on new module addition
+      console.log('[StockScreener] No moduleId yet, skipping layout load');
+      setIsWorkspaceLayoutIdLoaded(true);
+      setIsLayoutReady(true);
+    }
+  }, [moduleId, currentPageId, getModuleById, gridApi]); // Re-run when page changes
+  
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
@@ -542,27 +586,12 @@ export default function StockScreenerModule() {
     return () => clearTimeout(timeoutId);
   }, [columns, currentLayoutId, currentLayoutName, currentLayoutIsSystemDefault]);
 
-  // Fetch layouts from API
+  // Fetch layouts from API (for refresh, không load layout)
   const fetchLayouts = useCallback(async () => {
     setIsLoadingLayouts(true);
     try {
       const layoutList = await layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER);
       setLayouts(layoutList);
-      
-      // If no layouts exist, create default layout
-      if (layoutList.length === 0) {
-        const defaultConfig = layoutService.convertColumnsToConfigJson(columns);
-        const defaultLayout = await layoutService.ensureDefaultLayout(
-          MODULE_TYPE_STOCK_SCREENER,
-          defaultConfig,
-          'Layout mặc định'
-        );
-        setLayouts([defaultLayout]);
-        setCurrentLayoutId(defaultLayout.id);
-        setCurrentLayoutName(defaultLayout.layoutName);
-        setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
-        setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
-      }
     } catch (error) {
       console.error('[StockScreener] Error fetching layouts:', error);
       setToast({
@@ -573,7 +602,128 @@ export default function StockScreenerModule() {
     } finally {
       setIsLoadingLayouts(false);
     }
-  }, [columns]);
+  }, []);
+  
+  /**
+   * Helper: Load layout by ID and apply to column store
+   */
+  const loadLayoutById = useCallback(async (layout: ModuleLayoutSummary) => {
+    try {
+      const layoutDetail = await layoutService.getLayoutById(layout.id);
+      
+      if (layoutDetail.configJson?.state?.columns) {
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        setColumns(mergedColumns);
+      }
+      
+      setCurrentLayoutId(layout.id);
+      setCurrentLayoutName(layout.layoutName);
+      setCurrentLayoutIsSystemDefault(layout.isSystemDefault);
+    } catch (error) {
+      console.error('[StockScreener] Error loading layout:', error);
+      throw error;
+    }
+  }, [setColumns]);
+
+  /**
+   * Fetch layouts on mount and load workspace layout if exists
+   * OPTIMIZED: Only fetch when needed, use useMemo for layout lookup
+   */
+  useEffect(() => {
+    // Wait for moduleId to be available
+    if (!moduleId) {
+      return;
+    }
+    
+    // CRITICAL: Wait for workspaceLayoutId to be loaded first
+    if (!isWorkspaceLayoutIdLoaded) {
+      console.log('[StockScreener] Waiting for workspaceLayoutId to load...');
+      return;
+    }
+    
+    console.log('[StockScreener] Starting layout load with workspaceLayoutId:', workspaceLayoutId);
+    
+    const loadInitialLayout = async () => {
+      setIsLoadingLayouts(true);
+      try {
+        // OPTIMIZATION: If workspace has layoutId, fetch only that layout detail + list
+        // Otherwise, fetch list and load system default
+        
+        if (workspaceLayoutId) {
+          // Parallel fetch: layout list + specific layout detail
+          console.log('[StockScreener] 🚀 Fetching workspace layout:', workspaceLayoutId);
+          const [layoutList, layoutDetail] = await Promise.all([
+            layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER),
+            layoutService.getLayoutById(workspaceLayoutId)
+          ]);
+          
+          setLayouts(layoutList);
+          
+          // Apply saved layout
+          if (layoutDetail.configJson?.state?.columns) {
+            const mergedColumns = layoutService.mergeLayoutColumns(
+              columns,
+              layoutDetail.configJson.state.columns
+            );
+            setColumns(mergedColumns);
+          }
+          
+          setCurrentLayoutId(workspaceLayoutId);
+          setCurrentLayoutName(layoutDetail.layoutName);
+          setCurrentLayoutIsSystemDefault(layoutDetail.isSystemDefault);
+          
+          console.log('[StockScreener] ✅ Workspace layout loaded:', layoutDetail.layoutName);
+          setIsLayoutReady(true); // Signal that layout is ready
+          return;
+        }
+        
+        // No workspace layout - fetch list and load system default
+        console.log('[StockScreener] No workspace layout, fetching list...');
+        const layoutList = await layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER);
+        setLayouts(layoutList);
+        
+        // If no layouts exist, create default layout
+        if (layoutList.length === 0) {
+          const defaultConfig = layoutService.convertColumnsToConfigJson(columns);
+          const defaultLayout = await layoutService.ensureDefaultLayout(
+            MODULE_TYPE_STOCK_SCREENER,
+            defaultConfig,
+            'Layout mặc định'
+          );
+          setLayouts([defaultLayout]);
+          setCurrentLayoutId(defaultLayout.id);
+          setCurrentLayoutName(defaultLayout.layoutName);
+          setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
+          setIsLayoutReady(true); // Signal that layout is ready
+          return;
+        }
+        
+        // Load system default
+        const systemDefault = layoutList.find(l => l.isSystemDefault);
+        if (systemDefault) {
+          await loadLayoutById(systemDefault);
+          console.log('[StockScreener] ✅ System default loaded');
+          setIsLayoutReady(true); // Signal that layout is ready
+        } else {
+          setIsLayoutReady(true); // No layout to load, ready anyway
+        }
+      } catch (error) {
+        console.error('[StockScreener] Error loading initial layout:', error);
+        setToast({
+          isOpen: true,
+          message: 'Không thể tải danh sách layout',
+          type: 'error'
+        });
+      } finally {
+        setIsLoadingLayouts(false);
+      }
+    };
+    
+    loadInitialLayout();
+  }, [moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
 
   // Handle create new layout - clone from system default
   const handleCreateNewLayout = async () => {
@@ -628,6 +778,13 @@ export default function StockScreenerModule() {
       // Update state
       setCurrentLayoutId(createdLayout.id);
       setCurrentLayoutName(createdLayout.layoutName);
+      setCurrentLayoutIsSystemDefault(false);
+      
+      // IMPORTANT: Save layoutId to workspace (user layouts are always saved)
+      if (moduleId) {
+        updateModuleLayoutId(moduleId, createdLayout.id);
+        setWorkspaceLayoutId(createdLayout.id);
+      }
       
       // Refresh layouts list
       await fetchLayouts();
@@ -719,6 +876,17 @@ export default function StockScreenerModule() {
       setCurrentLayoutId(layout.id);
       setCurrentLayoutName(layout.layoutName);
       setCurrentLayoutIsSystemDefault(layout.isSystemDefault);
+      
+      // IMPORTANT: Save layoutId to workspace if it's not a system default layout
+      if (moduleId && !layout.isSystemDefault) {
+        updateModuleLayoutId(moduleId, layout.id);
+        setWorkspaceLayoutId(layout.id);
+      }
+      // If switching to system default, remove layoutId from workspace
+      else if (moduleId && layout.isSystemDefault) {
+        updateModuleLayoutId(moduleId, null);
+        setWorkspaceLayoutId(null);
+      }
       
       setToast({
         isOpen: true,
@@ -1650,6 +1818,14 @@ export default function StockScreenerModule() {
         
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              {/* Loading indicator when fetching workspace layout */}
+              {!isWorkspaceLayoutIdLoaded && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 text-xs">
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                  <span>Đang tải cấu hình...</span>
+                </div>
+              )}
+              
               {/* Layout Selector Dropdown */}
               <LayoutSelector
                 layouts={layouts}
@@ -1666,6 +1842,18 @@ export default function StockScreenerModule() {
       
           {/* Column Sidebar */}
           <ColumnSidebar />
+      
+          {/* Loading Overlay - Hide content until layout is ready */}
+          {!isLayoutReady && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-[#282832]/80 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-buttonGreen border-t-transparent"></div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Đang tải cấu hình workspace...
+                </span>
+              </div>
+            </div>
+          )}
       
           {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
           <button
