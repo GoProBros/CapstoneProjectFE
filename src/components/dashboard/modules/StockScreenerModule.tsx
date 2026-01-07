@@ -108,7 +108,10 @@ export default function StockScreenerModule() {
         }
       }
       
-      // 4. Fetch new symbols by exchange
+      // 4. Reset flag để cho phép reload default symbols
+      hasLoadedDefaultSymbols.current = false;
+      
+      // 5. Fetch new symbols by exchange
       const newTickers = await fetchSymbolsByExchange(exchange);
       
       if (newTickers.length === 0) {
@@ -120,7 +123,7 @@ export default function StockScreenerModule() {
         return;
       }
       
-      // 5. Subscribe to new symbols
+      // 6. Subscribe to new symbols
       await subscribeToSymbols(newTickers);
       
       setToast({
@@ -169,20 +172,56 @@ export default function StockScreenerModule() {
         }
       }
       
-      // 4. If type is null, load default symbols
+      // 4. Reset flag để cho phép reload default symbols
+      hasLoadedDefaultSymbols.current = false;
+      
+      // 5. If type is null, load default symbols (type = 1)
       if (type === null) {
-        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
-        await subscribeToSymbols(symbols);
+        console.log('[StockScreener] 🔍 Loading default symbols (Type=1)');
+        const symbols = await fetchSymbols({ 
+          Type: 1, 
+          PageSize: 5000,
+          PageIndex: 1 
+        });
+        
+        console.log('[StockScreener] 📊 Received symbols:', symbols?.length || 0);
+        
+        if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+          setToast({
+            isOpen: true,
+            message: 'Không tìm thấy mã nào',
+            type: 'warning'
+          });
+          return;
+        }
+        
+        // FILTER: CHỈ LẤY CÁC SYMBOLS CÓ TYPE = 1
+        const stockSymbols = symbols.filter(s => s.type === 1);
+        console.log('[StockScreener] ✅ Filtered stock symbols:', stockSymbols.length);
+        
+        const tickers = stockSymbols.map(symbol => symbol.ticker);
+        await subscribeToSymbols(tickers);
+        
+        // Đánh dấu đã load
+        hasLoadedDefaultSymbols.current = true;
+        
         setToast({
           isOpen: true,
-          message: `Đã tải ${symbols.length} mã mặc định`,
+          message: `Đã tải ${tickers.length} mã mặc định (Cổ phiếu)`,
           type: 'success'
         });
         return;
       }
       
-      // 5. Fetch symbols by type (returns SymbolData[] directly)
-      const symbols = await fetchSymbols({ Type: type, PageSize: 5000 });
+      // 6. Fetch symbols by type (returns SymbolData[] directly)
+      console.log(`[StockScreener] 🔍 Fetching symbols with Type=${type}`);
+      const symbols = await fetchSymbols({ 
+        Type: type, 
+        PageSize: 5000,
+        PageIndex: 1 
+      });
+      
+      console.log(`[StockScreener] 📊 Received symbols for type ${type}:`, symbols?.length || 0);
       
       // Check for empty array
       if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
@@ -195,8 +234,12 @@ export default function StockScreenerModule() {
         return;
       }
       
-      // 6. Extract tickers and subscribe
-      const newTickers = symbols.map(symbol => symbol.ticker);
+      // FILTER: CHỈ LẤY CÁC SYMBOLS ĐÚNG TYPE
+      const filteredSymbols = symbols.filter(s => s.type === type);
+      console.log(`[StockScreener] ✅ Filtered symbols matching type ${type}:`, filteredSymbols.length);
+      
+      // 7. Extract tickers and subscribe
+      const newTickers = filteredSymbols.map(symbol => symbol.ticker);
       await subscribeToSymbols(newTickers);
       
       const typeLabel = type === 1 ? 'Cổ phiếu' : type === 2 ? 'ETF' : type === 3 ? 'Trái phiếu' : 'Phái sinh';
@@ -219,32 +262,51 @@ export default function StockScreenerModule() {
 
   /**
    * Subscribe to default symbols when connected
+   * SỬ DỤNG useRef để track việc đã load symbols, tránh duplicate subscription
    */
+  const hasLoadedDefaultSymbols = React.useRef(false);
+  
   useEffect(() => {
-    // Chỉ subscribe khi đã connected
-    if (!isConnected) {
+    // Chỉ subscribe khi đã connected VÀ chưa load symbols
+    if (!isConnected || hasLoadedDefaultSymbols.current) {
       return;
     }
 
     // Load default symbol list on first connection
     const loadDefaultSymbols = async () => {
       try {
-        // Default symbol list
-        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
+        // Fetch all symbols from HSX exchange (default)
+        console.log('[StockScreener] 🔍 Fetching symbols from HSX exchange');
+        const tickers = await fetchSymbolsByExchange('HSX');
         
-        // Subscribe to default symbols
-        await subscribeToSymbols(symbols);
+        console.log('[StockScreener] 📊 Received HSX tickers:', tickers.length);
+        
+        if (!tickers || !Array.isArray(tickers) || tickers.length === 0) {
+          setToast({
+            isOpen: true,
+            message: 'Không tìm thấy mã nào trên sàn HSX',
+            type: 'warning'
+          });
+          return;
+        }
+        
+        // Subscribe to tickers
+        console.log('[StockScreener] 📡 Subscribing to', tickers.length, 'HSX tickers');
+        await subscribeToSymbols(tickers);
+        
+        // ĐÁNH DẤU đã load để tránh load lại
+        hasLoadedDefaultSymbols.current = true;
         
         setToast({
           isOpen: true,
-          message: `Đã tải ${symbols.length} mã mặc định`,
+          message: `Đã tải ${tickers.length} mã từ sàn HSX`,
           type: 'success'
         });
       } catch (error) {
-        console.error('[StockScreener] Error loading default symbols:', error);
+        console.error('[StockScreener] Error loading default HSX symbols:', error);
         setToast({
           isOpen: true,
-          message: 'Lỗi khi tải danh sách mặc định',
+          message: 'Lỗi khi tải danh sách mặc định từ HSX',
           type: 'error'
         });
       }
