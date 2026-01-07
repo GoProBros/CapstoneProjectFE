@@ -390,7 +390,7 @@ export default function DashboardLayout({
 
     // Stock Screener - wide, tall for tables
     else if (moduleType === "stock-screener") {
-      width = 72; // 72 columns = 75% width
+      width = 96; // 96 columns = 100% width
       height = 30; // 30 units = 600px
     }
 

@@ -8,7 +8,7 @@ import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
-import { Save, Wifi, WifiOff, Table2 } from 'lucide-react';
+import { Wifi, WifiOff, Table2 } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
@@ -70,7 +70,7 @@ export default function StockScreenerModule() {
     type: ToastType;
   }>({ isOpen: false, message: '', type: 'info' });
   
-  // Save Layout Modal state
+  // Save Layout Modal state (for creating new layout only)
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   
   // Get column config from Zustand store
@@ -175,31 +175,22 @@ export default function StockScreenerModule() {
       // 4. Reset flag để cho phép reload default symbols
       hasLoadedDefaultSymbols.current = false;
       
-      // 5. If type is null, load default symbols (type = 1)
+      // 5. If type is null, load default symbols from HSX exchange
       if (type === null) {
-        console.log('[StockScreener] 🔍 Loading default symbols (Type=1)');
-        const symbols = await fetchSymbols({ 
-          Type: 1, 
-          PageSize: 5000,
-          PageIndex: 1 
-        });
+        console.log('[StockScreener] 🔍 Loading default symbols from HSX exchange');
+        const tickers = await fetchSymbolsByExchange('HSX');
         
-        console.log('[StockScreener] 📊 Received symbols:', symbols?.length || 0);
+        console.log('[StockScreener] 📊 Received HSX tickers:', tickers.length);
         
-        if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        if (!tickers || tickers.length === 0) {
           setToast({
             isOpen: true,
-            message: 'Không tìm thấy mã nào',
+            message: 'Không tìm thấy mã nào trên sàn HSX',
             type: 'warning'
           });
           return;
         }
         
-        // FILTER: CHỈ LẤY CÁC SYMBOLS CÓ TYPE = 1
-        const stockSymbols = symbols.filter(s => s.type === 1);
-        console.log('[StockScreener] ✅ Filtered stock symbols:', stockSymbols.length);
-        
-        const tickers = stockSymbols.map(symbol => symbol.ticker);
         await subscribeToSymbols(tickers);
         
         // Đánh dấu đã load
@@ -207,7 +198,7 @@ export default function StockScreenerModule() {
         
         setToast({
           isOpen: true,
-          message: `Đã tải ${tickers.length} mã mặc định (Cổ phiếu)`,
+          message: `Đã tải ${tickers.length} mã từ sàn HSX`,
           type: 'success'
         });
         return;
@@ -272,16 +263,15 @@ export default function StockScreenerModule() {
       return;
     }
 
-    // Load default symbol list on first connection
+    // Load default symbol list on first connection - SỬ DỤNG EXCHANGE HSX
     const loadDefaultSymbols = async () => {
       try {
-        // Fetch all symbols from HSX exchange (default)
-        console.log('[StockScreener] 🔍 Fetching symbols from HSX exchange');
+        console.log('[StockScreener] 🔍 Fetching symbols from Exchange=HSX');
         const tickers = await fetchSymbolsByExchange('HSX');
         
-        console.log('[StockScreener] 📊 Received HSX tickers:', tickers.length);
+        console.log('[StockScreener] 📊 Received tickers from HSX:', tickers.length);
         
-        if (!tickers || !Array.isArray(tickers) || tickers.length === 0) {
+        if (!tickers || tickers.length === 0) {
           setToast({
             isOpen: true,
             message: 'Không tìm thấy mã nào trên sàn HSX',
@@ -290,8 +280,7 @@ export default function StockScreenerModule() {
           return;
         }
         
-        // Subscribe to tickers
-        console.log('[StockScreener] 📡 Subscribing to', tickers.length, 'HSX tickers');
+        console.log('[StockScreener] 📡 Subscribing to', tickers.length, 'HSX symbols');
         await subscribeToSymbols(tickers);
         
         // ĐÁNH DẤU đã load để tránh load lại
@@ -303,10 +292,10 @@ export default function StockScreenerModule() {
           type: 'success'
         });
       } catch (error) {
-        console.error('[StockScreener] Error loading default HSX symbols:', error);
+        console.error('[StockScreener] Error loading default symbols:', error);
         setToast({
           isOpen: true,
-          message: 'Lỗi khi tải danh sách mặc định từ HSX',
+          message: 'Lỗi khi tải danh sách mặc định',
           type: 'error'
         });
       }
@@ -526,6 +515,33 @@ export default function StockScreenerModule() {
     }
   }, [columns, gridApi]); // Re-run khi columns thay đổi
 
+  // AUTO-SAVE: Tự động update layout khi columns thay đổi
+  // CHỈ UPDATE nếu KHÔNG phải system default layout
+  useEffect(() => {
+    // Skip nếu không có currentLayoutId hoặc đang là system default
+    if (!currentLayoutId || currentLayoutIsSystemDefault) {
+      return;
+    }
+    
+    // Debounce: Chờ 1 giây sau khi user thay đổi mới save
+    const timeoutId = setTimeout(async () => {
+      try {
+        console.log('[StockScreener] Auto-saving layout changes...');
+        await layoutService.updateUserLayout(
+          currentLayoutId,
+          currentLayoutName,
+          columns
+        );
+        console.log('[StockScreener] ✅ Layout auto-saved successfully');
+      } catch (error) {
+        console.error('[StockScreener] Auto-save failed:', error);
+        // KHÔNG hiện toast error để không làm phiền user
+      }
+    }, 1000); // Debounce 1 giây
+    
+    return () => clearTimeout(timeoutId);
+  }, [columns, currentLayoutId, currentLayoutName, currentLayoutIsSystemDefault]);
+
   // Fetch layouts from API
   const fetchLayouts = useCallback(async () => {
     setIsLoadingLayouts(true);
@@ -559,9 +575,43 @@ export default function StockScreenerModule() {
     }
   }, [columns]);
 
-  // Handle save layout - mở modal
-  const handleSaveLayout = () => {
-    setIsSaveModalOpen(true);
+  // Handle create new layout - clone from system default
+  const handleCreateNewLayout = async () => {
+    // Tìm system default layout
+    const systemDefaultLayout = layouts.find(l => l.isSystemDefault);
+    
+    if (!systemDefaultLayout) {
+      setToast({
+        isOpen: true,
+        message: 'Không tìm thấy layout mặc định của hệ thống',
+        type: 'error'
+      });
+      return;
+    }
+    
+    try {
+      // Fetch full layout detail để lấy config
+      const layoutDetail = await layoutService.getLayoutById(systemDefaultLayout.id);
+      
+      // Apply config vào column store để modal save có data mới nhất
+      if (layoutDetail.configJson?.state?.columns) {
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        setColumns(mergedColumns);
+      }
+      
+      // Mở modal để user đặt tên cho layout mới
+      setIsSaveModalOpen(true);
+    } catch (error) {
+      console.error('[StockScreener] Error loading system default layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tạo layout mới. Vui lòng thử lại.',
+        type: 'error'
+      });
+    }
   };
 
   // Handle save layout submit from modal (create new layout)
@@ -1534,15 +1584,15 @@ export default function StockScreenerModule() {
         isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
       }`}>
         
-        {/* Save Layout Modal - inside module container */}
+        {/* Save Layout Modal - only for creating new layout */}
         <SaveLayoutModal
           isOpen={isSaveModalOpen}
           onClose={() => setIsSaveModalOpen(false)}
           onSave={handleSaveLayoutSubmit}
           onUpdate={handleUpdateLayoutSubmit}
-          currentLayoutId={currentLayoutId}
-          currentLayoutName={currentLayoutName}
-          isSystemDefault={currentLayoutIsSystemDefault}
+          currentLayoutId={null}
+          currentLayoutName=""
+          isSystemDefault={false}
           isLoading={isSaving}
         />
         
@@ -1600,20 +1650,6 @@ export default function StockScreenerModule() {
         
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              {/* Save Layout Button - Icon Only */}
-              <button
-                onClick={handleSaveLayout}
-                disabled={isSaving}
-                title="Lưu layout mới"
-                className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
-                  isDark 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-                    : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
-                }`}
-              >
-                <Save size={18} />
-              </button>
-          
               {/* Layout Selector Dropdown */}
               <LayoutSelector
                 layouts={layouts}
@@ -1623,6 +1659,7 @@ export default function StockScreenerModule() {
                 onSelect={handleSelectLayout}
                 onDelete={handleDeleteLayout}
                 onRefresh={fetchLayouts}
+                onCreateNew={handleCreateNewLayout}
               />
             </div>
           </div>

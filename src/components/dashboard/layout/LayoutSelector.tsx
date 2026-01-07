@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { FolderOpen, ChevronDown, Check, Trash2, Loader2 } from 'lucide-react';
+import { FolderOpen, ChevronDown, Check, Trash2, Loader2, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { ModuleLayoutSummary } from '@/types/layout';
 
@@ -13,6 +13,7 @@ interface LayoutSelectorProps {
   onSelect: (layout: ModuleLayoutSummary) => void;
   onDelete?: (layout: ModuleLayoutSummary) => void;
   onRefresh: () => void;
+  onCreateNew?: () => void; // NEW: callback để tạo layout mới
 }
 
 export default function LayoutSelector({
@@ -23,6 +24,7 @@ export default function LayoutSelector({
   onSelect,
   onDelete,
   onRefresh,
+  onCreateNew, // NEW: callback
 }: LayoutSelectorProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -58,6 +60,13 @@ export default function LayoutSelector({
     e.stopPropagation();
     if (onDelete && !layout.isSystemDefault) {
       onDelete(layout);
+    }
+  };
+
+  const handleCreateNew = () => {
+    if (onCreateNew) {
+      onCreateNew();
+      setIsOpen(false);
     }
   };
 
@@ -101,6 +110,21 @@ export default function LayoutSelector({
             </span>
           </div>
 
+          {/* Create New Layout Button */}
+          {onCreateNew && (
+            <button
+              onClick={handleCreateNew}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors border-b ${
+                isDark 
+                  ? 'hover:bg-blue-900/30 text-blue-400 border-gray-700' 
+                  : 'hover:bg-blue-50 text-blue-600 border-gray-200'
+              }`}
+            >
+              <Plus size={16} />
+              <span>Tạo layout mới</span>
+            </button>
+          )}
+
           {/* Layout List */}
           <div className="max-h-60 overflow-y-auto">
             {isLoading ? (
@@ -115,7 +139,8 @@ export default function LayoutSelector({
                 Không có layout nào
               </div>
             ) : (
-              layouts.map((layout) => (
+              // Sort layouts by id ascending
+              [...layouts].sort((a, b) => a.id - b.id).map((layout) => (
                 <div
                   key={layout.id}
                   onClick={() => handleSelect(layout)}

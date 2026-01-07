@@ -97,9 +97,11 @@ export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolDat
 
 /**
  * Fetch symbols by exchange với default pageSize = 5000
+ * CHỈ LẤY STOCKS (Type = 1)
  */
 export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<string[]> {
   try {
+    console.log(`[SymbolService] 🔍 Fetching symbols: Exchange=${exchange}, Type=1`);
     const symbols = await fetchSymbols({
       Exchange: exchange,
       Type: 1, // Stock only
@@ -107,8 +109,15 @@ export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<st
       PageIndex: 1,
     });
     
+    console.log(`[SymbolService] 📊 API returned ${symbols.length} symbols`);
+    
+    // CRITICAL: FILTER client-side để đảm bảo chỉ lấy Type=1 (Stock)
+    // Backend có thể không filter đúng
+    const stockSymbols = symbols.filter(s => s.type === 1 && s.exchangeCode === exchange);
+    console.log(`[SymbolService] ✅ Filtered to ${stockSymbols.length} stocks on ${exchange}`);
+    
     // Extract tickers
-    return symbols.map(symbol => symbol.ticker);
+    return stockSymbols.map(symbol => symbol.ticker);
   } catch (error) {
     console.error(`[SymbolService] Error fetching ${exchange} symbols:`, error);
     throw error;
