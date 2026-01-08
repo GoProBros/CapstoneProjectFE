@@ -60,7 +60,8 @@ function FinancialReportContent() {
       setIsWorkspaceLayoutIdLoaded(true);
       setIsLayoutReady(true);
     }
-  }, [moduleId, currentPageId, getModuleById]); // Re-run when page changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleId, currentPageId]); // getModuleById accessed directly, not as dependency
   
   // TODO: Implement full layout system with API fetch and apply
   // For now, mark as ready after workspaceLayoutId is loaded (placeholder)

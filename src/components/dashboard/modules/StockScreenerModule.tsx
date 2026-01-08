@@ -84,7 +84,8 @@ export default function StockScreenerModule() {
       setIsWorkspaceLayoutIdLoaded(true);
       setIsLayoutReady(true);
     }
-  }, [moduleId, currentPageId, getModuleById, gridApi]); // Re-run when page changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleId, currentPageId]); // getModuleById and gridApi accessed directly, not as dependencies
   
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
