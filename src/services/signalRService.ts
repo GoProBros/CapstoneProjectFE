@@ -259,11 +259,23 @@ class SignalRService {
   public async disconnect(): Promise<void> {
     if (!this.connection) return;
     
+    // Không disconnect nếu đang trong quá trình connecting (tránh lỗi negotiation)
+    if (this.connectionState === ConnectionState.Connecting) {
+      console.log('[SignalR] Cannot disconnect while connecting. Skipping.');
+      return;
+    }
+    
+    // Không cần disconnect nếu đã disconnected
+    if (this.connectionState === ConnectionState.Disconnected) {
+      console.log('[SignalR] Already disconnected. Skipping.');
+      return;
+    }
+    
     try {
       console.log('[SignalR] Disconnecting...');
       
       // Unsubscribe tất cả symbols trước khi disconnect
-      if (this.subscribedSymbols.size > 0) {
+      if (this.subscribedSymbols.size > 0 && this.connectionState === ConnectionState.Connected) {
         await this.unsubscribeFromSymbols(Array.from(this.subscribedSymbols));
       }
       
