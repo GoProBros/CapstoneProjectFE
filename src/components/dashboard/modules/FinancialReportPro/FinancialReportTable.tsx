@@ -2,10 +2,10 @@
 
 /**
  * FinancialReportTable Component
- * AG Grid Community table với grouping, sticky columns, virtual scroll
+ * Optimized AG Grid table with memoization for non-realtime data
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import './ag-grid-custom.css';
@@ -22,13 +22,29 @@ interface FinancialReportTableProps {
   loading?: boolean;
 }
 
-export default function FinancialReportTable({ data, loading }: FinancialReportTableProps) {
+// Memoize loading and empty overlays
+const LoadingOverlay = memo(() => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-lg">Đang tải dữ liệu...</div>
+  </div>
+));
+LoadingOverlay.displayName = 'LoadingOverlay';
+
+const NoRowsOverlay = memo(() => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-lg">Không có dữ liệu</div>
+  </div>
+));
+NoRowsOverlay.displayName = 'NoRowsOverlay';
+
+const FinancialReportTable = memo(function FinancialReportTable({ data, loading }: FinancialReportTableProps) {
   const { theme } = useTheme();
 
   const columnDefs = useMemo(() => getColumnDefs(), []);
 
   // Sort data by ticker (Community version - no grouping)
   const sortedData = useMemo(() => {
+    if (!data.length) return [];
     return [...data].sort((a, b) => {
       if (a.ticker !== b.ticker) {
         return a.ticker.localeCompare(b.ticker);
@@ -48,25 +64,21 @@ export default function FinancialReportTable({ data, loading }: FinancialReportT
         minHeight: '400px'
       }}
     >
-      <AgGridReact<FinancialData>
+      <AgGridReact
+        theme="legacy"
         rowData={sortedData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        animateRows={false}
-        suppressRowTransform={true}
+        animateRows={false} // Disable animation for better performance
+        suppressRowTransform={true} // Improve performance
         suppressColumnVirtualisation={false}
+        rowBuffer={20} // Render 20 extra rows for smooth scrolling
         loading={loading}
-        loadingOverlayComponent={() => (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-lg">Đang tải dữ liệu...</div>
-          </div>
-        )}
-        noRowsOverlayComponent={() => (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-lg">Không có dữ liệu</div>
-          </div>
-        )}
+        loadingOverlayComponent={LoadingOverlay}
+        noRowsOverlayComponent={NoRowsOverlay}
       />
     </div>
   );
-}
+});
+
+export default FinancialReportTable;
