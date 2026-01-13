@@ -19,6 +19,8 @@ export interface ApiResponse<T> {
 export * from './market';
 export * from './symbol';
 export * from './layout';
+export * from './watchList';
+export * from './workspace';
 
 export interface PaginationParams {
   page: number;

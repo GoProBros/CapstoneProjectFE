@@ -93,7 +93,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 /**
- * Clear auth data and redirect to login
+ * Clear auth data (without redirect)
  */
 function clearAuthData(): void {
   if (typeof window === 'undefined') return;
@@ -102,9 +102,6 @@ function clearAuthData(): void {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(EXPIRES_AT_KEY);
   localStorage.removeItem(USER_KEY);
-  
-  // Redirect to login page
-  window.location.href = '/login';
 }
 
 /**
@@ -124,6 +121,7 @@ function requiresAuth(endpoint: string): boolean {
 
 /**
  * Generic API fetch wrapper with Bearer token and auto-refresh
+ * Auth is optional - endpoints can work without authentication
  */
 export async function apiRequest<T>(
   endpoint: string,
@@ -133,14 +131,11 @@ export async function apiRequest<T>(
     let accessToken = getAccessToken();
     
     // Check if endpoint requires auth and if token needs refresh
-    if (requiresAuth(endpoint)) {
+    if (requiresAuth(endpoint) && accessToken) {
       if (isTokenExpired()) {
         console.log('[API] Token expired, attempting refresh...');
         accessToken = await refreshAccessToken();
-        
-        if (!accessToken) {
-          throw new Error('Authentication required');
-        }
+        // If refresh fails, continue without auth (let backend handle)
       }
     }
     
@@ -150,8 +145,8 @@ export async function apiRequest<T>(
       ...(options?.headers as Record<string, string>),
     };
     
-    // Add Authorization header for authenticated endpoints
-    if (accessToken && requiresAuth(endpoint)) {
+    // Add Authorization header if token exists (optional)
+    if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
     
@@ -161,7 +156,7 @@ export async function apiRequest<T>(
     });
 
     // Handle 401 Unauthorized - try to refresh token once
-    if (response.status === 401 && requiresAuth(endpoint)) {
+    if (response.status === 401 && accessToken) {
       console.log('[API] Received 401, attempting token refresh...');
       accessToken = await refreshAccessToken();
       
@@ -174,13 +169,23 @@ export async function apiRequest<T>(
         });
         
         if (!retryResponse.ok) {
-          throw new Error(`API Error: ${retryResponse.statusText}`);
+          const errorData = await retryResponse.json().catch(() => null);
+          throw new Error(errorData?.message || `API Error: ${retryResponse.statusText}`);
         }
         
-        return await retryResponse.json();
+        const retryData = await retryResponse.json();
+        
+        // Check if backend returned error with isSuccess: false
+        if (retryData && typeof retryData.isSuccess === 'boolean' && !retryData.isSuccess) {
+          throw new Error(retryData.message || 'API request failed');
+        }
+        
+        return retryData;
       } else {
+        // Clear auth data but don't redirect - let component handle
         clearAuthData();
-        throw new Error('Authentication required');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Authentication required');
       }
     }
 
@@ -190,6 +195,12 @@ export async function apiRequest<T>(
     }
 
     const data = await response.json();
+    
+    // Check if backend returned error with isSuccess: false
+    if (data && typeof data.isSuccess === 'boolean' && !data.isSuccess) {
+      throw new Error(data.message || 'API request failed');
+    }
+    
     return data;
   } catch (error) {
     console.error('API Request failed:', error);

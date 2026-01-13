@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import { DashboardContext } from "@/contexts/DashboardContext";
 import { SignalRProvider } from "@/contexts/SignalRContext";
+import { useAuth } from "@/contexts/AuthContext";
+import * as workspaceService from "@/services/workspaceService";
 
 interface Module {
   id: string;
@@ -30,85 +32,254 @@ interface PageData {
   initial: string;
   modules: Module[];
   layout: LayoutItem[];
+  workspaceId?: number; // API workspace ID
 }
+
+// Default page configuration
+const DEFAULT_PAGE: PageData = {
+  id: "default",
+  name: "Giao diện mặc định",
+  initial: "D",
+  modules: [
+    {
+      id: "global-stock-chart-default",
+      type: "global-stock-chart",
+      title: "Biểu đồ chứng khoán thế giới",
+    },
+    {
+      id: "financial-report-default",
+      type: "financial-report",
+      title: "Báo cáo tài chính",
+    },
+    { id: "news-default", type: "news", title: "Tin tức" },
+    { id: "canslim-default", type: "canslim", title: "Canslim" },
+    { id: "ta-advisor-default", type: "ta-advisor", title: "Tư trụ T A" },
+    { id: "fa-advisor-default", type: "fa-advisor", title: "Tư trụ F A" },
+    {
+      id: "stock-screener-default",
+      type: "stock-screener",
+      title: "Bộ lọc cổ phiếu",
+    },
+  ],
+  layout: [
+    { i: "global-stock-chart-default", x: 0, y: 0, w: 62, h: 25 },
+    { i: "financial-report-default", x: 62, y: 0, w: 34, h: 18 },
+    { i: "news-default", x: 62, y: 18, w: 34, h: 18 },
+    { i: "canslim-default", x: 0, y: 25, w: 21, h: 11 },
+    { i: "ta-advisor-default", x: 21, y: 25, w: 21, h: 11 },
+    { i: "fa-advisor-default", x: 42, y: 25, w: 20, h: 11 },
+    { i: "stock-screener-default", x: 0, y: 36, w: 96, h: 20 },
+  ],
+};
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { isAuthenticated } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-
-  // Initialize with default page using default layout
-  const [pages, setPages] = useState<PageData[]>([
-    {
-      id: "default",
-      name: "Giao diện mặc định",
-      initial: "D",
-      modules: [
-        {
-          id: "global-stock-chart-default",
-          type: "global-stock-chart",
-          title: "Biểu đồ chứng khoán thế giới",
-        },
-        {
-          id: "financial-report-default",
-          type: "financial-report",
-          title: "Báo cáo tài chính",
-        },
-        { id: "news-default", type: "news", title: "Tin tức" },
-        { id: "canslim-default", type: "canslim", title: "Canslim" },
-        { id: "ta-advisor-default", type: "ta-advisor", title: "Tư trụ T A" },
-        { id: "fa-advisor-default", type: "fa-advisor", title: "Tư trụ F A" },
-        {
-          id: "stock-screener-default",
-          type: "stock-screener",
-          title: "Bộ lọc cổ phiếu",
-        },
-      ],
-      layout: [
-        { i: "global-stock-chart-default", x: 0, y: 0, w: 62, h: 25 },
-        { i: "financial-report-default", x: 62, y: 0, w: 34, h: 18 },
-        { i: "news-default", x: 62, y: 18, w: 34, h: 18 },
-        { i: "canslim-default", x: 0, y: 25, w: 21, h: 11 },
-        { i: "ta-advisor-default", x: 21, y: 25, w: 21, h: 11 },
-        { i: "fa-advisor-default", x: 42, y: 25, w: 20, h: 11 },
-        { i: "stock-screener-default", x: 0, y: 36, w: 96, h: 20 },
-      ],
-    },
-  ]);
+  const [pages, setPages] = useState<PageData[]>([DEFAULT_PAGE]);
   const [currentPageId, setCurrentPageId] = useState("default");
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(false); // Prevent sync during initial load
 
-  // Load pages from localStorage on mount
-  useEffect(() => {
-    const savedPages = localStorage.getItem("dashboard-pages");
-    const savedCurrentPageId = localStorage.getItem("dashboard-current-page");
+  /**
+   * Convert PageData to backend layoutJson format
+   * Backend expects: { modules: [{ i, x, y, w, h, type, title, activeLayoutId }] }
+   */
+  const convertToBackendFormat = (page: PageData): string => {
+    const modules = page.modules.map((module) => {
+      const layoutItem = page.layout.find((l) => l.i === module.id);
+      return {
+        i: module.id,
+        type: module.type,
+        title: module.title,
+        x: layoutItem?.x || 0,
+        y: layoutItem?.y || 0,
+        w: layoutItem?.w || 48,
+        h: layoutItem?.h || 20,
+        ...(module.layoutId && { activeLayoutId: module.layoutId }),
+      };
+    });
+    
+    return JSON.stringify({ modules });
+  };
 
-    if (savedPages) {
+  /**
+   * Sync workspace to API
+   * Only syncs if user is authenticated and workspace has an ID
+   */
+  const syncWorkspaceToAPI = useCallback(async (page: PageData, debounceMs: number = 0) => {
+    // Skip sync if currently loading workspaces
+    if (isLoadingRef.current) {
+      console.log('[Dashboard] Skip sync - currently loading workspaces');
+      return;
+    }
+    
+    // Never sync DEFAULT_PAGE
+    if (page.id === 'default' && !page.workspaceId) {
+      console.log('[Dashboard] Skip sync - DEFAULT_PAGE without workspaceId');
+      return;
+    }
+    
+    // Only sync if authenticated and workspace has an ID
+    if (!isAuthenticated || !page.workspaceId) {
+      console.log('[Dashboard] Skip sync - not authenticated or no workspaceId');
+      return;
+    }
+
+    // Clear existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    // Debounce the API call
+    syncTimeoutRef.current = setTimeout(async () => {
       try {
-        const parsedPages = JSON.parse(savedPages);
-        setPages(parsedPages);
+        const layoutJson = convertToBackendFormat(page);
+        
+        console.log('[Dashboard] Syncing workspace to API...', {
+          workspaceId: page.workspaceId,
+          workspaceName: page.name,
+          isLoading: isLoadingRef.current
+        });
+        
+        await workspaceService.updateWorkspace(page.workspaceId!, {
+          workspaceId: page.workspaceId!.toString(),
+          workspaceName: page.name,
+          layoutJson,
+          isDefault: page.id === 'default',
+        });
+        
+        console.log('[Dashboard] Workspace synced to API successfully:', page.workspaceId);
+        
+        // Note: localStorage is automatically updated via useEffect on pages change
       } catch (error) {
-        console.error("Error loading pages from localStorage:", error);
+        console.error('[Dashboard] Error syncing workspace to API:', error);
+        setNotification('Lỗi khi lưu workspace lên server');
+        setTimeout(() => setNotification(null), 3000);
       }
-    }
+    }, debounceMs);
+  }, [isAuthenticated]);
 
-    if (savedCurrentPageId) {
-      setCurrentPageId(savedCurrentPageId);
-    }
-  }, []);
-
-  // Save pages to localStorage whenever they change
+  // Load workspaces from localStorage first, then sync with API if authenticated
   useEffect(() => {
-    localStorage.setItem("dashboard-pages", JSON.stringify(pages));
-  }, [pages]);
+    const loadWorkspaces = async () => {
+      setIsLoadingWorkspaces(true);
+      isLoadingRef.current = true; // Prevent sync during load
+      
+      try {
+        // Always load from localStorage first (fast UI)
+        const savedPages = localStorage.getItem("dashboard-pages");
+        const savedCurrentPageId = localStorage.getItem("dashboard-current-page");
+        
+        if (savedPages) {
+          try {
+            const parsedPages = JSON.parse(savedPages);
+            setPages(parsedPages);
+            console.log('[Dashboard] Loaded workspaces from localStorage:', parsedPages.length);
+          } catch (error) {
+            console.error('[Dashboard] Error parsing localStorage:', error);
+            setPages([DEFAULT_PAGE]);
+          }
+        } else {
+          setPages([DEFAULT_PAGE]);
+        }
+        
+        if (savedCurrentPageId) {
+          setCurrentPageId(savedCurrentPageId);
+        }
+        
+        // If authenticated, sync with API in background
+        if (isAuthenticated) {
+          console.log('[Dashboard] Syncing workspaces with API...');
+          const response = await workspaceService.getMyWorkspaces();
+          
+          if (response.isSuccess && response.data) {
+            const apiWorkspaces: PageData[] = response.data.map((ws) => {
+              try {
+                const layoutData = JSON.parse(ws.layoutJson);
+                
+                // Backend structure: modules array contains both layout and module info
+                const modules: Module[] = [];
+                const layout: LayoutItem[] = [];
+                
+                if (layoutData.modules && Array.isArray(layoutData.modules)) {
+                  layoutData.modules.forEach((item: any) => {
+                    modules.push({
+                      id: item.i,
+                      type: item.type,
+                      title: item.title,
+                      layoutId: item.activeLayoutId,
+                    });
+                    
+                    layout.push({
+                      i: item.i,
+                      x: item.x,
+                      y: item.y,
+                      w: item.w,
+                      h: item.h,
+                    });
+                  });
+                }
+                
+                return {
+                  id: ws.isDefault ? 'default' : `workspace-${ws.id}`,
+                  name: ws.workspaceName,
+                  initial: ws.workspaceName.charAt(0).toUpperCase(),
+                  modules,
+                  layout,
+                  workspaceId: ws.id,
+                };
+              } catch (parseError) {
+                console.error('[Dashboard] Error parsing workspace layoutJson:', parseError);
+                return {
+                  id: ws.isDefault ? 'default' : `workspace-${ws.id}`,
+                  name: ws.workspaceName,
+                  initial: ws.workspaceName.charAt(0).toUpperCase(),
+                  modules: [],
+                  layout: [],
+                  workspaceId: ws.id,
+                };
+              }
+            });
+            
+            // Ensure default page exists
+            const hasDefault = apiWorkspaces.some(w => w.id === 'default');
+            if (!hasDefault) {
+              apiWorkspaces.unshift(DEFAULT_PAGE);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('dashboard-pages', JSON.stringify(apiWorkspaces));
+            
+            // Update UI
+            setPages(apiWorkspaces);
+            console.log('[Dashboard] Synced workspaces from API:', apiWorkspaces.length);
+          }
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error loading workspaces:', error);
+      } finally {
+        setIsLoadingWorkspaces(false);
+        // Delay clearing loading flag to ensure all state updates complete
+        // Increased to 500ms to be absolutely safe
+        setTimeout(() => {
+          isLoadingRef.current = false;
+          console.log('[Dashboard] Loading flag cleared');
+        }, 500);
+      }
+    };
 
-  // Save current page ID to localStorage
-  useEffect(() => {
-    localStorage.setItem("dashboard-current-page", currentPageId);
-  }, [currentPageId]);
+    loadWorkspaces();
+  }, [isAuthenticated]);
+
+  // Note: localStorage is saved manually only when user makes changes
+  // This prevents unnecessary saves during load/switch operations
 
   // Get current page data
   const currentPage = pages.find((p) => p.id === currentPageId) || pages[0];
@@ -133,7 +304,7 @@ export default function DashboardLayout({
     setIsAddPageModalOpen(false);
   };
 
-  const handleAddPage = (pageName: string, layoutType: string) => {
+  const handleAddPage = async (pageName: string, layoutType: string) => {
     console.log("handleAddPage called with:", { pageName, layoutType });
 
     const timestamp = Date.now();
@@ -278,8 +449,35 @@ export default function DashboardLayout({
       newPage.layout = simpleLayout;
     }
 
+    try {
+      // Save to API if authenticated
+      if (isAuthenticated) {
+        const layoutJson = convertToBackendFormat(newPage);
+        
+        const response = await workspaceService.createWorkspace({
+          workspaceName: pageName,
+          layoutJson,
+          isDefault: false,
+        });
+        
+        if (response.isSuccess && response.data) {
+          newPage.id = `workspace-${response.data.id}`;
+          newPage.workspaceId = response.data.id;
+          console.log('[Dashboard] Workspace created in API:', response.data.id);
+        }
+      }
+    } catch (error) {
+      console.error('[Dashboard] Error creating workspace in API:', error);
+      // Continue with local-only workspace
+    }
+
     const updatedPages = [...pages, newPage];
     setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    localStorage.setItem('dashboard-current-page', newPage.id);
+    
     setCurrentPageId(newPage.id); // Auto switch to new page
 
     console.log("Total pages after add:", updatedPages.length);
@@ -294,6 +492,10 @@ export default function DashboardLayout({
 
   const handleSwitchPage = (pageId: string) => {
     setCurrentPageId(pageId);
+    
+    // Save current page ID to localStorage
+    localStorage.setItem('dashboard-current-page', pageId);
+    
     setNotification(
       `Đã chuyển sang "${pages.find((p) => p.id === pageId)?.name}"`
     );
@@ -303,7 +505,7 @@ export default function DashboardLayout({
     }, 2000);
   };
 
-  const handleDeletePage = (pageId: string) => {
+  const handleDeletePage = async (pageId: string) => {
     // Prevent deleting default page
     if (pageId === "default") {
       setNotification("Không thể xóa trang mặc định!");
@@ -314,11 +516,28 @@ export default function DashboardLayout({
     }
 
     const pageToDelete = pages.find((p) => p.id === pageId);
-    setPages(pages.filter((p) => p.id !== pageId));
+    
+    // Delete from API if authenticated and has workspaceId
+    try {
+      if (isAuthenticated && pageToDelete?.workspaceId) {
+        await workspaceService.deleteWorkspace(pageToDelete.workspaceId);
+        console.log('[Dashboard] Workspace deleted from API:', pageToDelete.workspaceId);
+      }
+    } catch (error) {
+      console.error('[Dashboard] Error deleting workspace from API:', error);
+      // Continue with local deletion
+    }
+    
+    const updatedPages = pages.filter((p) => p.id !== pageId);
+    setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
 
     // If current page is deleted, switch to default
     if (currentPageId === pageId) {
       setCurrentPageId("default");
+      localStorage.setItem('dashboard-current-page', 'default');
     }
 
     setNotification(`Đã xóa page "${pageToDelete?.name}" thành công!`);
@@ -328,7 +547,7 @@ export default function DashboardLayout({
     }, 3000);
   };
 
-  const addModule = (moduleType: string, moduleTitle: string) => {
+  const addModule = async (moduleType: string, moduleTitle: string) => {
     const newModule: Module = {
       id: `${moduleType}-${Date.now()}`,
       type: moduleType,
@@ -422,18 +641,29 @@ export default function DashboardLayout({
     };
 
     // Update current page's modules and layout
-    setPages(
-      pages.map((page) => {
-        if (page.id === currentPageId) {
-          return {
-            ...page,
-            modules: [...page.modules, newModule],
-            layout: [...page.layout, newLayoutItem],
-          };
-        }
-        return page;
-      })
-    );
+    const updatedPages = pages.map((page) => {
+      if (page.id === currentPageId) {
+        return {
+          ...page,
+          modules: [...page.modules, newModule],
+          layout: [...page.layout, newLayoutItem],
+        };
+      }
+      return page;
+    });
+    
+    setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+
+    // Sync to API (only if authenticated)
+    if (isAuthenticated) {
+      const updatedPage = updatedPages.find(p => p.id === currentPageId);
+      if (updatedPage) {
+        await syncWorkspaceToAPI(updatedPage);
+      }
+    }
 
     setNotification(`Đã thêm "${moduleTitle}" thành công!`);
     handleCloseModal();
@@ -444,32 +674,81 @@ export default function DashboardLayout({
   };
 
   const updateLayout = (newLayout: LayoutItem[]) => {
-    setPages(
-      pages.map((page) => {
-        if (page.id === currentPageId) {
-          return {
-            ...page,
-            layout: newLayout,
-          };
-        }
-        return page;
-      })
-    );
+    // Skip if currently loading workspaces
+    if (isLoadingRef.current) {
+      console.log('[Dashboard] Skip updateLayout - currently loading workspaces');
+      return;
+    }
+    
+    // Find current page's layout
+    const currentPageData = pages.find(p => p.id === currentPageId);
+    if (!currentPageData) return;
+    
+    // Never update DEFAULT_PAGE without workspaceId
+    if (currentPageData.id === 'default' && !currentPageData.workspaceId) {
+      console.log('[Dashboard] Skip updateLayout - DEFAULT_PAGE without workspaceId');
+      return;
+    }
+    
+    // Compare layouts to check if there's actual change
+    // GridLayout may trigger onLayoutChange even when just switching workspace
+    const hasChanged = JSON.stringify(currentPageData.layout) !== JSON.stringify(newLayout);
+    
+    if (!hasChanged) {
+      console.log('[Dashboard] Layout unchanged, skipping save');
+      return;
+    }
+    
+    console.log('[Dashboard] Layout changed, saving...');
+    
+    const updatedPages = pages.map((page) => {
+      if (page.id === currentPageId) {
+        return {
+          ...page,
+          layout: newLayout,
+        };
+      }
+      return page;
+    });
+    
+    setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+
+    // Sync to API with debounce (1 second) to avoid too many API calls during drag
+    if (isAuthenticated) {
+      const updatedPage = updatedPages.find(p => p.id === currentPageId);
+      if (updatedPage) {
+        syncWorkspaceToAPI(updatedPage, 1000);
+      }
+    }
   };
 
-  const removeModule = (moduleId: string) => {
-    setPages(
-      pages.map((page) => {
-        if (page.id === currentPageId) {
-          return {
-            ...page,
-            modules: page.modules.filter((m) => m.id !== moduleId),
-            layout: page.layout.filter((l) => l.i !== moduleId),
-          };
-        }
-        return page;
-      })
-    );
+  const removeModule = async (moduleId: string) => {
+    const updatedPages = pages.map((page) => {
+      if (page.id === currentPageId) {
+        return {
+          ...page,
+          modules: page.modules.filter((m) => m.id !== moduleId),
+          layout: page.layout.filter((l) => l.i !== moduleId),
+        };
+      }
+      return page;
+    });
+    
+    setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+
+    // Sync to API (only if authenticated)
+    if (isAuthenticated) {
+      const updatedPage = updatedPages.find(p => p.id === currentPageId);
+      if (updatedPage) {
+        await syncWorkspaceToAPI(updatedPage);
+      }
+    }
   };
 
   /**
@@ -477,29 +756,40 @@ export default function DashboardLayout({
    * Used by modules with configurable layouts (StockScreener, FinancialReportPro, Heatmap)
    * to persist their selected layout to workspace
    */
-  const updateModuleLayoutId = (moduleId: string, layoutId: number | null) => {
-    setPages(
-      pages.map((page) => {
-        if (page.id === currentPageId) {
-          return {
-            ...page,
-            modules: page.modules.map((m) => {
-              if (m.id === moduleId) {
-                // If layoutId is null, remove the property
-                if (layoutId === null) {
-                  const { layoutId: _, ...moduleWithoutLayoutId } = m;
-                  return moduleWithoutLayoutId;
-                }
-                // Otherwise, set/update layoutId
-                return { ...m, layoutId };
+  const updateModuleLayoutId = async (moduleId: string, layoutId: number | null) => {
+    const updatedPages = pages.map((page) => {
+      if (page.id === currentPageId) {
+        return {
+          ...page,
+          modules: page.modules.map((m) => {
+            if (m.id === moduleId) {
+              // If layoutId is null, remove the property
+              if (layoutId === null) {
+                const { layoutId: _, ...moduleWithoutLayoutId } = m;
+                return moduleWithoutLayoutId;
               }
-              return m;
-            }),
-          };
-        }
-        return page;
-      })
-    );
+              // Otherwise, set/update layoutId
+              return { ...m, layoutId };
+            }
+            return m;
+          }),
+        };
+      }
+      return page;
+    });
+    
+    setPages(updatedPages);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+
+    // Sync to API (only if authenticated)
+    if (isAuthenticated) {
+      const updatedPage = updatedPages.find(p => p.id === currentPageId);
+      if (updatedPage) {
+        await syncWorkspaceToAPI(updatedPage);
+      }
+    }
   };
 
   /**
