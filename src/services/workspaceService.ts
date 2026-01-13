@@ -4,6 +4,7 @@
  */
 
 import { get, post, put, del } from './api';
+import { API_ENDPOINTS } from '@/constants';
 import type { 
   ApiResponse, 
   Workspace, 
@@ -16,7 +17,7 @@ import type {
  * Requires authentication
  */
 export async function getMyWorkspaces(): Promise<ApiResponse<Workspace[]>> {
-  return get<Workspace[]>('/api/v1/workspace/my-workspaces');
+  return get<Workspace[]>(API_ENDPOINTS.WORKSPACE.MY_WORKSPACES);
 }
 
 /**
@@ -26,7 +27,7 @@ export async function getMyWorkspaces(): Promise<ApiResponse<Workspace[]>> {
 export async function createWorkspace(
   data: CreateWorkspaceRequest
 ): Promise<ApiResponse<Workspace>> {
-  return post<Workspace>('/api/v1/workspace', data);
+  return post<Workspace>(API_ENDPOINTS.WORKSPACE.BASE, data);
 }
 
 /**
@@ -37,7 +38,7 @@ export async function updateWorkspace(
   id: number,
   data: UpdateWorkspaceRequest
 ): Promise<ApiResponse<Workspace>> {
-  return put<Workspace>(`/api/v1/workspace/${id}`, data);
+  return put<Workspace>(API_ENDPOINTS.WORKSPACE.BY_ID(id), data);
 }
 
 /**
@@ -45,5 +46,5 @@ export async function updateWorkspace(
  * Requires authentication
  */
 export async function deleteWorkspace(id: number): Promise<ApiResponse<void>> {
-  return del<void>(`/api/v1/workspace/${id}`);
+  return del<void>(API_ENDPOINTS.WORKSPACE.BY_ID(id));
 }

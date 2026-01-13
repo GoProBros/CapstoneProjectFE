@@ -5,14 +5,13 @@
  */
 
 import { get, post, put, del } from './api';
+import { API_ENDPOINTS } from '@/constants';
 import type {
   WatchListSummary,
   WatchListDetail,
   CreateWatchListRequest,
   UpdateWatchListRequest,
 } from '@/types/watchList';
-
-const WATCH_LIST_BASE_URL = '/api/v1/watch-lists';
 
 /**
  * Watch List Service
@@ -26,7 +25,7 @@ export const watchListService = {
    */
   async getWatchLists(): Promise<WatchListSummary[]> {
     try {
-      const response = await get<WatchListSummary[]>(WATCH_LIST_BASE_URL);
+      const response = await get<WatchListSummary[]>(API_ENDPOINTS.WATCH_LIST.BASE);
       
       if (response.isSuccess && response.data) {
         return response.data;
@@ -53,7 +52,7 @@ export const watchListService = {
         tickers,
       };
       
-      const response = await post<WatchListDetail>(WATCH_LIST_BASE_URL, requestBody);
+      const response = await post<WatchListDetail>(API_ENDPOINTS.WATCH_LIST.BASE, requestBody);
       
       if (response.isSuccess && response.data) {
         return response.data;
@@ -74,7 +73,7 @@ export const watchListService = {
    */
   async getWatchListById(id: number): Promise<WatchListDetail> {
     try {
-      const response = await get<WatchListDetail>(`${WATCH_LIST_BASE_URL}/${id}`);
+      const response = await get<WatchListDetail>(API_ENDPOINTS.WATCH_LIST.BY_ID(id));
       
       if (response.isSuccess && response.data) {
         return response.data;
@@ -103,7 +102,7 @@ export const watchListService = {
         tickers,
       };
       
-      const response = await put<WatchListDetail>(`${WATCH_LIST_BASE_URL}/${id}`, requestBody);
+      const response = await put<WatchListDetail>(API_ENDPOINTS.WATCH_LIST.BY_ID(id), requestBody);
       
       if (response.isSuccess && response.data) {
         return response.data;
@@ -124,7 +123,7 @@ export const watchListService = {
    */
   async deleteWatchList(id: number): Promise<void> {
     try {
-      const response = await del<null>(`${WATCH_LIST_BASE_URL}/${id}`);
+      const response = await del<null>(API_ENDPOINTS.WATCH_LIST.BY_ID(id));
       
       if (!response.isSuccess) {
         throw new Error(response.message || `Không thể xóa watch list ${id}`);

@@ -30,6 +30,19 @@ export const API_ENDPOINTS = {
     INDUSTRIES: '/industries',
   },
   
+  // Watch List endpoints
+  WATCH_LIST: {
+    BASE: '/api/v1/watch-lists',
+    BY_ID: (id: number) => `/api/v1/watch-lists/${id}`,
+  },
+  
+  // Workspace endpoints
+  WORKSPACE: {
+    MY_WORKSPACES: '/api/v1/workspace/my-workspaces',
+    BASE: '/api/v1/workspace',
+    BY_ID: (id: number) => `/api/v1/workspace/${id}`,
+  },
+  
   // SignalR Hub
   HUBS: {
     MARKET_DATA: '/hubs/marketdata',
