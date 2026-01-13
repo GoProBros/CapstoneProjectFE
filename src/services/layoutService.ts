@@ -153,7 +153,14 @@ export function stringifyConfig(config: LayoutConfigJson): string {
  */
 export function parseConfigJson(configJsonString: string): LayoutConfigJson {
   try {
-    console.log(JSON.parse(configJsonString));
+    // Check if already an object (backend might send parsed JSON)
+    if (typeof configJsonString === 'object' && configJsonString !== null) {
+      console.log('[LayoutService] configJson already parsed:', configJsonString);
+      return configJsonString as LayoutConfigJson;
+    }
+    
+    // Parse string to object
+    console.log('[LayoutService] Parsing configJson string:', configJsonString);
     return JSON.parse(configJsonString) as LayoutConfigJson;
   } catch (error) {
     console.error('[LayoutService] Failed to parse configJson:', error);

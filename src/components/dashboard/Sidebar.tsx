@@ -291,7 +291,7 @@ export default function Sidebar({
                             <div className="relative group">
                                 <button 
                                     onClick={handleLogin}
-                                    className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center hover:bg-blue-600 transition-colors"
+                                    className="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center hover:bg-blue-700 transition-colors"
                                 >
                                     <LogIn className="w-5 h-5 text-white" strokeWidth={2} />
                                 </button>
