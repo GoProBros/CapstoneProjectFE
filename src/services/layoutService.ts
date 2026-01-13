@@ -10,6 +10,7 @@
  */
 
 import { get, post, put, del } from '@/services/api';
+import { API_ENDPOINTS } from '@/constants';
 import type {
   ModuleType,
   ModuleLayoutSummary,
@@ -31,7 +32,7 @@ import type {
  * @returns Danh sách layouts
  */
 export async function getLayouts(moduleType: number): Promise<ModuleLayoutSummary[]> {
-  const result = await get<ModuleLayoutSummary[]>(`/api/module-layouts?type=${moduleType}`);
+  const result = await get<ModuleLayoutSummary[]>(`${API_ENDPOINTS.MODULE_LAYOUTS.BASE}?type=${moduleType}`);
   
   if (result.isSuccess && result.data) {
     return result.data;
@@ -49,7 +50,7 @@ export async function getLayouts(moduleType: number): Promise<ModuleLayoutSummar
  * @returns Chi tiết layout với configJson đã parse
  */
 export async function getLayoutById(id: number): Promise<ParsedModuleLayoutDetail> {
-  const result = await get<ModuleLayoutDetail>(`/api/module-layouts/${id}`);
+  const result = await get<ModuleLayoutDetail>(API_ENDPOINTS.MODULE_LAYOUTS.BY_ID(id));
   
   if (result.isSuccess && result.data) {
     // Parse configJson string to object
@@ -72,7 +73,7 @@ export async function getLayoutById(id: number): Promise<ParsedModuleLayoutDetai
  * @returns Layout vừa tạo
  */
 export async function createLayout(data: CreateLayoutRequest): Promise<CreateLayoutResponse> {
-  const result = await post<CreateLayoutResponse>('/api/module-layouts', data);
+  const result = await post<CreateLayoutResponse>(API_ENDPOINTS.MODULE_LAYOUTS.BASE, data);
   
   if (result.isSuccess && result.data) {
     return result.data;
@@ -91,7 +92,7 @@ export async function createLayout(data: CreateLayoutRequest): Promise<CreateLay
  * @returns Layout sau khi cập nhật
  */
 export async function updateLayout(id: number, data: UpdateLayoutRequest): Promise<ModuleLayoutDetail> {
-  const result = await put<ModuleLayoutDetail>(`/api/module-layouts/${id}`, data);
+  const result = await put<ModuleLayoutDetail>(API_ENDPOINTS.MODULE_LAYOUTS.BY_ID(id), data);
   
   if (result.isSuccess && result.data) {
     return result.data;
@@ -108,7 +109,7 @@ export async function updateLayout(id: number, data: UpdateLayoutRequest): Promi
  * @param id - Layout ID
  */
 export async function deleteLayout(id: number): Promise<void> {
-  const result = await del<void>(`/api/module-layouts/${id}`);
+  const result = await del<void>(API_ENDPOINTS.MODULE_LAYOUTS.BY_ID(id));
   
   if (!result.isSuccess) {
     throw new Error(result.message || 'Không thể xóa layout');

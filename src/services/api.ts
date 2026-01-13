@@ -1,7 +1,8 @@
 // API service configuration and helper functions
 import { ApiResponse } from '@/types';
+import { API_ENDPOINTS } from '@/constants';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7148';
 
 const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -51,7 +52,7 @@ async function refreshAccessToken(): Promise<string | null> {
     const userData = JSON.parse(userStr);
     
     // Call refresh token endpoint WITHOUT using apiRequest to avoid infinite loop
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh-token`, {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH_TOKEN}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
