@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { saveColumnLayout, loadColumnLayout } from '@/services/columnLayoutService';
 
 export interface ColumnConfig {
   field: string;
@@ -12,6 +11,7 @@ export interface ColumnConfig {
 export interface ColumnState {
   columns: Record<string, ColumnConfig>;
   isSidebarOpen: boolean;
+  setColumns: (columns: Record<string, ColumnConfig>) => void;
   setColumnVisibility: (field: string, visible: boolean) => void;
   setColumnWidth: (field: string, width: number) => void;
   setColumnOrder: (field: string, order: number) => void;
@@ -20,8 +20,6 @@ export interface ColumnState {
   toggleColumnVisibility: (field: string) => void;
   setGroupVisibility: (fields: string[], visible: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
-  saveLayoutToDB: (columnWidths?: any[], symbols?: string[], name?: string) => Promise<void>;
-  loadLayoutFromDB: () => Promise<any>;
 }
 
 // Default column configuration - SSI STREAM MARKET DATA
@@ -131,6 +129,8 @@ export const useColumnStore = create<ColumnState>()(
       columns: defaultColumns,
       isSidebarOpen: false,
       
+      setColumns: (columns) => set({ columns }),
+      
       setColumnVisibility: (field, visible) =>
         set((state) => ({
           columns: {
@@ -191,39 +191,6 @@ export const useColumnStore = create<ColumnState>()(
         }),
       
       setSidebarOpen: (open) => set({ isSidebarOpen: open }),
-      
-      saveLayoutToDB: async (columnWidths?: any[], symbols?: string[], name?: string) => {
-        const state = get();
-        const layoutData = {
-          name: name || 'Layout gốc',
-          columns: state.columns,
-          columnWidths: columnWidths || [],
-          symbols: symbols || [],
-          savedAt: new Date().toISOString(),
-        };
-        
-        try {
-          await saveColumnLayout(layoutData);
-        } catch (error) {
-          console.error('Error in saveLayoutToDB:', error);
-        }
-      },
-      
-      loadLayoutFromDB: async () => {
-        try {
-          const layoutData = await loadColumnLayout();
-          
-          if (layoutData) {
-            set({ columns: layoutData.columns });
-            return layoutData;
-          }
-          
-          return null;
-        } catch (error) {
-          console.error('Error in loadLayoutFromDB:', error);
-          return null;
-        }
-      },
     }),
     {
       name: 'stock-screener-columns',

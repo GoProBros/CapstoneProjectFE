@@ -1,7 +1,7 @@
 'use client';
 
-import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus, X } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, Minus, Bell, Sun, Moon, Power, LogIn, LayoutGrid, SquarePlus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,7 +34,7 @@ export default function Sidebar({
 }: SidebarProps) {
     const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
-    const { logout } = useAuth();
+    const { logout, isAuthenticated, user } = useAuth();
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
     const [pageToDelete, setPageToDelete] = useState<string | null>(null);
@@ -57,6 +57,10 @@ export default function Sidebar({
             // Even if logout fails, redirect to login
             router.push('/login');
         }
+    };
+
+    const handleLogin = () => {
+        router.push('/login');
     };
 
     const handleDeleteClick = (e: React.MouseEvent, pageId: string) => {
@@ -270,18 +274,32 @@ export default function Sidebar({
                             </div>
                         </div>
 
-                        {/* Power Icon - White background */}
-                        <div className="relative group">
-                            <button 
-                                onClick={handleLogout}
-                                className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
-                            >
-                                <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
-                            </button>
-                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                Đăng xuất
+                        {/* Power/Login Icon - Conditional based on authentication */}
+                        {isAuthenticated ? (
+                            <div className="relative group">
+                                <button 
+                                    onClick={handleLogout}
+                                    className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                >
+                                    <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
+                                </button>
+                                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                    Đăng xuất
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="relative group">
+                                <button 
+                                    onClick={handleLogin}
+                                    className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center hover:bg-blue-600 transition-colors"
+                                >
+                                    <LogIn className="w-5 h-5 text-white" strokeWidth={2} />
+                                </button>
+                                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                    Đăng nhập
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </aside>

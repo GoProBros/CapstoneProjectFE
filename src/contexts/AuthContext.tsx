@@ -86,6 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Schedule token refresh before expiration
+   * Note: expiresAt from backend is in UTC (GMT+0), new Date() automatically
+   * converts UTC string to local time for comparison
    */
   const scheduleTokenRefresh = useCallback((expiresAt: string) => {
     // Clear existing timer
@@ -93,9 +95,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(refreshTimerRef.current);
     }
     
+    // Parse expiration time - Date automatically handles UTC to local conversion
     const expirationTime = new Date(expiresAt).getTime();
     const currentTime = Date.now();
     const timeUntilExpiry = expirationTime - currentTime;
+    
+    // Log for debugging timezone issues
+    console.log(`[Auth] Token expires at: ${expiresAt} (UTC)`);
+    console.log(`[Auth] Local expiration: ${new Date(expirationTime).toLocaleString()}`);
+    console.log(`[Auth] Current local time: ${new Date(currentTime).toLocaleString()}`);
+    console.log(`[Auth] Time until expiry: ${Math.round(timeUntilExpiry / 1000)} seconds`);
     
     // Refresh 5 minutes before expiration (or immediately if already expired)
     const refreshTime = Math.max(0, timeUntilExpiry - 5 * 60 * 1000);
@@ -103,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log(`[Auth] Scheduling token refresh in ${Math.round(refreshTime / 1000)} seconds`);
     
     refreshTimerRef.current = setTimeout(() => {
+      console.log('[Auth] Token refresh timer triggered');
       refreshAccessToken();
     }, refreshTime);
   }, [refreshAccessToken]);
@@ -163,9 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Initialize auth state from localStorage
    */
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
+        const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         const userStr = localStorage.getItem(USER_KEY);
         const expiresAt = localStorage.getItem(EXPIRES_AT_KEY);
         
@@ -174,13 +185,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const expirationTime = new Date(expiresAt).getTime();
           const currentTime = Date.now();
           
-          // Check if token is still valid
-          if (expirationTime > currentTime) {
+          // Check if token is expired or will expire soon (within 5 minutes)
+          const fiveMinutes = 5 * 60 * 1000;
+          if (expirationTime - currentTime < fiveMinutes) {
+            console.log('[Auth] Token expired or expiring soon, refreshing on startup...');
+            // Token expired or expiring soon, refresh immediately
+            if (refreshToken) {
+              await refreshAccessToken();
+            } else {
+              clearAuthData();
+            }
+          } else {
+            // Token still valid
             setUser(userData);
             scheduleTokenRefresh(expiresAt);
-          } else {
-            // Token expired, try to refresh
-            refreshAccessToken();
           }
         }
       } catch (error) {

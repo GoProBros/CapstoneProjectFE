@@ -6,9 +6,11 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { useModule } from '@/contexts/ModuleContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { ColumnSidebar } from '@/components/dashboard/ColumnSidebar';
-import { Save, Wifi, WifiOff, Table2, FolderOpen } from 'lucide-react';
+import { Wifi, WifiOff, Table2 } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
@@ -18,6 +20,13 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Toast, { ToastType } from '@/components/ui/Toast';
 import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
+import { SaveLayoutModal, LayoutSelector } from '@/components/dashboard/layout';
+import { HEADER_GREEN } from '@/constants/colors';
+import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
+import * as layoutService from '@/services/layoutService';
+
+// Module type constant for Stock Screener
+const MODULE_TYPE_STOCK_SCREENER = 1;
 
 // Đăng ký modules AG-Grid (bắt buộc từ v31+)
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -35,15 +44,63 @@ export default function StockScreenerModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [gridApi, setGridApi] = useState<any>(null);
+  
+  // Get module context (moduleId and moduleType)
+  const moduleContext = useModule();
+  const moduleId = moduleContext?.moduleId;
+  
+  // Get dashboard context to access workspace data
+  const { getModuleById, updateModuleLayoutId, currentPageId } = useDashboard();
+  
+  // Get workspace layoutId if this module has one saved
+  const [workspaceLayoutId, setWorkspaceLayoutId] = useState<number | null>(null);
+  const [isWorkspaceLayoutIdLoaded, setIsWorkspaceLayoutIdLoaded] = useState(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false); // NEW: Track if layout is fully loaded
+  
+  // Load workspace layoutId on mount AND when page changes
+  useEffect(() => {
+    if (moduleId) {
+      const moduleData = getModuleById(moduleId);
+      const newLayoutId = moduleData?.layoutId || null;
+      
+      console.log('[StockScreener] Loading workspace layoutId:', newLayoutId, 'for module:', moduleId);
+      
+      // CRITICAL: Reset layout ready state when page changes
+      setIsLayoutReady(false);
+      
+      // OPTIMIZATION: Clear grid data immediately when switching workspace
+      // This prevents showing old layout's columns with wrong data
+      if (gridApi) {
+        gridApi.setGridOption('rowData', []);
+      }
+      
+      // Always update, even if same value (to ensure flag is set)
+      setWorkspaceLayoutId(newLayoutId);
+      setIsWorkspaceLayoutIdLoaded(true);
+    } else {
+      // FIX: If no moduleId yet (newly added module), set ready immediately
+      // This prevents infinite loading overlay on new module addition
+      console.log('[StockScreener] No moduleId yet, skipping layout load');
+      setIsWorkspaceLayoutIdLoaded(true);
+      setIsLayoutReady(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleId, currentPageId]); // getModuleById and gridApi accessed directly, not as dependencies
+  
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
   const [isLoadingExchange, setIsLoadingExchange] = useState(false);
   const [isLoadingSymbolType, setIsLoadingSymbolType] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout gốc');
+  
+  // Layout state
+  const [layouts, setLayouts] = useState<ModuleLayoutSummary[]>([]);
+  const [currentLayoutId, setCurrentLayoutId] = useState<number | null>(null);
+  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout mặc định');
+  const [currentLayoutIsSystemDefault, setCurrentLayoutIsSystemDefault] = useState<boolean>(false);
   
   // Dialog and Toast state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -58,8 +115,11 @@ export default function StockScreenerModule() {
     type: ToastType;
   }>({ isOpen: false, message: '', type: 'info' });
   
+  // Save Layout Modal state (for creating new layout only)
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  
   // Get column config from Zustand store
-  const { columns, setColumnWidth, setColumnVisibility, setSidebarOpen, saveLayoutToDB, loadLayoutFromDB } = useColumnStore();
+  const { columns, setColumns, setColumnWidth, setColumnVisibility, setSidebarOpen, resetColumns } = useColumnStore();
 
   // Get SignalR connection và market data
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
@@ -93,7 +153,10 @@ export default function StockScreenerModule() {
         }
       }
       
-      // 4. Fetch new symbols by exchange
+      // 4. Reset flag để cho phép reload default symbols
+      hasLoadedDefaultSymbols.current = false;
+      
+      // 5. Fetch new symbols by exchange
       const newTickers = await fetchSymbolsByExchange(exchange);
       
       if (newTickers.length === 0) {
@@ -105,7 +168,7 @@ export default function StockScreenerModule() {
         return;
       }
       
-      // 5. Subscribe to new symbols
+      // 6. Subscribe to new symbols
       await subscribeToSymbols(newTickers);
       
       setToast({
@@ -154,20 +217,47 @@ export default function StockScreenerModule() {
         }
       }
       
-      // 4. If type is null, load default symbols
+      // 4. Reset flag để cho phép reload default symbols
+      hasLoadedDefaultSymbols.current = false;
+      
+      // 5. If type is null, load default symbols from HSX exchange
       if (type === null) {
-        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
-        await subscribeToSymbols(symbols);
+        console.log('[StockScreener] 🔍 Loading default symbols from HSX exchange');
+        const tickers = await fetchSymbolsByExchange('HSX');
+        
+        console.log('[StockScreener] 📊 Received HSX tickers:', tickers.length);
+        
+        if (!tickers || tickers.length === 0) {
+          setToast({
+            isOpen: true,
+            message: 'Không tìm thấy mã nào trên sàn HSX',
+            type: 'warning'
+          });
+          return;
+        }
+        
+        await subscribeToSymbols(tickers);
+        
+        // Đánh dấu đã load
+        hasLoadedDefaultSymbols.current = true;
+        
         setToast({
           isOpen: true,
-          message: `Đã tải ${symbols.length} mã mặc định`,
+          message: `Đã tải ${tickers.length} mã từ sàn HSX`,
           type: 'success'
         });
         return;
       }
       
-      // 5. Fetch symbols by type (returns SymbolData[] directly)
-      const symbols = await fetchSymbols({ Type: type, PageSize: 5000 });
+      // 6. Fetch symbols by type (returns SymbolData[] directly)
+      console.log(`[StockScreener] 🔍 Fetching symbols with Type=${type}`);
+      const symbols = await fetchSymbols({ 
+        Type: type, 
+        PageSize: 5000,
+        PageIndex: 1 
+      });
+      
+      console.log(`[StockScreener] 📊 Received symbols for type ${type}:`, symbols?.length || 0);
       
       // Check for empty array
       if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
@@ -180,8 +270,12 @@ export default function StockScreenerModule() {
         return;
       }
       
-      // 6. Extract tickers and subscribe
-      const newTickers = symbols.map(symbol => symbol.ticker);
+      // FILTER: CHỈ LẤY CÁC SYMBOLS ĐÚNG TYPE
+      const filteredSymbols = symbols.filter(s => s.type === type);
+      console.log(`[StockScreener] ✅ Filtered symbols matching type ${type}:`, filteredSymbols.length);
+      
+      // 7. Extract tickers and subscribe
+      const newTickers = filteredSymbols.map(symbol => symbol.ticker);
       await subscribeToSymbols(newTickers);
       
       const typeLabel = type === 1 ? 'Cổ phiếu' : type === 2 ? 'ETF' : type === 3 ? 'Trái phiếu' : 'Phái sinh';
@@ -204,25 +298,42 @@ export default function StockScreenerModule() {
 
   /**
    * Subscribe to default symbols when connected
+   * SỬ DỤNG useRef để track việc đã load symbols, tránh duplicate subscription
    */
+  const hasLoadedDefaultSymbols = React.useRef(false);
+  
   useEffect(() => {
-    // Chỉ subscribe khi đã connected
-    if (!isConnected) {
+    // Chỉ subscribe khi đã connected VÀ chưa load symbols
+    if (!isConnected || hasLoadedDefaultSymbols.current) {
       return;
     }
 
-    // Load default symbol list on first connection
+    // Load default symbol list on first connection - SỬ DỤNG EXCHANGE HSX
     const loadDefaultSymbols = async () => {
       try {
-        // Default symbol list
-        const symbols = ['ACB', 'BCM', 'BID', 'GVR', 'GAS', 'HDB', 'MBB', 'STB', 'MWG', 'VPB'];
+        console.log('[StockScreener] 🔍 Fetching symbols from Exchange=HSX');
+        const tickers = await fetchSymbolsByExchange('HSX');
         
-        // Subscribe to default symbols
-        await subscribeToSymbols(symbols);
+        console.log('[StockScreener] 📊 Received tickers from HSX:', tickers.length);
+        
+        if (!tickers || tickers.length === 0) {
+          setToast({
+            isOpen: true,
+            message: 'Không tìm thấy mã nào trên sàn HSX',
+            type: 'warning'
+          });
+          return;
+        }
+        
+        console.log('[StockScreener] 📡 Subscribing to', tickers.length, 'HSX symbols');
+        await subscribeToSymbols(tickers);
+        
+        // ĐÁNH DẤU đã load để tránh load lại
+        hasLoadedDefaultSymbols.current = true;
         
         setToast({
           isOpen: true,
-          message: `Đã tải ${symbols.length} mã mặc định`,
+          message: `Đã tải ${tickers.length} mã từ sàn HSX`,
           type: 'success'
         });
       } catch (error) {
@@ -449,56 +560,396 @@ export default function StockScreenerModule() {
     }
   }, [columns, gridApi]); // Re-run khi columns thay đổi
 
-  // Handle save layout
-  const handleSaveLayout = async () => {
-    // Prompt user to enter layout name
-    const layoutName = prompt('Nhập tên layout:', currentLayoutName !== 'Layout gốc' ? currentLayoutName : '');
-    
-    if (!layoutName || !layoutName.trim()) {
-      alert('Tên layout không được để trống!');
+  // AUTO-SAVE: Tự động update layout khi columns thay đổi
+  // CHỈ UPDATE nếu KHÔNG phải system default layout
+  useEffect(() => {
+    // Skip nếu không có currentLayoutId hoặc đang là system default
+    if (!currentLayoutId || currentLayoutIsSystemDefault) {
       return;
     }
     
+    // Debounce: Chờ 1 giây sau khi user thay đổi mới save
+    const timeoutId = setTimeout(async () => {
+      try {
+        console.log('[StockScreener] Auto-saving layout changes...');
+        await layoutService.updateUserLayout(
+          currentLayoutId,
+          currentLayoutName,
+          columns
+        );
+        console.log('[StockScreener] ✅ Layout auto-saved successfully');
+      } catch (error) {
+        console.error('[StockScreener] Auto-save failed:', error);
+        // KHÔNG hiện toast error để không làm phiền user
+      }
+    }, 1000); // Debounce 1 giây
+    
+    return () => clearTimeout(timeoutId);
+  }, [columns, currentLayoutId, currentLayoutName, currentLayoutIsSystemDefault]);
+
+  // Fetch layouts from API (for refresh, không load layout)
+  const fetchLayouts = useCallback(async () => {
+    setIsLoadingLayouts(true);
+    try {
+      const layoutList = await layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER);
+      setLayouts(layoutList);
+    } catch (error) {
+      console.error('[StockScreener] Error fetching layouts:', error);
+      setToast({
+        isOpen: true,
+        message: 'Không thể tải danh sách layout',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingLayouts(false);
+    }
+  }, []);
+  
+  /**
+   * Helper: Load layout by ID and apply to column store
+   */
+  const loadLayoutById = useCallback(async (layout: ModuleLayoutSummary) => {
+    try {
+      const layoutDetail = await layoutService.getLayoutById(layout.id);
+      
+      if (layoutDetail.configJson?.state?.columns) {
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        setColumns(mergedColumns);
+      }
+      
+      setCurrentLayoutId(layout.id);
+      setCurrentLayoutName(layout.layoutName);
+      setCurrentLayoutIsSystemDefault(layout.isSystemDefault);
+    } catch (error) {
+      console.error('[StockScreener] Error loading layout:', error);
+      throw error;
+    }
+  }, [setColumns]);
+
+  /**
+   * Fetch layouts on mount and load workspace layout if exists
+   * OPTIMIZED: Only fetch when needed, use useMemo for layout lookup
+   */
+  useEffect(() => {
+    // Wait for moduleId to be available
+    if (!moduleId) {
+      return;
+    }
+    
+    // CRITICAL: Wait for workspaceLayoutId to be loaded first
+    if (!isWorkspaceLayoutIdLoaded) {
+      console.log('[StockScreener] Waiting for workspaceLayoutId to load...');
+      return;
+    }
+    
+    console.log('[StockScreener] Starting layout load with workspaceLayoutId:', workspaceLayoutId);
+    
+    const loadInitialLayout = async () => {
+      setIsLoadingLayouts(true);
+      try {
+        // OPTIMIZATION: If workspace has layoutId, fetch only that layout detail + list
+        // Otherwise, fetch list and load system default
+        
+        if (workspaceLayoutId) {
+          // Parallel fetch: layout list + specific layout detail
+          console.log('[StockScreener] 🚀 Fetching workspace layout:', workspaceLayoutId);
+          const [layoutList, layoutDetail] = await Promise.all([
+            layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER),
+            layoutService.getLayoutById(workspaceLayoutId)
+          ]);
+          
+          setLayouts(layoutList);
+          
+          // Apply saved layout
+          if (layoutDetail.configJson?.state?.columns) {
+            const mergedColumns = layoutService.mergeLayoutColumns(
+              columns,
+              layoutDetail.configJson.state.columns
+            );
+            setColumns(mergedColumns);
+          }
+          
+          setCurrentLayoutId(workspaceLayoutId);
+          setCurrentLayoutName(layoutDetail.layoutName);
+          setCurrentLayoutIsSystemDefault(layoutDetail.isSystemDefault);
+          
+          console.log('[StockScreener] ✅ Workspace layout loaded:', layoutDetail.layoutName);
+          setIsLayoutReady(true); // Signal that layout is ready
+          return;
+        }
+        
+        // No workspace layout - fetch list and load system default
+        console.log('[StockScreener] No workspace layout, fetching list...');
+        const layoutList = await layoutService.getLayouts(MODULE_TYPE_STOCK_SCREENER);
+        setLayouts(layoutList);
+        
+        // If no layouts exist, create default layout
+        if (layoutList.length === 0) {
+          const defaultConfig = layoutService.convertColumnsToConfigJson(columns);
+          const defaultLayout = await layoutService.ensureDefaultLayout(
+            MODULE_TYPE_STOCK_SCREENER,
+            defaultConfig,
+            'Layout mặc định'
+          );
+          setLayouts([defaultLayout]);
+          setCurrentLayoutId(defaultLayout.id);
+          setCurrentLayoutName(defaultLayout.layoutName);
+          setCurrentLayoutIsSystemDefault(defaultLayout.isSystemDefault);
+          setIsLayoutReady(true); // Signal that layout is ready
+          return;
+        }
+        
+        // Load system default
+        const systemDefault = layoutList.find(l => l.isSystemDefault);
+        if (systemDefault) {
+          await loadLayoutById(systemDefault);
+          console.log('[StockScreener] ✅ System default loaded');
+          setIsLayoutReady(true); // Signal that layout is ready
+        } else {
+          setIsLayoutReady(true); // No layout to load, ready anyway
+        }
+      } catch (error) {
+        console.error('[StockScreener] Error loading initial layout:', error);
+        setToast({
+          isOpen: true,
+          message: 'Không thể tải danh sách layout',
+          type: 'error'
+        });
+      } finally {
+        setIsLoadingLayouts(false);
+      }
+    };
+    
+    loadInitialLayout();
+  }, [moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
+
+  // Handle create new layout - clone from system default
+  const handleCreateNewLayout = async () => {
+    // Tìm system default layout
+    const systemDefaultLayout = layouts.find(l => l.isSystemDefault);
+    
+    if (!systemDefaultLayout) {
+      setToast({
+        isOpen: true,
+        message: 'Không tìm thấy layout mặc định của hệ thống',
+        type: 'error'
+      });
+      return;
+    }
+    
+    try {
+      // Fetch full layout detail để lấy config
+      const layoutDetail = await layoutService.getLayoutById(systemDefaultLayout.id);
+      
+      // Apply config vào column store để modal save có data mới nhất
+      if (layoutDetail.configJson?.state?.columns) {
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        setColumns(mergedColumns);
+      }
+      
+      // Mở modal để user đặt tên cho layout mới
+      setIsSaveModalOpen(true);
+    } catch (error) {
+      console.error('[StockScreener] Error loading system default layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tạo layout mới. Vui lòng thử lại.',
+        type: 'error'
+      });
+    }
+  };
+
+  // Handle save layout submit from modal (create new layout)
+  const handleSaveLayoutSubmit = async (layoutName: string) => {
     setIsSaving(true);
     try {
-      // Lấy column widths từ AG Grid
-      const columnWidths = gridApi ? gridApi.getColumnState() : [];
+      // Save layout using layoutService
+      const createdLayout = await layoutService.saveUserLayout(
+        MODULE_TYPE_STOCK_SCREENER,
+        layoutName,
+        columns
+      );
       
-      // Lấy danh sách tickers đang hiển thị
-      const symbols = Array.from(marketData.keys());
+      // Update state
+      setCurrentLayoutId(createdLayout.id);
+      setCurrentLayoutName(createdLayout.layoutName);
+      setCurrentLayoutIsSystemDefault(false);
       
-      await saveLayoutToDB(columnWidths, symbols, layoutName.trim());
-      setCurrentLayoutName(layoutName.trim());
-      alert(`Layout đã được lưu thành công!\n\n` +
-            `• Tên: ${layoutName.trim()}\n` +
-            `• ${columnWidths.length} cột với chiều rộng\n` +
-            `• ${symbols.length} mã chứng khoán: ${symbols.join(', ')}`);
+      // IMPORTANT: Save layoutId to workspace (user layouts are always saved)
+      if (moduleId) {
+        updateModuleLayoutId(moduleId, createdLayout.id);
+        setWorkspaceLayoutId(createdLayout.id);
+      }
+      
+      // Refresh layouts list
+      await fetchLayouts();
+      
+      setToast({
+        isOpen: true,
+        message: `Layout "${layoutName}" đã được lưu thành công!`,
+        type: 'success'
+      });
     } catch (error) {
-      alert('Có lỗi khi lưu layout. Vui lòng thử lại.');
+      console.error('[StockScreener] Error saving layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi lưu layout. Vui lòng thử lại.',
+        type: 'error'
+      });
+      throw error;
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle load layout
-  const handleLoadLayout = async () => {
-    setIsLoading(true);
+  // Handle update existing layout
+  const handleUpdateLayoutSubmit = async (layoutName: string) => {
+    if (!currentLayoutId) {
+      setToast({
+        isOpen: true,
+        message: 'Không có layout để cập nhật',
+        type: 'error'
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      const layoutData = await loadLayoutFromDB();
+      // Update layout using layoutService
+      await layoutService.updateUserLayout(
+        currentLayoutId,
+        layoutName,
+        columns
+      );
       
       // Update current layout name
-      if (layoutData?.name) {
-        setCurrentLayoutName(layoutData.name);
-      } else {
-        setCurrentLayoutName('Layout gốc');
+      setCurrentLayoutName(layoutName);
+      
+      // Refresh layouts list
+      await fetchLayouts();
+      
+      setToast({
+        isOpen: true,
+        message: `Layout "${layoutName}" đã được cập nhật!`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('[StockScreener] Error updating layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi cập nhật layout. Vui lòng thử lại.',
+        type: 'error'
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle select layout from dropdown
+  const handleSelectLayout = async (layout: ModuleLayoutSummary) => {
+    setIsLoadingLayouts(true);
+    try {
+      // Fetch full layout detail with configJson
+      const layoutDetail = await layoutService.getLayoutById(layout.id);
+      
+      // Apply layout config to column store
+      if (layoutDetail.configJson?.state?.columns) {
+        // Merge saved columns with current columns from localStorage
+        // This preserves new fields and only updates saved properties
+        const mergedColumns = layoutService.mergeLayoutColumns(
+          columns,
+          layoutDetail.configJson.state.columns
+        );
+        
+        // Update zustand store with merged columns
+        // This will automatically sync to localStorage 'stock-screener-columns'
+        setColumns(mergedColumns);
       }
       
-      alert('Layout đã được tải thành công!');
+      // Update current layout state
+      setCurrentLayoutId(layout.id);
+      setCurrentLayoutName(layout.layoutName);
+      setCurrentLayoutIsSystemDefault(layout.isSystemDefault);
+      
+      // IMPORTANT: Save layoutId to workspace if it's not a system default layout
+      if (moduleId && !layout.isSystemDefault) {
+        updateModuleLayoutId(moduleId, layout.id);
+        setWorkspaceLayoutId(layout.id);
+      }
+      // If switching to system default, remove layoutId from workspace
+      else if (moduleId && layout.isSystemDefault) {
+        updateModuleLayoutId(moduleId, null);
+        setWorkspaceLayoutId(null);
+      }
+      
+      setToast({
+        isOpen: true,
+        message: `Đã tải layout "${layout.layoutName}"`,
+        type: 'success'
+      });
     } catch (error) {
-      alert('Có lỗi khi tải layout. Vui lòng thử lại.');
+      console.error('[StockScreener] Error loading layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tải layout. Vui lòng thử lại.',
+        type: 'error'
+      });
     } finally {
-      setIsLoading(false);
+      setIsLoadingLayouts(false);
     }
+  };
+
+  // Handle delete layout
+  const handleDeleteLayout = async (layout: ModuleLayoutSummary) => {
+    if (layout.isSystemDefault) {
+      setToast({
+        isOpen: true,
+        message: 'Không thể xóa layout mặc định của hệ thống',
+        type: 'warning'
+      });
+      return;
+    }
+    
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xác nhận xóa layout',
+      message: `Bạn có chắc muốn xóa layout "${layout.layoutName}"? Hành động này không thể hoàn tác.`,
+      onConfirm: async () => {
+        try {
+          await layoutService.deleteLayout(layout.id);
+          
+          // Refresh layouts list
+          await fetchLayouts();
+          
+          // If deleted current layout, reset to first available or default
+          if (currentLayoutId === layout.id) {
+            setCurrentLayoutId(null);
+            setCurrentLayoutName('Layout mặc định');
+            resetColumns();
+          }
+          
+          setToast({
+            isOpen: true,
+            message: `Đã xóa layout "${layout.layoutName}"`,
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('[StockScreener] Error deleting layout:', error);
+          setToast({
+            isOpen: true,
+            message: 'Có lỗi khi xóa layout. Vui lòng thử lại.',
+            type: 'error'
+          });
+        }
+      }
+    });
   };
   
   /**
@@ -1298,126 +1749,161 @@ export default function StockScreenerModule() {
         onClose={() => setToast({ ...toast, isOpen: false })}
       />
       
-      <div className={`w-full h-full rounded-lg p-4 border ${
+      <div className={`relative w-full h-full rounded-lg overflow-hidden border flex flex-col ${
         isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
       }`}>
-      <div className='flex justify-between items-center mb-4'>
-        <div className="flex items-center gap-3">
-          {/* Exchange Filter Buttons */}
-          <ExchangeFilter 
-            onExchangeChange={handleExchangeChange}
-            isLoading={isLoadingExchange}
-          />
-          
-          {/* Symbol Type Filter Dropdown */}
-          <SymbolTypeFilter
-            onSymbolTypeChange={handleSymbolTypeChange}
-            isLoading={isLoadingSymbolType}
-          />
-          
-          {/* Symbol Search Box Component */}
-          <SymbolSearchBox 
-            isConnected={isConnected}
-            onSymbolSelect={handleSymbolSelect}
-          />
-          
-          {/* Connection Status Indicator - Icon only */}
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            isConnected 
-              ? 'bg-green-500/20 text-green-500' 
-              : 'bg-red-500/20 text-red-500'
-          }`}>
-            {isConnected ? (
-              <Wifi size={16} />
-            ) : (
-              <WifiOff size={16} />
-            )}
+        
+        {/* Save Layout Modal - only for creating new layout */}
+        <SaveLayoutModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          onSave={handleSaveLayoutSubmit}
+          onUpdate={handleUpdateLayoutSubmit}
+          currentLayoutId={null}
+          currentLayoutName=""
+          isSystemDefault={false}
+          isLoading={isSaving}
+        />
+        
+        {/* Module Header - Trapezoid Design */}
+        <div className="module-header flex items-center justify-center px-4 pt-0 pb-2 relative">
+          {/* Trapezoid Title Container - Only this part has green background and is draggable */}
+          <div 
+            className="drag-handle relative px-8 py-1.5 flex items-center gap-2 cursor-move select-none"
+            style={{
+              backgroundColor: HEADER_GREEN,
+              clipPath: 'polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%)',
+              minWidth: '400px',
+              justifyContent: 'center'
+            }}
+          >
+            <span className="text-borderDark font-semibold text-md">Bảng giá</span>
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Save Layout Button - Icon Only */}
-          <button
-            onClick={handleSaveLayout}
-            disabled={isSaving}
-            title="Lưu layout"
-            className={`flex items-center justify-center p-2 rounded-lg font-medium transition-colors ${
-              isDark 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
-            }`}
-          >
-            <Save size={18} />
-          </button>
+        {/* Content Area */}
+        <div className="flex-1 p-4 overflow-hidden flex flex-col">
+          <div className='flex justify-between items-center mb-4'>
+            <div className="flex items-center gap-3">
+              {/* Exchange Filter Buttons */}
+              <ExchangeFilter 
+                onExchangeChange={handleExchangeChange}
+                isLoading={isLoadingExchange}
+              />
           
-          {/* Load Layout Button - Hiển thị tên layout */}
+              {/* Symbol Type Filter Dropdown */}
+              <SymbolTypeFilter
+                onSymbolTypeChange={handleSymbolTypeChange}
+                isLoading={isLoadingSymbolType}
+              />
+          
+              {/* Symbol Search Box Component */}
+              <SymbolSearchBox 
+                isConnected={isConnected}
+                onSymbolSelect={handleSymbolSelect}
+              />
+          
+              {/* Connection Status Indicator - Icon only */}
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                isConnected 
+                  ? 'bg-green-500/20 text-green-500' 
+                  : 'bg-red-500/20 text-red-500'
+              }`}>
+                {isConnected ? (
+                  <Wifi size={16} />
+                ) : (
+                  <WifiOff size={16} />
+                )}
+              </div>
+            </div>
+        
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Loading indicator when fetching workspace layout */}
+              {!isWorkspaceLayoutIdLoaded && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 text-xs">
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                  <span>Đang tải cấu hình...</span>
+                </div>
+              )}
+              
+              {/* Layout Selector Dropdown */}
+              <LayoutSelector
+                layouts={layouts}
+                currentLayoutId={currentLayoutId}
+                currentLayoutName={currentLayoutName}
+                isLoading={isLoadingLayouts}
+                onSelect={handleSelectLayout}
+                onDelete={handleDeleteLayout}
+                onRefresh={fetchLayouts}
+                onCreateNew={handleCreateNewLayout}
+              />
+            </div>
+          </div>
+      
+          {/* Column Sidebar */}
+          <ColumnSidebar />
+      
+          {/* Loading Overlay - Hide content until layout is ready */}
+          {!isLayoutReady && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-[#282832]/80 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-buttonGreen border-t-transparent"></div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Đang tải cấu hình workspace...
+                </span>
+              </div>
+            </div>
+          )}
+      
+          {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
           <button
-            onClick={handleLoadLayout}
-            disabled={isLoading}
-            title="Load layout"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+            onClick={() => setSidebarOpen(true)}
+            title="Quản lý cột"
+            className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
               isDark 
-                ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
-                : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
+                ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
+                : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
             }`}
           >
-            <FolderOpen size={18} />
-            <span className="text-sm">{currentLayoutName}</span>
+            <Table2 size={16} />
+            <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
           </button>
+      
+          <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
+            <AgGridReact
+              rowData={undefined}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              rowSelection="multiple"
+              animateRows={true}
+              theme="legacy"
+              rowDragManaged={false}
+              rowDragEntireRow={true}
+              suppressMoveWhenRowDragging={true}
+              onGridReady={(params) => {
+                setGridApi(params.api);
+              }}
+              onColumnResized={onColumnResized}
+              onColumnVisible={onColumnVisible}
+              onRowDragEnter={handleRowDragEnter}
+              onRowDragLeave={handleRowDragLeave}
+              // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
+              getRowId={(params) => {
+                // Validate ticker exists
+                if (!params.data || !params.data.ticker) {
+                  console.error('[StockScreener] ❌ Invalid row data - missing ticker:', params.data);
+                  return 'invalid-' + Math.random(); // Fallback ID
+                }
+                return params.data.ticker;
+              }}
+              // Optimize performance
+              suppressAnimationFrame={false}
+              suppressColumnVirtualisation={false}
+            />
+          </div>
         </div>
       </div>
-      
-      {/* Column Sidebar */}
-      <ColumnSidebar />
-      
-      {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
-      <button
-        onClick={() => setSidebarOpen(true)}
-        title="Quản lý cột"
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
-          isDark 
-            ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
-            : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
-        }`}
-      >
-        <Table2 size={16} />
-        <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
-      </button>
-      
-      <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
-        <AgGridReact
-          rowData={undefined}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          rowSelection="multiple"
-          animateRows={true}
-          theme="legacy"
-          rowDragManaged={false}
-          rowDragEntireRow={true}
-          suppressMoveWhenRowDragging={true}
-          onGridReady={(params) => {
-            setGridApi(params.api);
-          }}
-          onColumnResized={onColumnResized}
-          onColumnVisible={onColumnVisible}
-          onRowDragEnter={handleRowDragEnter}
-          onRowDragLeave={handleRowDragLeave}
-          // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows
-          getRowId={(params) => {
-            // Validate ticker exists
-            if (!params.data || !params.data.ticker) {
-              console.error('[StockScreener] ❌ Invalid row data - missing ticker:', params.data);
-              return 'invalid-' + Math.random(); // Fallback ID
-            }
-            return params.data.ticker;
-          }}
-          // Optimize performance
-          suppressAnimationFrame={false}
-          suppressColumnVirtualisation={false}
-        />
-      </div>
-    </div>
     </>
   );
 }

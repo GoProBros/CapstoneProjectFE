@@ -8,6 +8,7 @@ import "react-resizable/css/styles.css";
 import "./dashboard.css";
 import { X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { ModuleContext } from "@/contexts/ModuleContext";
 
 const moduleComponents: Record<string, React.ComponentType> = {
   'overview-chart': Modules.OverviewChartModule,
@@ -132,9 +133,11 @@ export default function DashboardPage() {
                   </div>
                 </button>
 
-                {/* Module Content - scrollable */}
+                {/* Module Content - scrollable, wrapped with ModuleContext */}
                 <div className="flex-1 overflow-auto relative z-0 pointer-events-auto">
-                  {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
+                  <ModuleContext.Provider value={{ moduleId: module.id, moduleType: module.type }}>
+                    {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
+                  </ModuleContext.Provider>
                 </div>
               </div>
             );
