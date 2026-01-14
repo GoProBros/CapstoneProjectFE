@@ -98,7 +98,7 @@ export function SignalRProvider({
     const service = SignalRService.getInstance();
     
     // Lấy API URL từ props hoặc environment variable
-    const baseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7148';
+    const baseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL;
     
     // Initialize service
     service.initialize({

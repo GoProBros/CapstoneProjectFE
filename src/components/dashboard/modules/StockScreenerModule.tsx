@@ -1867,16 +1867,10 @@ export default function StockScreenerModule() {
         <div className="flex-1 p-4 overflow-hidden flex flex-col">
           <div className='flex justify-between items-center mb-4'>
             <div className="flex items-center gap-3">
-              {/* Exchange Filter Buttons */}
-              <ExchangeFilter 
-                onExchangeChange={handleExchangeChange}
-                isLoading={isLoadingExchange}
-              />
-          
-              {/* Symbol Type Filter Dropdown */}
-              <SymbolTypeFilter
-                onSymbolTypeChange={handleSymbolTypeChange}
-                isLoading={isLoadingSymbolType}
+              {/* Symbol Search Box Component */}
+              <SymbolSearchBox 
+                isConnected={isConnected}
+                onSymbolSelect={handleSymbolSelect}
               />
           
               {/* Index Filter Dropdown */}
@@ -1884,11 +1878,17 @@ export default function StockScreenerModule() {
                 onIndexChange={handleIndexChange}
                 isLoading={isLoadingIndex}
               />
+
+              {/* Symbol Type Filter Dropdown */}
+              <SymbolTypeFilter
+                onSymbolTypeChange={handleSymbolTypeChange}
+                isLoading={isLoadingSymbolType}
+              />
           
-              {/* Symbol Search Box Component */}
-              <SymbolSearchBox 
-                isConnected={isConnected}
-                onSymbolSelect={handleSymbolSelect}
+              {/* Exchange Filter Buttons */}
+              <ExchangeFilter 
+                onExchangeChange={handleExchangeChange}
+                isLoading={isLoadingExchange}
               />
           
               {/* Connection Status Indicator - Icon only */}
