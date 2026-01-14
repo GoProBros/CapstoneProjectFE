@@ -62,19 +62,12 @@ export interface ModuleLayoutDetail {
   layoutName: string;
   moduleType: number;
   moduleTypeName: string;
-  configJson: string; // JSON string from API, needs to be parsed
+  configJson: LayoutConfigJson; // JSON object from API
   isSystemDefault: boolean;
   isPersonal: boolean;
   userId: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-/**
- * Parsed Module Layout Detail (after JSON parsing)
- */
-export interface ParsedModuleLayoutDetail extends Omit<ModuleLayoutDetail, 'configJson'> {
-  configJson: LayoutConfigJson; // Parsed object
 }
 
 /**
@@ -84,7 +77,7 @@ export interface ParsedModuleLayoutDetail extends Omit<ModuleLayoutDetail, 'conf
 export interface CreateLayoutRequest {
   layoutName: string;
   moduleType: number;
-  configJson: string; // JSON stringified LayoutConfigJson
+  configJson: LayoutConfigJson; // JSON object
   isSystemDefault: boolean;
 }
 
@@ -96,7 +89,7 @@ export interface CreateLayoutResponse {
   layoutName: string;
   moduleType: number;
   moduleTypeName: string;
-  configJson: string;
+  configJson: LayoutConfigJson;
   isSystemDefault: boolean;
   isPersonal: boolean;
   userId: string;
@@ -111,7 +104,7 @@ export interface CreateLayoutResponse {
 export interface UpdateLayoutRequest {
   id: number;
   layoutName: string;
-  configJson: string; // JSON stringified LayoutConfigJson
+  configJson: LayoutConfigJson; // JSON object
   isSystemDefault: boolean;
 }
 
