@@ -91,7 +91,7 @@ export default function DashboardLayout({
    * Convert PageData to backend layoutJson format
    * Backend expects: { modules: [{ i, x, y, w, h, type, title, activeLayoutId }] }
    */
-  const convertToBackendFormat = (page: PageData): string => {
+  const convertToBackendFormat = (page: PageData): Record<string, any> => {
     const modules = page.modules.map((module) => {
       const layoutItem = page.layout.find((l) => l.i === module.id);
       return {
@@ -106,7 +106,7 @@ export default function DashboardLayout({
       };
     });
     
-    return JSON.stringify({ modules });
+    return { modules };
   };
 
   /**
@@ -202,7 +202,7 @@ export default function DashboardLayout({
           if (response.isSuccess && response.data) {
             const apiWorkspaces: PageData[] = response.data.map((ws) => {
               try {
-                const layoutData = JSON.parse(ws.layoutJson);
+                const layoutData = ws.layoutJson;
                 
                 // Backend structure: modules array contains both layout and module info
                 const modules: Module[] = [];

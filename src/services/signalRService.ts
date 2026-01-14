@@ -67,7 +67,7 @@ class SignalRService {
   
   /** Configuration */
   private config: SignalRConfig = {
-    baseUrl: 'https://localhost:7148',  // Default backend port (HTTPS, update via initialize() if different)
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7148',  // Default backend port (HTTPS, update via initialize() if different)
     automaticReconnect: true,
     reconnectDelays: [0, 2000, 5000, 10000, 30000], // 0s, 2s, 5s, 10s, 30s
   };

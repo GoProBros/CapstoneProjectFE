@@ -14,8 +14,8 @@ export const API_ENDPOINTS = {
   
   // Module Layout endpoints
   MODULE_LAYOUTS: {
-    BASE: '/api/module-layouts',
-    BY_ID: (id: number) => `/api/module-layouts/${id}`,
+    BASE: '/api/v1/module-layouts',
+    BY_ID: (id: number) => `/api/v1/module-layouts/${id}`,
   },
   
   // Symbol endpoints
