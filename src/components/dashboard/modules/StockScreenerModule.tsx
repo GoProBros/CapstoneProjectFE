@@ -22,9 +22,12 @@ import Toast, { ToastType } from '@/components/ui/Toast';
 import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
 import { SaveLayoutModal, LayoutSelector } from '@/components/dashboard/layout';
+import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
 import { HEADER_GREEN } from '@/constants/colors';
 import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
+import type { WatchListSummary, WatchListDetail } from '@/types/watchList';
 import * as layoutService from '@/services/layoutService';
+import { watchListService } from '@/services/watchListService';
 
 // Module type constant for Stock Screener
 const MODULE_TYPE_STOCK_SCREENER = 1;
@@ -98,11 +101,22 @@ export default function StockScreenerModule() {
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   
+  // Filter states to track selections
+  const [selectedExchange, setSelectedExchange] = useState<ExchangeCode | null>(null);
+  const [selectedSymbolType, setSelectedSymbolType] = useState<SymbolType | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<IndexType | null>(null);
+  
   // Layout state
   const [layouts, setLayouts] = useState<ModuleLayoutSummary[]>([]);
   const [currentLayoutId, setCurrentLayoutId] = useState<number | null>(null);
   const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout mặc định');
   const [currentLayoutIsSystemDefault, setCurrentLayoutIsSystemDefault] = useState<boolean>(false);
+  
+  // Watch List state
+  const [watchLists, setWatchLists] = useState<WatchListSummary[]>([]);
+  const [currentWatchListId, setCurrentWatchListId] = useState<number | null>(null);
+  const [currentWatchListName, setCurrentWatchListName] = useState<string>('Watch-list của tôi');
+  const [isLoadingWatchLists, setIsLoadingWatchLists] = useState(false);
   
   // Dialog and Toast state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -140,8 +154,13 @@ export default function StockScreenerModule() {
     }
 
     setIsLoadingExchange(true);
+    setSelectedExchange(exchange);
     
     try {
+      // Clear watch-list selection when using exchange filter
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Watch-list của tôi');
+      
       // 1. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
       
@@ -207,8 +226,13 @@ export default function StockScreenerModule() {
     }
 
     setIsLoadingIndex(true);
+    setSelectedIndex(indexType);
     
     try {
+      // Clear watch-list selection when using index filter
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Watch-list của tôi');
+      
       // TODO: Replace with actual API call when available
       // Example implementation:
       // const tickers = await fetchSymbolsByIndex(indexType);
@@ -284,8 +308,13 @@ export default function StockScreenerModule() {
     }
 
     setIsLoadingSymbolType(true);
+    setSelectedSymbolType(type);
     
     try {
+      // Clear watch-list selection when using symbol type filter
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Watch-list của tôi');
+      
       // 1. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
       
@@ -460,7 +489,37 @@ export default function StockScreenerModule() {
                 }
               }
               
-              // 3. Show success toast
+              // 3. If using watch-list, update watch-list to remove this ticker
+              if (currentWatchListId !== null) {
+                try {
+                  console.log(`[StockScreener] Removing ${ticker} from watch-list ${currentWatchListId}`);
+                  
+                  // Get current watch list detail
+                  const watchListDetail = await watchListService.getWatchListById(currentWatchListId);
+                  
+                  // Remove ticker from tickers array
+                  const updatedTickers = watchListDetail.tickers.filter(t => t.toUpperCase() !== ticker.toUpperCase());
+                  
+                  console.log(`[StockScreener] Updated tickers:`, updatedTickers);
+                  
+                  // Update watch list
+                  await watchListService.updateWatchList(
+                    currentWatchListId,
+                    watchListDetail.name,
+                    updatedTickers
+                  );
+                  
+                  // Refresh watch lists to update ticker count
+                  await fetchWatchLists();
+                  
+                  console.log(`[StockScreener] Watch-list updated successfully`);
+                } catch (watchListError) {
+                  console.error(`[StockScreener] Error updating watch-list:`, watchListError);
+                  // Don't show error to user - unsubscribe was successful
+                }
+              }
+              
+              // 4. Show success toast
               setToast({
                 isOpen: true,
                 message: `Đã bỏ theo dõi mã ${ticker}`,
@@ -1035,7 +1094,198 @@ export default function StockScreenerModule() {
   };
   
   /**
+   * Fetch watch lists from API
+   */
+  const fetchWatchLists = useCallback(async () => {
+    try {
+      setIsLoadingWatchLists(true);
+      const lists = await watchListService.getWatchLists();
+      setWatchLists(lists);
+    } catch (error) {
+      console.error('[StockScreener] Error fetching watch lists:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tải danh sách watch list. Vui lòng thử lại.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingWatchLists(false);
+    }
+  }, []);
+
+  /**
+   * Handle select watch list - load and subscribe to tickers
+   */
+  const handleSelectWatchList = async (watchList: WatchListSummary) => {
+    if (!isConnected) {
+      setToast({
+        isOpen: true,
+        message: 'Chưa kết nối tới server. Vui lòng đợi...',
+        type: 'warning'
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingWatchLists(true);
+      
+      // Reset all filter selections when using watch-list
+      setSelectedExchange(null);
+      setSelectedSymbolType(null);
+      setSelectedIndex(null);
+
+      // 1. Get watch list detail with tickers
+      const detail = await watchListService.getWatchListById(watchList.id);
+      
+      console.log('[StockScreener] Watch list detail:', {
+        id: detail.id,
+        name: detail.name,
+        tickers: detail.tickers,
+        tickerCount: detail.tickers.length
+      });
+
+      // 2. Unsubscribe all current symbols
+      const currentTickers = Array.from(marketData.keys());
+      if (currentTickers.length > 0) {
+        await unsubscribeFromSymbols(currentTickers);
+      }
+
+      // 3. Clear grid data
+      if (gridApi) {
+        gridApi.setGridOption('rowData', []);
+      }
+
+      // 4. Subscribe to watch list tickers
+      if (detail.tickers.length > 0) {
+        console.log('[StockScreener] Subscribing to tickers:', detail.tickers);
+        await subscribeToSymbols(detail.tickers);
+        
+        // Wait a bit for market data to arrive
+        setTimeout(() => {
+          console.log('[StockScreener] Current marketData size:', marketData.size);
+          console.log('[StockScreener] MarketData keys:', Array.from(marketData.keys()));
+        }, 2000);
+        
+        setToast({
+          isOpen: true,
+          message: `Đã tải watch list "${watchList.name}" với ${detail.tickers.length} mã`,
+          type: 'success'
+        });
+      } else {
+        setToast({
+          isOpen: true,
+          message: `Watch list "${watchList.name}" không có mã nào`,
+          type: 'info'
+        });
+      }
+
+      // 5. Update current watch list state
+      setCurrentWatchListId(watchList.id);
+      setCurrentWatchListName(watchList.name);
+    } catch (error) {
+      console.error('[StockScreener] Error loading watch list:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tải watch list. Vui lòng thử lại.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingWatchLists(false);
+    }
+  };
+
+  /**
+   * Handle create new watch list
+   */
+  const handleCreateWatchList = async (name: string) => {
+    try {
+      setIsLoadingWatchLists(true);
+      
+      // Unsubscribe all current tickers before creating new watch list
+      if (gridApi) {
+        const currentTickers: string[] = [];
+        gridApi.forEachNode((node: any) => {
+          if (node.data?.ticker) {
+            currentTickers.push(node.data.ticker);
+          }
+        });
+        
+        if (currentTickers.length > 0) {
+          await unsubscribeFromSymbols(currentTickers);
+        }
+        
+        // Clear grid data
+        gridApi.setGridOption('rowData', []);
+      }
+      
+      // Create empty watch list
+      const newWatchList = await watchListService.createWatchList(name, []);
+      
+      // Refresh watch lists
+      await fetchWatchLists();
+      
+      // Select the new watch list
+      setCurrentWatchListId(newWatchList.id);
+      setCurrentWatchListName(newWatchList.name);
+      
+      setToast({
+        isOpen: true,
+        message: `Đã tạo watch list "${name}". Kéo thả mã vào bảng để thêm.`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('[StockScreener] Error creating watch list:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tạo watch list. Vui lòng thử lại.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingWatchLists(false);
+    }
+  };
+
+  /**
+   * Handle delete watch list
+   */
+  const handleDeleteWatchList = async (watchList: WatchListSummary) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xác nhận xóa watch list',
+      message: `Bạn có chắc muốn xóa watch list "${watchList.name}"? Hành động này không thể hoàn tác.`,
+      onConfirm: async () => {
+        try {
+          await watchListService.deleteWatchList(watchList.id);
+          
+          // Refresh watch lists
+          await fetchWatchLists();
+          
+          // If deleted current watch list, reset to default
+          if (currentWatchListId === watchList.id) {
+            setCurrentWatchListId(null);
+            setCurrentWatchListName('Watch-list của tôi');
+          }
+          
+          setToast({
+            isOpen: true,
+            message: `Đã xóa watch list "${watchList.name}"`,
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('[StockScreener] Error deleting watch list:', error);
+          setToast({
+            isOpen: true,
+            message: 'Có lỗi khi xóa watch list. Vui lòng thử lại.',
+            type: 'error'
+          });
+        }
+      }
+    });
+  };
+  
+  /**
    * Handle symbol selection from search box
+   * If a watch list is selected, add the ticker to it
    */
   const handleSymbolSelect = async (ticker: string) => {
     // Kiểm tra xem mã đã được subscribe chưa
@@ -1050,11 +1300,46 @@ export default function StockScreenerModule() {
     
     try {
       await subscribeToSymbols([ticker]);
-      setToast({
-        isOpen: true,
-        message: `Đã subscribe thành công mã ${ticker} !`,
-        type: 'success'
-      });
+      
+      // If a watch list is selected, add ticker to it
+      if (currentWatchListId) {
+        try {
+          // Get current watch list detail
+          const detail = await watchListService.getWatchListById(currentWatchListId);
+          
+          // Check if ticker already exists
+          if (!detail.tickers.includes(ticker)) {
+            // Add ticker to the list
+            const updatedTickers = [...detail.tickers, ticker];
+            await watchListService.updateWatchList(currentWatchListId, detail.name, updatedTickers);
+            
+            setToast({
+              isOpen: true,
+              message: `Đã thêm ${ticker} vào watch list "${currentWatchListName}"`,
+              type: 'success'
+            });
+          } else {
+            setToast({
+              isOpen: true,
+              message: `Đã subscribe mã ${ticker}! (đã có trong watch list)`,
+              type: 'success'
+            });
+          }
+        } catch (error) {
+          console.error('[StockScreener] Error adding ticker to watch list:', error);
+          setToast({
+            isOpen: true,
+            message: `Đã subscribe ${ticker}, nhưng không thể thêm vào watch list`,
+            type: 'warning'
+          });
+        }
+      } else {
+        setToast({
+          isOpen: true,
+          message: `Đã subscribe thành công mã ${ticker}!`,
+          type: 'success'
+        });
+      }
     } catch (error) {
       console.error(`[StockScreener] Failed to subscribe to ${ticker}:`, error);
       setToast({
@@ -1872,23 +2157,38 @@ export default function StockScreenerModule() {
                 isConnected={isConnected}
                 onSymbolSelect={handleSymbolSelect}
               />
+              
+              {/* Watch List Selector */}
+              <WatchListSelector
+                watchLists={watchLists}
+                currentWatchListId={currentWatchListId}
+                currentWatchListName={currentWatchListName}
+                isLoading={isLoadingWatchLists}
+                onSelect={handleSelectWatchList}
+                onDelete={handleDeleteWatchList}
+                onRefresh={fetchWatchLists}
+                onCreateNew={handleCreateWatchList}
+              />
           
               {/* Index Filter Dropdown */}
               <IndexFilter
                 onIndexChange={handleIndexChange}
                 isLoading={isLoadingIndex}
+                selectedIndex={selectedIndex}
               />
 
               {/* Symbol Type Filter Dropdown */}
               <SymbolTypeFilter
                 onSymbolTypeChange={handleSymbolTypeChange}
                 isLoading={isLoadingSymbolType}
+                selectedType={selectedSymbolType}
               />
           
               {/* Exchange Filter Buttons */}
               <ExchangeFilter 
                 onExchangeChange={handleExchangeChange}
                 isLoading={isLoadingExchange}
+                selectedExchange={selectedExchange}
               />
           
               {/* Connection Status Indicator - Icon only */}

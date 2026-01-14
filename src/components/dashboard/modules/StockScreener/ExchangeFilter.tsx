@@ -12,18 +12,17 @@ import type { ExchangeCode } from '@/types/symbol';
 interface ExchangeFilterProps {
   onExchangeChange: (exchange: ExchangeCode) => void;
   isLoading?: boolean;
+  selectedExchange?: ExchangeCode | null;
 }
 
-export default function ExchangeFilter({ onExchangeChange, isLoading }: ExchangeFilterProps) {
+export default function ExchangeFilter({ onExchangeChange, isLoading, selectedExchange = null }: ExchangeFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [activeExchange, setActiveExchange] = useState<ExchangeCode | null>(null);
 
   const exchanges: ExchangeCode[] = ['HSX', 'HNX', 'UPCOM'];
 
   const handleClick = (exchange: ExchangeCode) => {
     if (isLoading) return;
-    setActiveExchange(exchange);
     onExchangeChange(exchange);
   };
 
@@ -37,7 +36,7 @@ export default function ExchangeFilter({ onExchangeChange, isLoading }: Exchange
           className={`
             px-4 py-2 rounded-lg font-semibold text-sm transition-all
             disabled:opacity-50 disabled:cursor-not-allowed
-            ${activeExchange === exchange
+            ${selectedExchange === exchange
               ? isDark
                 ? 'bg-blue-600 text-white shadow-lg'
                 : 'bg-blue-500 text-white shadow-lg'

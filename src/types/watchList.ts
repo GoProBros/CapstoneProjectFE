@@ -21,7 +21,7 @@ export interface WatchListSummary {
 export interface WatchListDetail {
   id: number;
   name: string;
-  tickers: string; // Dash-separated ticker symbols (e.g., "VNM-VCB-HPG")
+  tickers: string[]; // JSON array of ticker symbols (e.g., ["FPT", "VNM", "VN30"])
   status: number;
   createdAt: string;
   updatedAt: string;
@@ -32,7 +32,7 @@ export interface WatchListDetail {
  */
 export interface CreateWatchListRequest {
   name: string;
-  tickers: string; // Dash-separated ticker symbols (e.g., "VNM-VCB-HPG")
+  tickers: string[]; // JSON array of ticker symbols (e.g., ["FPT", "VNM", "VN30"])
 }
 
 /**
@@ -41,5 +41,5 @@ export interface CreateWatchListRequest {
 export interface UpdateWatchListRequest {
   id: number;
   name: string;
-  tickers: string; // Dash-separated ticker symbols (e.g., "VNM-VCB-HPG")
+  tickers: string[]; // JSON array of ticker symbols (e.g., ["FPT", "VNM", "VN30"])
 }

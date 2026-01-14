@@ -29,23 +29,22 @@ const INDICES: IndexInfo[] = [
 interface IndexFilterProps {
   onIndexChange: (indexType: IndexType) => void;
   isLoading?: boolean;
+  selectedIndex?: IndexType | null;
 }
 
-export default function IndexFilter({ onIndexChange, isLoading = false }: IndexFilterProps) {
+export default function IndexFilter({ onIndexChange, isLoading = false, selectedIndex = null }: IndexFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState<IndexType | null>(null);
 
   const handleSelectIndex = (indexType: IndexType) => {
-    setSelectedIndex(indexType);
     setIsOpen(false);
     onIndexChange(indexType);
   };
 
   const handleClearSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedIndex(null);
+    onIndexChange(null as any); // Clear selection
     setIsOpen(false);
   };
 
