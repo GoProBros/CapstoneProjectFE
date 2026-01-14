@@ -17,6 +17,46 @@ import {
 /**
  * Search symbols with pagination support
  */
+/**
+ * Get all symbols with optional filters
+ */
+export async function getAllSymbols(type?: number, exchange?: string, sector?: string): Promise<PaginatedSymbolSearchResponse> {
+  const queryParams = new URLSearchParams({
+    PageIndex: '1',
+    PageSize: '1000',
+  });
+  
+  if (type) queryParams.append('Type', String(type));
+  if (exchange) queryParams.append('Exchange', exchange);
+  if (sector) queryParams.append('Sector', sector);
+  
+  const url = `${API_BASE_URL}/api/v1/symbol?${queryParams}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch symbols: ${response.status} ${response.statusText}`);
+    }
+    
+    const result: ApiResponse<PaginatedSymbolSearchResponse> = await response.json();
+    
+    if (result.isSuccess && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || 'Failed to fetch symbols');
+    }
+  } catch (error) {
+    console.error('[SymbolService] Get all symbols error:', error);
+    throw error;
+  }
+}
+
 export async function searchSymbols(params: SymbolSearchParams): Promise<PaginatedSymbolSearchResponse> {
   const { query, isTickerOnly, pageIndex, pageSize } = params;
   
