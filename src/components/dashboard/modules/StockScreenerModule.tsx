@@ -67,8 +67,6 @@ export default function StockScreenerModule() {
       const moduleData = getModuleById(moduleId);
       const newLayoutId = moduleData?.layoutId || null;
       
-      console.log('[StockScreener] Loading workspace layoutId:', newLayoutId, 'for module:', moduleId);
-      
       // CRITICAL: Reset layout ready state when page changes
       setIsLayoutReady(false);
       
@@ -84,7 +82,6 @@ export default function StockScreenerModule() {
     } else {
       // FIX: If no moduleId yet (newly added module), set ready immediately
       // This prevents infinite loading overlay on new module addition
-      console.log('[StockScreener] No moduleId yet, skipping layout load');
       setIsWorkspaceLayoutIdLoaded(true);
       setIsLayoutReady(true);
     }
@@ -336,10 +333,7 @@ export default function StockScreenerModule() {
       
       // 5. If type is null, load default symbols from HSX exchange
       if (type === null) {
-        console.log('[StockScreener] 🔍 Loading default symbols from HSX exchange');
         const tickers = await fetchSymbolsByExchange('HSX');
-        
-        console.log('[StockScreener] 📊 Received HSX tickers:', tickers.length);
         
         if (!tickers || tickers.length === 0) {
           setToast({
@@ -364,14 +358,11 @@ export default function StockScreenerModule() {
       }
       
       // 6. Fetch symbols by type (returns SymbolData[] directly)
-      console.log(`[StockScreener] 🔍 Fetching symbols with Type=${type}`);
       const symbols = await fetchSymbols({ 
         Type: type, 
         PageSize: 5000,
         PageIndex: 1 
       });
-      
-      console.log(`[StockScreener] 📊 Received symbols for type ${type}:`, symbols?.length || 0);
       
       // Check for empty array
       if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
@@ -386,7 +377,6 @@ export default function StockScreenerModule() {
       
       // FILTER: CHỈ LẤY CÁC SYMBOLS ĐÚNG TYPE
       const filteredSymbols = symbols.filter(s => s.type === type);
-      console.log(`[StockScreener] ✅ Filtered symbols matching type ${type}:`, filteredSymbols.length);
       
       // 7. Extract tickers and subscribe
       const newTickers = filteredSymbols.map(symbol => symbol.ticker);
@@ -431,10 +421,7 @@ export default function StockScreenerModule() {
     // Load default symbol list on first connection - SỬ DỤNG EXCHANGE HSX
     const loadDefaultSymbols = async () => {
       try {
-        console.log('[StockScreener] 🔍 Fetching symbols from Exchange=HSX');
         const tickers = await fetchSymbolsByExchange('HSX');
-        
-        console.log('[StockScreener] 📊 Received tickers from HSX:', tickers.length);
         
         if (!tickers || tickers.length === 0) {
           setToast({
@@ -445,7 +432,6 @@ export default function StockScreenerModule() {
           return;
         }
         
-        console.log('[StockScreener] 📡 Subscribing to', tickers.length, 'HSX symbols');
         await subscribeToSymbols(tickers);
         
         // ĐÁNH DẤU đã load để tránh load lại
@@ -501,15 +487,11 @@ export default function StockScreenerModule() {
               // 3. If using watch-list, update watch-list to remove this ticker
               if (currentWatchListId !== null) {
                 try {
-                  console.log(`[StockScreener] Removing ${ticker} from watch-list ${currentWatchListId}`);
-                  
                   // Get current watch list detail
                   const watchListDetail = await watchListService.getWatchListById(currentWatchListId);
                   
                   // Remove ticker from tickers array
                   const updatedTickers = watchListDetail.tickers.filter(t => t.toUpperCase() !== ticker.toUpperCase());
-                  
-                  console.log(`[StockScreener] Updated tickers:`, updatedTickers);
                   
                   // Update watch list
                   await watchListService.updateWatchList(
@@ -520,8 +502,6 @@ export default function StockScreenerModule() {
                   
                   // Refresh watch lists to update ticker count
                   await fetchWatchLists();
-                  
-                  console.log(`[StockScreener] Watch-list updated successfully`);
                 } catch (watchListError) {
                   console.error(`[StockScreener] Error updating watch-list:`, watchListError);
                   // Don't show error to user - unsubscribe was successful
@@ -573,14 +553,9 @@ export default function StockScreenerModule() {
     
     // FILTER: Nếu đang dùng watch-list, CHỈ hiển thị ticker trong watch-list
     if (currentWatchListId !== null && currentWatchListTickers.current.size > 0) {
-      const beforeFilterCount = validRows.length;
       validRows = validRows.filter(row => 
         currentWatchListTickers.current.has(row.ticker.toUpperCase())
       );
-      
-      if (beforeFilterCount !== validRows.length) {
-        console.log(`[StockScreener] Filtered marketData: ${beforeFilterCount} → ${validRows.length} (watch-list only)`);
-      }
     }
 
     if (validRows.length === 0) {
@@ -1157,13 +1132,6 @@ export default function StockScreenerModule() {
 
       // 1. Get watch list detail with tickers
       const detail = await watchListService.getWatchListById(watchList.id);
-      
-      console.log('[StockScreener] Watch list detail:', {
-        id: detail.id,
-        name: detail.name,
-        tickers: detail.tickers,
-        tickerCount: detail.tickers.length
-      });
 
       // 2. Unsubscribe all current symbols
       const currentTickers = Array.from(marketData.keys());
@@ -1182,11 +1150,9 @@ export default function StockScreenerModule() {
       
       // Track tickers for validation (uppercase for case-insensitive comparison)
       currentWatchListTickers.current = new Set(detail.tickers.map(t => t.toUpperCase()));
-      console.log('[StockScreener] Tracked watch-list tickers:', Array.from(currentWatchListTickers.current));
       
       // 5. Subscribe to watch list tickers
       if (detail.tickers.length > 0) {
-        console.log('[StockScreener] Subscribing to tickers:', detail.tickers);
         await subscribeToSymbols(detail.tickers);
         
         // Wait a bit for market data to arrive and validate
