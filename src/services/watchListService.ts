@@ -42,10 +42,10 @@ export const watchListService = {
    * Create a new watch list
    * Requires authentication
    * @param name - Name of the watch list
-   * @param tickers - Comma-separated ticker symbols (e.g., "VNM-VCB-HPG")
+   * @param tickers - Array of ticker symbols (e.g., ["FPT", "VNM", "VN30"])
    * @returns Promise<WatchListDetail> Created watch list detail
    */
-  async createWatchList(name: string, tickers: string): Promise<WatchListDetail> {
+  async createWatchList(name: string, tickers: string[]): Promise<WatchListDetail> {
     try {
       const requestBody: CreateWatchListRequest = {
         name,
@@ -91,10 +91,10 @@ export const watchListService = {
    * Requires authentication
    * @param id - Watch list ID
    * @param name - Updated name
-   * @param tickers - Updated comma-separated ticker symbols
+   * @param tickers - Updated array of ticker symbols (e.g., ["FPT", "VNM", "VN30"])
    * @returns Promise<WatchListDetail> Updated watch list detail
    */
-  async updateWatchList(id: number, name: string, tickers: string): Promise<WatchListDetail> {
+  async updateWatchList(id: number, name: string, tickers: string[]): Promise<WatchListDetail> {
     try {
       const requestBody: UpdateWatchListRequest = {
         id,
@@ -132,27 +132,6 @@ export const watchListService = {
       console.error(`[WatchListService] Error deleting watch list ${id}:`, error);
       throw error;
     }
-  },
-
-  /**
-   * Helper: Convert ticker array to API format string
-   * @param tickers - Array of ticker symbols
-   * @returns Comma-separated string (e.g., "VNM-VCB-HPG")
-   */
-  tickersToString(tickers: string[]): string {
-    return tickers.join('-');
-  },
-
-  /**
-   * Helper: Parse API format string to ticker array
-   * @param tickersString - Comma-separated string (e.g., "VNM-VCB-HPG")
-   * @returns Array of ticker symbols
-   */
-  tickersFromString(tickersString: string): string[] {
-    if (!tickersString || tickersString.trim() === '') {
-      return [];
-    }
-    return tickersString.split('-').map(ticker => ticker.trim()).filter(Boolean);
   },
 };
 
