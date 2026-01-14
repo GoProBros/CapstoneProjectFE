@@ -98,9 +98,13 @@ export default function WatchListSelector({
         onClick={handleToggle}
         disabled={isLoading}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
-          isDark 
-            ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-            : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+          currentWatchListId !== null
+            ? isDark 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
+              : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+            : isDark 
+              ? 'bg-gray-600 hover:bg-gray-700 text-white disabled:bg-gray-700 disabled:opacity-50' 
+              : 'bg-gray-400 hover:bg-gray-500 text-white disabled:bg-gray-300'
         }`}
       >
         {isLoading ? (
