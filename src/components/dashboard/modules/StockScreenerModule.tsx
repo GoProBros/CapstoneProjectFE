@@ -157,9 +157,10 @@ export default function StockScreenerModule() {
     setSelectedExchange(exchange);
     
     try {
-      // Clear watch-list selection when using exchange filter
+      // Clear watch-list selection and tracking when using exchange filter
       setCurrentWatchListId(null);
       setCurrentWatchListName('Watch-list của tôi');
+      currentWatchListTickers.current.clear();
       
       // 1. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
@@ -229,9 +230,10 @@ export default function StockScreenerModule() {
     setSelectedIndex(indexType);
     
     try {
-      // Clear watch-list selection when using index filter
+      // Clear watch-list selection and tracking when using index filter
       setCurrentWatchListId(null);
       setCurrentWatchListName('Watch-list của tôi');
+      currentWatchListTickers.current.clear();
       
       // TODO: Replace with actual API call when available
       // Example implementation:
@@ -311,9 +313,10 @@ export default function StockScreenerModule() {
     setSelectedSymbolType(type);
     
     try {
-      // Clear watch-list selection when using symbol type filter
+      // Clear watch-list selection and tracking when using symbol type filter
       setCurrentWatchListId(null);
       setCurrentWatchListName('Watch-list của tôi');
+      currentWatchListTickers.current.clear();
       
       // 1. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
@@ -412,6 +415,12 @@ export default function StockScreenerModule() {
    * SỬ DỤNG useRef để track việc đã load symbols, tránh duplicate subscription
    */
   const hasLoadedDefaultSymbols = React.useRef(false);
+  
+  /**
+   * Track current watch-list tickers để validate grid display
+   * Chỉ hiển thị ticker thuộc watch-list hiện tại
+   */
+  const currentWatchListTickers = React.useRef<Set<string>>(new Set());
   
   useEffect(() => {
     // Chỉ subscribe khi đã connected VÀ chưa load symbols
@@ -560,7 +569,19 @@ export default function StockScreenerModule() {
     const updatedRows = Array.from(marketData.values());
     
     // VALIDATE: Loại bỏ rows không có ticker (invalid data)
-    const validRows = updatedRows.filter(row => row && row.ticker);
+    let validRows = updatedRows.filter(row => row && row.ticker);
+    
+    // FILTER: Nếu đang dùng watch-list, CHỈ hiển thị ticker trong watch-list
+    if (currentWatchListId !== null && currentWatchListTickers.current.size > 0) {
+      const beforeFilterCount = validRows.length;
+      validRows = validRows.filter(row => 
+        currentWatchListTickers.current.has(row.ticker.toUpperCase())
+      );
+      
+      if (beforeFilterCount !== validRows.length) {
+        console.log(`[StockScreener] Filtered marketData: ${beforeFilterCount} → ${validRows.length} (watch-list only)`);
+      }
+    }
 
     if (validRows.length === 0) {
       return;
@@ -1155,15 +1176,34 @@ export default function StockScreenerModule() {
         gridApi.setGridOption('rowData', []);
       }
 
-      // 4. Subscribe to watch list tickers
+      // 4. Update current watch list state and track tickers
+      setCurrentWatchListId(watchList.id);
+      setCurrentWatchListName(watchList.name);
+      
+      // Track tickers for validation (uppercase for case-insensitive comparison)
+      currentWatchListTickers.current = new Set(detail.tickers.map(t => t.toUpperCase()));
+      console.log('[StockScreener] Tracked watch-list tickers:', Array.from(currentWatchListTickers.current));
+      
+      // 5. Subscribe to watch list tickers
       if (detail.tickers.length > 0) {
         console.log('[StockScreener] Subscribing to tickers:', detail.tickers);
         await subscribeToSymbols(detail.tickers);
         
-        // Wait a bit for market data to arrive
+        // Wait a bit for market data to arrive and validate
         setTimeout(() => {
-          console.log('[StockScreener] Current marketData size:', marketData.size);
-          console.log('[StockScreener] MarketData keys:', Array.from(marketData.keys()));
+          const gridRowCount = gridApi?.getDisplayedRowCount() || 0;
+          console.log('[StockScreener] Validation:', {
+            watchListTickerCount: detail.tickers.length,
+            marketDataSize: marketData.size,
+            gridRowCount: gridRowCount,
+            marketDataKeys: Array.from(marketData.keys()),
+            watchListTickers: detail.tickers
+          });
+          
+          // Warning if mismatch
+          if (gridRowCount !== detail.tickers.length) {
+            console.warn(`[StockScreener] ⚠️ Ticker count mismatch! Expected: ${detail.tickers.length}, Got: ${gridRowCount}`);
+          }
         }, 2000);
         
         setToast({
@@ -1172,16 +1212,14 @@ export default function StockScreenerModule() {
           type: 'success'
         });
       } else {
+        // Empty watch list - clear tracking
+        currentWatchListTickers.current.clear();
         setToast({
           isOpen: true,
           message: `Watch list "${watchList.name}" không có mã nào`,
           type: 'info'
         });
       }
-
-      // 5. Update current watch list state
-      setCurrentWatchListId(watchList.id);
-      setCurrentWatchListName(watchList.name);
     } catch (error) {
       console.error('[StockScreener] Error loading watch list:', error);
       setToast({
@@ -1224,9 +1262,12 @@ export default function StockScreenerModule() {
       // Refresh watch lists
       await fetchWatchLists();
       
-      // Select the new watch list
+      // Select the new watch list (empty)
       setCurrentWatchListId(newWatchList.id);
       setCurrentWatchListName(newWatchList.name);
+      
+      // Empty watch list - clear tracking
+      currentWatchListTickers.current.clear();
       
       setToast({
         isOpen: true,
