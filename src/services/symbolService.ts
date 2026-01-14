@@ -8,7 +8,7 @@ import {
   SymbolSearchParams, 
   PaginatedSymbolSearchResponse,
   ApiResponse,
-  SymbolApiResponse,
+  PaginatedSymbolData,
   SymbolQueryParams,
   SymbolData,
   ExchangeCode
@@ -33,7 +33,13 @@ export async function searchSymbols(params: SymbolSearchParams): Promise<Paginat
       `${API_ENDPOINTS.SYMBOL.SEARCH}?${queryParams}`
     );
     
-    // Handle ApiResponse wrapper
+    console.log('[SymbolService] Search API Response:', {
+      isSuccess: result.isSuccess,
+      hasData: !!result.data,
+      itemsCount: result.data?.items?.length || 0
+    });
+    
+    // Handle ApiResponse wrapper - get() returns ApiResponse<T>
     if (result.isSuccess && result.data) {
       return result.data;
     } else {
@@ -58,12 +64,21 @@ export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolDat
   if (params.PageSize !== undefined) queryParams.append('PageSize', params.PageSize.toString());
   
   try {
-    const result = await get<SymbolApiResponse>(
+    const result = await get<PaginatedSymbolData>(
       `${API_ENDPOINTS.SYMBOL.LIST}?${queryParams.toString()}`
     );
     
-    if (result.isSuccess && result.data?.data?.items) {
-      return result.data.data.items;
+    console.log('[SymbolService] API Response:', {
+      isSuccess: result.isSuccess,
+      hasData: !!result.data,
+      itemsCount: result.data?.items?.length || 0
+    });
+    
+    // result is ApiResponse<PaginatedSymbolData>
+    // result.data is PaginatedSymbolData
+    // result.data.items is SymbolData[]
+    if (result.isSuccess && result.data?.items) {
+      return result.data.items;
     }
     
     return [];
@@ -75,23 +90,20 @@ export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolDat
 
 /**
  * Fetch symbols by exchange với default pageSize = 5000
- * CHỈ LẤY STOCKS (Type = 1)
  */
 export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<string[]> {
   try {
     console.log(`[SymbolService] 🔍 Fetching symbols: Exchange=${exchange}, Type=1`);
     const symbols = await fetchSymbols({
       Exchange: exchange,
-      Type: 1, // Stock only
       PageSize: 5000,
       PageIndex: 1,
     });
     
     console.log(`[SymbolService] 📊 API returned ${symbols.length} symbols`);
     
-    // CRITICAL: FILTER client-side để đảm bảo chỉ lấy Type=1 (Stock)
     // Backend có thể không filter đúng
-    const stockSymbols = symbols.filter(s => s.type === 1 && s.exchangeCode === exchange);
+    const stockSymbols = symbols.filter(s => s.exchangeCode === exchange);
     console.log(`[SymbolService] ✅ Filtered to ${stockSymbols.length} stocks on ${exchange}`);
     
     // Extract tickers
