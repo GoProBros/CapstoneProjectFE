@@ -16,6 +16,7 @@ import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
 import ExchangeFilter from './StockScreener/ExchangeFilter';
 import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
+import IndexFilter, { type IndexType } from './StockScreener/IndexFilter';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Toast, { ToastType } from '@/components/ui/Toast';
 import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
@@ -92,6 +93,7 @@ export default function StockScreenerModule() {
   const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
   const [isLoadingExchange, setIsLoadingExchange] = useState(false);
   const [isLoadingSymbolType, setIsLoadingSymbolType] = useState(false);
+  const [isLoadingIndex, setIsLoadingIndex] = useState(false);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
   const [isDraggingOutside, setIsDraggingOutside] = useState<string | null>(null); // Track ticker being dragged outside
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
@@ -185,6 +187,86 @@ export default function StockScreenerModule() {
       });
     } finally {
       setIsLoadingExchange(false);
+    }
+  };
+
+  /**
+   * Handle index filter change
+   * TODO: Implement API integration when endpoint is available
+   * Expected API: GET /api/v1/symbols/indices/{indexType}
+   * Should return array of ticker symbols belonging to the index
+   */
+  const handleIndexChange = async (indexType: IndexType) => {
+    if (!isConnected) {
+      setToast({
+        isOpen: true,
+        message: 'Chưa kết nối tới server. Vui lòng đợi...',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setIsLoadingIndex(true);
+    
+    try {
+      // TODO: Replace with actual API call when available
+      // Example implementation:
+      // const tickers = await fetchSymbolsByIndex(indexType);
+      
+      // Temporary notification
+      setToast({
+        isOpen: true,
+        message: `Tính năng tải ${indexType} đang được phát triển. API chưa sẵn sàng.`,
+        type: 'info'
+      });
+      
+      /* TODO: Uncomment when API is ready
+      // 1. Get current subscribed tickers
+      const currentTickers = Array.from(marketData.keys());
+      
+      // 2. Unsubscribe all current symbols
+      if (currentTickers.length > 0) {
+        await unsubscribeFromSymbols(currentTickers);
+        
+        // 3. Clear grid data
+        if (gridApi) {
+          gridApi.setGridOption('rowData', []);
+        }
+      }
+      
+      // 4. Reset flag
+      hasLoadedDefaultSymbols.current = false;
+      
+      // 5. Fetch symbols by index
+      const tickers = await fetchSymbolsByIndex(indexType);
+      
+      if (tickers.length === 0) {
+        setToast({
+          isOpen: true,
+          message: `Không tìm thấy mã nào trong chỉ số ${indexType}`,
+          type: 'warning'
+        });
+        return;
+      }
+      
+      // 6. Subscribe to new symbols
+      await subscribeToSymbols(tickers);
+      
+      setToast({
+        isOpen: true,
+        message: `Đã tải ${tickers.length} mã từ chỉ số ${indexType}`,
+        type: 'success'
+      });
+      */
+    } catch (error) {
+      console.error(`[StockScreener] Error changing to index ${indexType}:`, error);
+      setToast({
+        isOpen: true,
+        message: `Lỗi khi tải dữ liệu chỉ số ${indexType}. Vui lòng thử lại.`,
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingIndex(false);
     }
   };
 
@@ -1795,6 +1877,12 @@ export default function StockScreenerModule() {
               <SymbolTypeFilter
                 onSymbolTypeChange={handleSymbolTypeChange}
                 isLoading={isLoadingSymbolType}
+              />
+          
+              {/* Index Filter Dropdown */}
+              <IndexFilter
+                onIndexChange={handleIndexChange}
+                isLoading={isLoadingIndex}
               />
           
               {/* Symbol Search Box Component */}
