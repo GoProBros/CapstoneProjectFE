@@ -6,6 +6,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { ColDef, ColGroupDef, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useModule } from '@/contexts/ModuleContext';
 import { useColumnStore } from '@/stores/columnStore';
@@ -46,8 +47,26 @@ const formatPrice = (value: number | null | undefined): string => {
 
 export default function StockScreenerModule() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isDark = theme === 'dark';
   const [gridApi, setGridApi] = useState<any>(null);
+  
+  /**
+   * Helper: Kiểm tra user có quyền edit layout không
+   * Layout id = 1 là system default, chỉ admin mới được sửa
+   */
+  const canEditLayout = useCallback((layoutId: number | null): boolean => {
+    if (!layoutId) return false;
+    
+    // Layout id = 1 là system default
+    if (layoutId === 1) {
+      // Chỉ admin mới được sửa
+      return user?.role?.toLowerCase() === 'admin';
+    }
+    
+    // Các layout khác thì được phép sửa
+    return true;
+  }, [user]);
   
   // Get module context (moduleId and moduleType)
   const moduleContext = useModule();
@@ -705,6 +724,12 @@ export default function StockScreenerModule() {
       return;
     }
     
+    // Skip nếu user không có quyền edit layout này (vd: layout id=1 và user không phải admin)
+    if (!canEditLayout(currentLayoutId)) {
+      console.log(`[StockScreener] Skip auto-save: User không có quyền edit layout id=${currentLayoutId}`);
+      return;
+    }
+    
     // Debounce: Chờ 1 giây sau khi user thay đổi mới save
     const timeoutId = setTimeout(async () => {
       try {
@@ -722,7 +747,7 @@ export default function StockScreenerModule() {
     }, 1000); // Debounce 1 giây
     
     return () => clearTimeout(timeoutId);
-  }, [columns, currentLayoutId, currentLayoutName, currentLayoutIsSystemDefault]);
+  }, [columns, currentLayoutId, currentLayoutName, currentLayoutIsSystemDefault, canEditLayout]);
 
   // Fetch layouts from API (for refresh, không load layout)
   const fetchLayouts = useCallback(async () => {
@@ -951,6 +976,16 @@ export default function StockScreenerModule() {
       setToast({
         isOpen: true,
         message: 'Không có layout để cập nhật',
+        type: 'error'
+      });
+      return;
+    }
+    
+    // Check permission
+    if (!canEditLayout(currentLayoutId)) {
+      setToast({
+        isOpen: true,
+        message: 'Bạn không có quyền chỉnh sửa layout này. Chỉ Admin mới có quyền sửa layout mặc định của hệ thống.',
         type: 'error'
       });
       return;
@@ -2133,10 +2168,11 @@ export default function StockScreenerModule() {
           onClose={() => setIsSaveModalOpen(false)}
           onSave={handleSaveLayoutSubmit}
           onUpdate={handleUpdateLayoutSubmit}
-          currentLayoutId={null}
-          currentLayoutName=""
-          isSystemDefault={false}
+          currentLayoutId={currentLayoutId}
+          currentLayoutName={currentLayoutName}
+          isSystemDefault={currentLayoutIsSystemDefault}
           isLoading={isSaving}
+          canEdit={canEditLayout(currentLayoutId)}
         />
         
         {/* Module Header - Trapezoid Design */}
