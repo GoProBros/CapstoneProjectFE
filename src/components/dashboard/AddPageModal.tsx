@@ -20,6 +20,8 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(null);
     const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
+    const [editingWorkspaceId, setEditingWorkspaceId] = useState<number | null>(null);
+    const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
     const [shareCode, setShareCode] = useState('');
     const [isApplying, setIsApplying] = useState(false);
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
@@ -38,7 +40,13 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
         try {
             const response = await workspaceService.getMyWorkspaces();
             if (response.isSuccess && response.data) {
-                setWorkspaces(response.data);
+                // Sort workspaces: ID 1 first, then others by ID ascending
+                const sortedWorkspaces = [...response.data].sort((a, b) => {
+                    if (a.id === 1) return -1;
+                    if (b.id === 1) return 1;
+                    return a.id - b.id;
+                });
+                setWorkspaces(sortedWorkspaces);
             }
         } catch (error) {
             console.error('Error loading workspaces:', error);
@@ -109,6 +117,69 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
         }
     };
 
+    const handleStartEdit = (e: React.MouseEvent, ws: Workspace) => {
+        e.stopPropagation();
+        setEditingWorkspaceId(ws.id);
+        setEditingWorkspaceName(ws.workspaceName);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingWorkspaceId(null);
+        setEditingWorkspaceName('');
+    };
+
+    const handleSaveEdit = async (workspaceId: number) => {
+        if (!editingWorkspaceName.trim()) {
+            setError('Tên workspace không được để trống');
+            return;
+        }
+
+        try {
+            const workspace = workspaces.find(w => w.id === workspaceId);
+            if (!workspace) return;
+
+            const response = await workspaceService.updateWorkspace(workspaceId, {
+                workspaceId: workspaceId.toString(),
+                workspaceName: editingWorkspaceName.trim(),
+                layoutJson: workspace.layoutJson,
+                isDefault: workspace.isDefault
+            });
+
+            if (response.isSuccess) {
+                // Update local workspace list
+                setWorkspaces(workspaces.map(w => 
+                    w.id === workspaceId 
+                        ? { ...w, workspaceName: editingWorkspaceName.trim() }
+                        : w
+                ));
+                
+                // Update localStorage if this workspace exists there
+                try {
+                    const savedPages = localStorage.getItem('dashboard-pages');
+                    if (savedPages) {
+                        const pages = JSON.parse(savedPages);
+                        const updatedPages = pages.map((p: any) => 
+                            p.workspaceId === workspaceId
+                                ? { ...p, name: editingWorkspaceName.trim() }
+                                : p
+                        );
+                        localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+                    }
+                } catch (error) {
+                    console.error('Error updating localStorage:', error);
+                }
+
+                setEditingWorkspaceId(null);
+                setEditingWorkspaceName('');
+                setError(null);
+            } else {
+                setError(response.message || 'Có lỗi khi đổi tên workspace');
+            }
+        } catch (error: any) {
+            setError(error?.message || 'Có lỗi khi đổi tên workspace');
+        }
+    };
+
     const handleSelectWorkspace = (workspaceId: number) => {
         setSelectedWorkspaceId(workspaceId);
         
@@ -138,6 +209,8 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
         setError(null);
         setShowConfirmPopup(false);
         setSelectedWorkspaceId(null);
+        setEditingWorkspaceId(null);
+        setEditingWorkspaceName('');
         onClose();
     };
 
@@ -200,11 +273,13 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                     workspaces.map((ws) => (
                                         <div
                                             key={ws.id}
-                                            onClick={() => handleSelectWorkspace(ws.id)}
-                                            className={`bg-gray-800 rounded-lg p-3 border transition-colors cursor-pointer ${
-                                                selectedWorkspaceId === ws.id 
-                                                    ? 'border-accentGreen bg-gray-700' 
-                                                    : 'border-gray-700 hover:border-gray-600'
+                                            onClick={() => editingWorkspaceId !== ws.id && handleSelectWorkspace(ws.id)}
+                                            className={`bg-gray-800 rounded-lg p-3 border transition-colors ${
+                                                editingWorkspaceId === ws.id 
+                                                    ? 'border-blue-500 bg-gray-750'
+                                                    : selectedWorkspaceId === ws.id 
+                                                        ? 'border-accentGreen bg-gray-700 cursor-pointer' 
+                                                        : 'border-gray-700 hover:border-gray-600 cursor-pointer'
                                             }`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
@@ -213,30 +288,74 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                                         <span className="text-gray-400 text-xs">ID:</span>
                                                         <span className="text-white text-sm font-medium">{ws.id}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-gray-400 text-xs">Tên:</span>
-                                                        <span className="text-white text-sm truncate">{ws.workspaceName}</span>
-                                                    </div>
+                                                    {editingWorkspaceId === ws.id ? (
+                                                        <div className="mb-2">
+                                                            <input
+                                                                type="text"
+                                                                value={editingWorkspaceName}
+                                                                onChange={(e) => setEditingWorkspaceName(e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="w-full px-2 py-1 bg-gray-900 border border-blue-500 rounded text-white text-sm focus:outline-none focus:border-blue-400"
+                                                                placeholder="Tên workspace..."
+                                                                autoFocus
+                                                            />
+                                                            <div className="flex gap-2 mt-2">
+                                                                <button
+                                                                    onClick={() => handleSaveEdit(ws.id)}
+                                                                    className="px-3 py-1 bg-accentGreen hover:bg-green-600 text-white text-xs rounded transition-colors"
+                                                                >
+                                                                    Lưu
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleCancelEdit}
+                                                                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                                                                >
+                                                                    Hủy
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-gray-400 text-xs">Tên:</span>
+                                                            <span className="text-white text-sm truncate">{ws.workspaceName}</span>
+                                                        </div>
+                                                    )}
                                                     {ws.shareCode && (
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-gray-400 text-xs">Code:</span>
+                                                            <span className="text-gray-400 text-xs">Share Code:</span>
                                                             <span className="text-accentGreen text-xs font-mono">{ws.shareCode}</span>
                                                         </div>
                                                     )}
                                                 </div>
-                                                {ws.shareCode && (
-                                                    <button
-                                                        onClick={() => handleCopyShareCode(ws.shareCode!)}
-                                                        className="flex-shrink-0 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                                                        title="Copy share code"
-                                                    >
-                                                        {copiedShareCode === ws.shareCode ? (
-                                                            <Check className="w-4 h-4 text-accentGreen" />
-                                                        ) : (
-                                                            <Copy className="w-4 h-4 text-gray-300" />
-                                                        )}
-                                                    </button>
-                                                )}
+                                                <div className="flex flex-col gap-1">
+                                                    {editingWorkspaceId !== ws.id && ws.id !== 1 && (
+                                                        <button
+                                                            onClick={(e) => handleStartEdit(e, ws)}
+                                                            className="flex-shrink-0 p-2 bg-gray-700 hover:bg-blue-600 rounded-lg transition-colors"
+                                                            title="Đổi tên workspace"
+                                                        >
+                                                            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                    {ws.shareCode && editingWorkspaceId !== ws.id && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleCopyShareCode(ws.shareCode!);
+                                                            }}
+                                                            className="flex-shrink-0 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                                                            title="Copy share code"
+                                                        >
+                                                            {copiedShareCode === ws.shareCode ? (
+                                                                <Check className="w-4 h-4 text-accentGreen" />
+                                                            ) : (
+                                                                <Copy className="w-4 h-4 text-gray-300" />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))
