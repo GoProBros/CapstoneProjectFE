@@ -14,6 +14,7 @@ interface SaveLayoutModalProps {
   currentLayoutName?: string;
   isSystemDefault?: boolean;
   isLoading?: boolean;
+  canEdit?: boolean; // User có quyền edit layout hiện tại không (layout id=1 chỉ admin mới sửa được)
 }
 
 /**
@@ -28,14 +29,15 @@ export default function SaveLayoutModal({
   currentLayoutName = '',
   isSystemDefault = false,
   isLoading = false,
+  canEdit = true,
 }: SaveLayoutModalProps) {
   const [layoutName, setLayoutName] = useState(currentLayoutName);
   const [error, setError] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'create' | 'update'>('create');
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Determine if we can update (has existing layout and it's not system default)
-  const canUpdate = currentLayoutId && !isSystemDefault && onUpdate;
+  // Determine if we can update (has existing layout, not system default, and user has permission)
+  const canUpdate = currentLayoutId && !isSystemDefault && onUpdate && canEdit;
 
   // Focus input khi modal mở
   useEffect(() => {

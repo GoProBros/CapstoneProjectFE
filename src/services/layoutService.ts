@@ -15,7 +15,6 @@ import type {
   ModuleType,
   ModuleLayoutSummary,
   ModuleLayoutDetail,
-  ParsedModuleLayoutDetail,
   CreateLayoutRequest,
   CreateLayoutResponse,
   UpdateLayoutRequest,
@@ -47,18 +46,13 @@ export async function getLayouts(moduleType: number): Promise<ModuleLayoutSummar
  * GET /api/module-layouts/{id}
  * 
  * @param id - Layout ID
- * @returns Chi tiết layout với configJson đã parse
+ * @returns Chi tiết layout (configJson đã là object)
  */
-export async function getLayoutById(id: number): Promise<ParsedModuleLayoutDetail> {
+export async function getLayoutById(id: number): Promise<ModuleLayoutDetail> {
   const result = await get<ModuleLayoutDetail>(API_ENDPOINTS.MODULE_LAYOUTS.BY_ID(id));
   
   if (result.isSuccess && result.data) {
-    // Parse configJson string to object
-    const parsedConfigJson = parseConfigJson(result.data.configJson);
-    return {
-      ...result.data,
-      configJson: parsedConfigJson
-    };
+    return result.data;
   }
   
   throw new Error(result.message || 'Không thể tải layout');
@@ -121,10 +115,10 @@ export async function deleteLayout(id: number): Promise<void> {
 // ============================================
 
 /**
- * Chuyển đổi column store state sang LayoutConfigJson format để gửi lên backend
+ * Chuyển đổi column store state sang LayoutConfigJson format
  * 
  * @param columns - Object từ columnStore
- * @returns LayoutConfigJson object
+ * @returns LayoutConfigJson object (không cần stringify, backend nhận object)
  */
 export function convertColumnsToConfigJson(
   columns: Record<string, ColumnConfig>
@@ -136,38 +130,7 @@ export function convertColumnsToConfigJson(
   };
 }
 
-/**
- * Stringify config để gửi lên backend
- * 
- * @param config - LayoutConfigJson object
- * @returns JSON string
- */
-export function stringifyConfig(config: LayoutConfigJson): string {
-  return JSON.stringify(config);
-}
 
-/**
- * Parse configJson string từ backend thành object
- * 
- * @param configJsonString - JSON string từ backend
- * @returns LayoutConfigJson object
- */
-export function parseConfigJson(configJsonString: string): LayoutConfigJson {
-  try {
-    // Check if already an object (backend might send parsed JSON)
-    if (typeof configJsonString === 'object' && configJsonString !== null) {
-      console.log('[LayoutService] configJson already parsed:', configJsonString);
-      return configJsonString as LayoutConfigJson;
-    }
-    
-    // Parse string to object
-    console.log('[LayoutService] Parsing configJson string:', configJsonString);
-    return JSON.parse(configJsonString) as LayoutConfigJson;
-  } catch (error) {
-    console.error('[LayoutService] Failed to parse configJson:', error);
-    throw new Error('Config JSON không hợp lệ');
-  }
-}
 
 /**
  * Merge layout columns from API with current columns from localStorage
@@ -231,7 +194,7 @@ export async function ensureDefaultLayout(
     const createRequest: CreateLayoutRequest = {
       layoutName: defaultName,
       moduleType: moduleType,
-      configJson: stringifyConfig(defaultConfig),
+      configJson: defaultConfig,
       isSystemDefault: true
     };
     
@@ -272,7 +235,7 @@ export async function saveUserLayout(
   const createRequest: CreateLayoutRequest = {
     layoutName,
     moduleType,
-    configJson: stringifyConfig(configJson),
+    configJson, // Truyền object trực tiếp, không cần stringify
     isSystemDefault: false // User layout
   };
   
@@ -297,7 +260,7 @@ export async function updateUserLayout(
   const updateRequest: UpdateLayoutRequest = {
     id: layoutId,
     layoutName,
-    configJson: stringifyConfig(configJson),
+    configJson, // Truyền object trực tiếp, không cần stringify
     isSystemDefault: false
   };
   
