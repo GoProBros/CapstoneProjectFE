@@ -307,6 +307,13 @@ export default function DashboardLayout({
   const handleAddPage = async (pageName: string, layoutType: string) => {
     console.log("handleAddPage called with:", { pageName, layoutType });
 
+    // Check workspace limit (maximum 6 workspaces)
+    if (pages.length >= 6) {
+      setNotification('Bạn đã đạt giới hạn 6 workspace. Vui lòng xóa workspace cũ trước khi tạo mới.');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
     const timestamp = Date.now();
     const newPage: PageData = {
       id: `page-${timestamp}`,
@@ -839,6 +846,7 @@ export default function DashboardLayout({
                 currentPageId={currentPageId}
                 onSwitchPage={handleSwitchPage}
                 onDeletePage={handleDeletePage}
+                workspaceCount={pages.length}
               />
               <main className="flex-1 overflow-y-auto relative">
                 {children}
@@ -873,6 +881,8 @@ export default function DashboardLayout({
                 isOpen={isAddPageModalOpen}
                 onClose={handleCloseAddPageModal}
                 onSave={handleAddPage}
+                onSwitchPage={handleSwitchPage}
+                workspaceCount={pages.length}
               />
             </div>
           </DashboardContext.Provider>
