@@ -9,12 +9,7 @@ interface SaveLayoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (layoutName: string) => Promise<void>;
-  onUpdate?: (layoutName: string) => Promise<void>;
-  currentLayoutId?: number | null;
-  currentLayoutName?: string;
-  isSystemDefault?: boolean;
   isLoading?: boolean;
-  canEdit?: boolean; // User có quyền edit layout hiện tại không (layout id=1 chỉ admin mới sửa được)
 }
 
 /**
@@ -24,20 +19,11 @@ export default function SaveLayoutModal({
   isOpen,
   onClose,
   onSave,
-  onUpdate,
-  currentLayoutId,
-  currentLayoutName = '',
-  isSystemDefault = false,
   isLoading = false,
-  canEdit = true,
 }: SaveLayoutModalProps) {
-  const [layoutName, setLayoutName] = useState(currentLayoutName);
+  const [layoutName, setLayoutName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [actionType, setActionType] = useState<'create' | 'update'>('create');
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Determine if we can update (has existing layout, not system default, and user has permission)
-  const canUpdate = currentLayoutId && !isSystemDefault && onUpdate && canEdit;
 
   // Focus input khi modal mở
   useEffect(() => {
@@ -47,15 +33,13 @@ export default function SaveLayoutModal({
     }
   }, [isOpen]);
 
-  // Reset state khi modal mở
+  // Reset state khi modal mở - luôn bắt đầu với input rỗng
   useEffect(() => {
     if (isOpen) {
-      setLayoutName(currentLayoutName !== 'Layout gốc' && currentLayoutName !== 'Layout mặc định' ? currentLayoutName : '');
+      setLayoutName('');
       setError(null);
-      // Default to update if we can update, otherwise create
-      setActionType(canUpdate ? 'update' : 'create');
     }
-  }, [isOpen, currentLayoutName, canUpdate]);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +61,7 @@ export default function SaveLayoutModal({
     }
 
     try {
-      if (actionType === 'update' && onUpdate) {
-        await onUpdate(layoutName.trim());
-      } else {
-        await onSave(layoutName.trim());
-      }
+      await onSave(layoutName.trim());
       onClose();
     } catch (err: any) {
       setError(err.message || 'Lưu layout thất bại');
@@ -125,7 +105,7 @@ export default function SaveLayoutModal({
               >
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Save size={20} />
-                  {actionType === 'update' ? 'Cập nhật Layout' : 'Tạo Layout Mới'}
+                  Tạo Layout Mới
                 </h3>
                 <button
                   onClick={onClose}
@@ -174,30 +154,6 @@ export default function SaveLayoutModal({
                   )}
                 </div>
 
-                {/* Action Type Toggle - Only show if can update */}
-                {canUpdate && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
-                      <span className="text-sm text-gray-300">
-                        {actionType === 'update' ? 'Cập nhật layout hiện tại' : 'Tạo layout mới'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActionType(actionType === 'update' ? 'create' : 'update')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
-                          actionType === 'update' ? 'bg-green-600' : 'bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            actionType === 'update' ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Buttons */}
                 <div className="flex gap-3 justify-end">
                   <button
@@ -217,12 +173,12 @@ export default function SaveLayoutModal({
                     {isLoading ? (
                       <>
                         <Loader2 size={18} className="animate-spin" />
-                        {actionType === 'update' ? 'Đang cập nhật...' : 'Đang lưu...'}
+                        Đang lưu...
                       </>
                     ) : (
                       <>
                         <Save size={18} />
-                        {actionType === 'update' ? 'Cập nhật' : 'Lưu mới'}
+                        Tạo layout
                       </>
                     )}
                   </button>

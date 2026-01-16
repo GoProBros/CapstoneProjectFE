@@ -887,12 +887,7 @@ export default function StockScreenerModule() {
           isOpen={isSaveModalOpen}
           onClose={() => setIsSaveModalOpen(false)}
           onSave={handleSaveLayoutSubmit}
-          onUpdate={handleUpdateLayoutSubmit}
-          currentLayoutId={currentLayoutId}
-          currentLayoutName={currentLayoutName}
-          isSystemDefault={currentLayoutIsSystemDefault}
           isLoading={isSaving}
-          canEdit={canEditLayout(currentLayoutId)}
         />
         
         {/* Module Header - Trapezoid Design */}

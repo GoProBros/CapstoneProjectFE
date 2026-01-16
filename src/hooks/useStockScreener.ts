@@ -811,10 +811,27 @@ export function useStockScreener() {
     initializeLayout();
   }, [moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
 
-  // Handle create new layout - clone from system default
+  // Handle create new layout - clone from system default (id=1)
   const handleCreateNewLayout = async () => {
-    // Open modal để nhập tên layout
-    setIsSaveModalOpen(true);
+    try {
+      // Fetch system default layout (id=1)
+      const systemDefaultLayout = await layoutService.getLayoutById(1);
+      
+      // Apply config vào column store để modal save có data từ system default
+      if (systemDefaultLayout.configJson?.state?.columns) {
+        setColumns(systemDefaultLayout.configJson.state.columns);
+      }
+      
+      // Mở modal để user nhập tên layout mới
+      setIsSaveModalOpen(true);
+    } catch (error) {
+      console.error('[StockScreener] Error loading system default layout:', error);
+      setToast({
+        isOpen: true,
+        message: 'Có lỗi khi tải layout mặc định. Vui lòng thử lại.',
+        type: 'error'
+      });
+    }
   };
 
   // Handle save layout submit from modal (create new layout)
