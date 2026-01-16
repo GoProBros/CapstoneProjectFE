@@ -48,3 +48,14 @@ export async function updateWorkspace(
 export async function deleteWorkspace(id: number): Promise<ApiResponse<void>> {
   return del<void>(API_ENDPOINTS.WORKSPACE.BY_ID(id));
 }
+
+/**
+ * Apply a shared workspace via shareCode
+ * Creates a new workspace based on the shared workspace
+ * Requires authentication
+ */
+export async function applySharedWorkspace(
+  shareCode: string
+): Promise<ApiResponse<Workspace>> {
+  return post<Workspace>(`/api/v1/workspace/apply/${shareCode}`, {});
+}

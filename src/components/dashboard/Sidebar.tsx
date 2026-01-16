@@ -22,6 +22,7 @@ interface SidebarProps {
     currentPageId: string;
     onSwitchPage: (pageId: string) => void;
     onDeletePage: (pageId: string) => void;
+    workspaceCount?: number; // Add workspace count prop
 }
 
 export default function Sidebar({ 
@@ -30,7 +31,8 @@ export default function Sidebar({
     pages, 
     currentPageId, 
     onSwitchPage, 
-    onDeletePage 
+    onDeletePage,
+    workspaceCount = 0
 }: SidebarProps) {
     const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
@@ -101,13 +103,11 @@ export default function Sidebar({
                         </div>
                     </div>
 
-                    {/* Pages (excluding default) */}
-                    {pages.filter(page => page.id !== 'default').map((page) => (
+                    {/* Pages - Only show current page */}
+                    {pages.filter(page => page.id === currentPageId && page.id !== 'default').map((page) => (
                         <div 
                             key={page.id} 
-                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group hover:bg-white dark:hover:bg-[rgba(14,13,21,0.6)] transition-colors ${
-                                currentPageId === page.id ? 'bg-[rgba(14,13,21,0.6)]' : ''
-                            }`}
+                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group bg-[rgba(14,13,21,0.6)] transition-colors`}
                             onMouseEnter={() => setHoveredPage(page.id)}
                             onMouseLeave={() => setHoveredPage(null)}
                         >
@@ -139,13 +139,11 @@ export default function Sidebar({
                         </div>
                     ))}
 
-                    {/* Default Page Button (G) */}
-                    {pages.filter(page => page.id === 'default').map((page) => (
+                    {/* Default Page Button (G) - Only show if it's the current page */}
+                    {pages.filter(page => page.id === 'default' && currentPageId === 'default').map((page) => (
                         <div 
                             key={page.id}
-                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group hover:bg-white dark:hover:bg-[rgba(14,13,21,0.6)] transition-colors ${
-                                currentPageId === 'default' ? 'bg-[rgba(14,13,21,0.6)]' : ''
-                            }`}
+                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group bg-[rgba(14,13,21,0.6)] transition-colors`}
                         >
                             <button 
                                 onClick={() => onSwitchPage('default')}
@@ -163,20 +161,22 @@ export default function Sidebar({
                         </div>
                     ))}
 
-                    {/* Grid Icon */}
-                    <div className="relative group">
-                        <button 
-                            onClick={onAddPage}
-                            className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                        >
-                            <LayoutGrid className={`w-10 h-10 ${
-                                theme === 'dark' ? 'text-white-400' : 'text-gray-700'
-                            }`} strokeWidth={2} />
-                        </button>
-                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                            Thêm page tùy chọn
+                    {/* Grid Icon - Add page button (hidden when workspace count >= 6) */}
+                    {workspaceCount < 6 && (
+                        <div className="relative group">
+                            <button 
+                                onClick={onAddPage}
+                                className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            >
+                                <LayoutGrid className={`w-10 h-10 ${
+                                    theme === 'dark' ? 'text-white-400' : 'text-gray-700'
+                                }`} strokeWidth={2} />
+                            </button>
+                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                Thêm page tùy chọn
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
             
