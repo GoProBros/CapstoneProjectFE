@@ -166,7 +166,6 @@ class SignalRService {
         return; // Skip invalid data
       }
       
-      console.log('[SignalR] ✅ Received & converted market data:', data.ticker, 'Price:', data.lastPrice);
       
       // Gọi tất cả callbacks đã đăng ký
       this.marketDataCallbacks.forEach(callback => {

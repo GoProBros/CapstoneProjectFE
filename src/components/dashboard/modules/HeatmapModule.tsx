@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useHeatmapSignalR } from '@/hooks/useHeatmapSignalR';
+import { HeatmapFilters } from '@/types/heatmap';
 import * as echarts from 'echarts';
 
 interface MarketStats {
@@ -20,8 +22,19 @@ export default function HeatmapModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState('volatility');
-  const [exchange, setExchange] = useState('HOSE');
+  const [exchange, setExchange] = useState('HSX');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // SignalR connection for real-time data
+  const filters = useMemo<HeatmapFilters>(() => ({
+    exchange: exchange === 'Tất cả' ? undefined : exchange,
+  }), [exchange]);
+
+  const { data, isConnected, isLoading, error } = useHeatmapSignalR({
+    filters,
+    autoConnect: true,
+    useRest: true, // Fallback to REST if SignalR fails
+  });
   
   const pieChartRef = useRef<HTMLDivElement>(null);
   const heatmapChartRef = useRef<HTMLDivElement>(null);
@@ -34,94 +47,129 @@ export default function HeatmapModule() {
     { id: 'index-impact', label: 'Tác động tới index' },
   ];
 
-  const exchanges = ['Tất cả', 'HOSE', 'HNX', 'UPCOM'];
+  const exchanges = ['Tất cả', 'HSX', 'HNX', 'UPCOM'];
 
-  // Mock data
-  const marketStats: MarketStats = {
-    index: 'VNINDEX',
-    indexValue: 1722.26,
-    indexChange: -0.23,
-    up: { count: 84, value: 7492.0 },
-    noChange: { count: 50, value: 1397.1 },
-    down: { count: 238, value: 17231.0 },
-    volume: 1.0,
-    totalValue: 31103.7,
-    foreignNetValue: -1288.2,
+  // Sector name mapping (ID -> Vietnamese name)
+  // Backend trả về SectorId có thể là: "1", "2", hoặc tên sector trực tiếp
+  const sectorNameMap: Record<string, string> = {
+    // Numeric IDs
+    '1': 'Ngân hàng',
+    '2': 'Chứng khoán',
+    '3': 'Bảo hiểm',
+    '4': 'Bất động sản',
+    '5': 'Xây dựng & Vật liệu',
+    '6': 'Dầu khí',
+    '7': 'Hóa chất',
+    '8': 'Điện',
+    '9': 'Dược phẩm',
+    '10': 'Thực phẩm & đồ uống',
+    '11': 'Bán lẻ',
+    '12': 'Công nghệ',
+    '13': 'Viễn thông',
+    '14': 'Du lịch & Giải trí',
+    '15': 'Vận tải & Logistics',
+    '16': 'Ô tô & phụ tùng',
+    '17': 'Hàng tiêu dùng',
+    '18': 'Dệt may',
+    '19': 'Nông nghiệp',
+    '20': 'Thủy sản',
+    // Alternative formats (just in case backend returns different format)
+    'BANK': 'Ngân hàng',
+    'SECURITIES': 'Chứng khoán',
+    'INSURANCE': 'Bảo hiểm',
+    'REALESTATE': 'Bất động sản',
+    'CONSTRUCTION': 'Xây dựng & Vật liệu',
+    'OILGAS': 'Dầu khí',
+    'CHEMICAL': 'Hóa chất',
+    'POWER': 'Điện',
+    'PHARMACEUTICAL': 'Dược phẩm',
+    'FOOD': 'Thực phẩm & đồ uống',
+    'RETAIL': 'Bán lẻ',
+    'TECHNOLOGY': 'Công nghệ',
+    'TELECOM': 'Viễn thông',
+    'TOURISM': 'Du lịch & Giải trí',
+    'LOGISTICS': 'Vận tải & Logistics',
+    'AUTO': 'Ô tô & phụ tùng',
+    'CONSUMER': 'Hàng tiêu dùng',
+    'TEXTILE': 'Dệt may',
+    'AGRICULTURE': 'Nông nghiệp',
+    'AQUACULTURE': 'Thủy sản',
+    'Khác': 'Khác',
   };
 
-  // Heatmap data with sectors
-  const heatmapData = [
-    // Bất động sản
-    { name: 'HPG', value: 5000, change: 2.86, sector: 'Bất động sản' },
-    { name: 'CII', value: 800, change: 0, sector: 'Bất động sản' },
-    { name: 'DXG', value: 600, change: -2.27, sector: 'Bất động sản' },
-    { name: 'VRE', value: 1200, change: -2.64, sector: 'Bất động sản' },
-    { name: 'VHM', value: 1500, change: -3.65, sector: 'Bất động sản' },
-    { name: 'VIC', value: 1300, change: -3.92, sector: 'Bất động sản' },
-    { name: 'PDR', value: 900, change: -2.31, sector: 'Bất động sản' },
-    
-    // Chứng khoán
-    { name: 'DIG', value: 400, change: -2.25, sector: 'Chứng khoán' },
-    { name: 'NVL', value: 350, change: -0.75, sector: 'Chứng khoán' },
-    { name: 'HQC', value: 350, change: -1.31, sector: 'Chứng khoán' },
-    { name: 'KHG', value: 400, change: -2.57, sector: 'Chứng khoán' },
-    { name: 'VND', value: 1800, change: -0.5, sector: 'Chứng khoán' },
-    { name: 'NKG', value: 450, change: 0.31, sector: 'Chứng khoán' },
-    { name: 'VCG', value: 350, change: -3.65, sector: 'Chứng khoán' },
-    { name: 'IJC', value: 350, change: -1.36, sector: 'Chứng khoán' },
-    { name: 'NLG', value: 350, change: -0.31, sector: 'Chứng khoán' },
-    { name: 'TCH', value: 450, change: -2.5, sector: 'Chứng khoán' },
-    { name: 'KDH', value: 350, change: -2.03, sector: 'Chứng khoán' },
-    { name: 'SCR', value: 300, change: -2, sector: 'Chứng khoán' },
-    { name: 'LDG', value: 350, change: -2.76, sector: 'Chứng khoán' },
-    { name: 'VIX', value: 2000, change: -1.09, sector: 'Chứng khoán' },
-    { name: 'NRC', value: 400, change: 0.31, sector: 'Chứng khoán' },
-    { name: 'HDC', value: 400, change: -2.77, sector: 'Chứng khoán' },
-    { name: 'HPX', value: 300, change: -1.95, sector: 'Chứng khoán' },
-    { name: 'CEO', value: 350, change: -2.76, sector: 'Chứng khoán' },
-    { name: 'SSI', value: 1500, change: 1.31, sector: 'Chứng khoán' },
-    { name: 'VCI', value: 800, change: 3.34, sector: 'Chứng khoán' },
-    { name: 'HCM', value: 800, change: -0.44, sector: 'Chứng khoán' },
-    
-    // Ngân hàng
-    { name: 'SHB', value: 3500, change: -1.52, sector: 'Ngân hàng' },
-    { name: 'VPB', value: 1800, change: -2.09, sector: 'Ngân hàng' },
-    { name: 'HDB', value: 1200, change: -0.73, sector: 'Ngân hàng' },
-    { name: 'MBB', value: 1200, change: -1, sector: 'Ngân hàng' },
-    { name: 'STB', value: 1500, change: 1.61, sector: 'Ngân hàng' },
-    { name: 'CTG', value: 500, change: -0.18, sector: 'Ngân hàng' },
-    { name: 'MSB', value: 400, change: -0.81, sector: 'Ngân hàng' },
-    { name: 'ACB', value: 600, change: -0.6, sector: 'Ngân hàng' },
-    { name: 'EIB', value: 400, change: -2.27, sector: 'Ngân hàng' },
-    { name: 'VIB', value: 500, change: -1.6, sector: 'Ngân hàng' },
-    { name: 'TCB', value: 600, change: -0.59, sector: 'Ngân hàng' },
-    { name: 'TPB', value: 500, change: -0.9, sector: 'Ngân hàng' },
-    { name: 'VCB', value: 600, change: -0.19, sector: 'Ngân hàng' },
-    { name: 'BID', value: 500, change: -0.41, sector: 'Ngân hàng' },
-    
-    // Tiêu dùng
-    { name: 'MWG', value: 800, change: -1.31, sector: 'Tiêu dùng' },
-    { name: 'MSN', value: 600, change: -1.97, sector: 'Tiêu dùng' },
-    { name: 'DBC', value: 700, change: -0.72, sector: 'Tiêu dùng' },
-    { name: 'PET', value: 400, change: 1.2, sector: 'Tiêu dùng' },
-    { name: 'VNM', value: 500, change: 0.2, sector: 'Tiêu dùng' },
-    
-    // Phòng thả
-    { name: 'POW', value: 800, change: 1.59, sector: 'Phòng thả' },
-    { name: 'GAS', value: 600, change: 1.0, sector: 'Phòng thả' },
-    { name: 'FPT', value: 600, change: -1.08, sector: 'Phòng thả' },
-    { name: 'VRE', value: 400, change: 0.2, sector: 'Phòng thả' },
-    
-    // Dầu khí
-    { name: 'BSR', value: 800, change: 2.2, sector: 'Dầu khí' },
-    { name: 'PVD', value: 700, change: 2.1, sector: 'Dầu khí' },
-    { name: 'GAS', value: 600, change: 1.5, sector: 'Dầu khí' },
-    
-    // Logistics
-    { name: 'GMD', value: 800, change: 1.82, sector: 'Logistics' },
-    { name: 'VJC', value: 600, change: -2.18, sector: 'Logistics' },
-    { name: 'PVT', value: 600, change: 0.6, sector: 'Logistics' },
-  ];
+  // Number of top stocks to show per sector initially
+  const TOP_STOCKS_PER_SECTOR = 5;
+
+  // Calculate market stats from real-time data
+  const marketStats: MarketStats = useMemo(() => {
+    if (!data || !data.items || data.items.length === 0) {
+      return {
+        index: 'VNINDEX',
+        indexValue: 0,
+        indexChange: 0,
+        up: { count: 0, value: 0 },
+        noChange: { count: 0, value: 0 },
+        down: { count: 0, value: 0 },
+        volume: 0,
+        totalValue: 0,
+        foreignNetValue: 0,
+      };
+    }
+
+    const upItems = data.items.filter(item => item.changePercent > 0);
+    const noChangeItems = data.items.filter(item => item.changePercent === 0);
+    const downItems = data.items.filter(item => item.changePercent < 0);
+
+    const upValue = upItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9; // Convert to billions
+    const noChangeValue = noChangeItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9;
+    const downValue = downItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9;
+
+    const totalVolume = data.items.reduce((sum, item) => sum + item.volume, 0) / 1e9;
+    const totalValue = upValue + noChangeValue + downValue;
+
+    // TODO: Get actual index value from backend
+    return {
+      index: exchange === 'HSX' ? 'VNINDEX' : exchange === 'HNX' ? 'HNX-INDEX' : 'UPCOM-INDEX',
+      indexValue: 1722.26, // Placeholder - should come from backend
+      indexChange: -0.23,  // Placeholder - should come from backend
+      up: { count: upItems.length, value: upValue },
+      noChange: { count: noChangeItems.length, value: noChangeValue },
+      down: { count: downItems.length, value: downValue },
+      volume: totalVolume,
+      totalValue: totalValue,
+      foreignNetValue: -1288.2, // Placeholder - should come from backend
+    };
+  }, [data, exchange]);
+
+  // Transform real-time data to heatmap format
+  const heatmapData = useMemo(() => {
+    if (!data || !data.items) return [];
+
+    // Debug: Log first item to see sector format
+    if (data.items.length > 0) {
+      console.log('[Heatmap] Sample sector data:', {
+        sector: data.items[0].sector,
+        sectorName: data.items[0].sectorName,
+        ticker: data.items[0].ticker
+      });
+    }
+
+    return data.items
+      .map(item => {
+        const sectorId = item.sector || 'Khác';
+        // Use sectorName from API first, fallback to mapping if not available
+        const sectorName = item.sectorName || sectorNameMap[sectorId] || sectorId || 'Khác';
+        
+        return {
+          name: item.ticker,
+          value: item.volume * item.currentPrice / 1e6, // Convert to millions for better visualization
+          change: item.changePercent,
+          sector: sectorId,
+          sectorName: sectorName,
+        };
+      })
+      .sort((a, b) => b.value - a.value); // Sort by value descending
+  }, [data, sectorNameMap]);
 
   // Initialize Pie Chart
   useEffect(() => {
@@ -155,29 +203,42 @@ export default function HeatmapModule() {
 
   // Initialize Heatmap Chart
   useEffect(() => {
-    if (!heatmapChartRef.current) return;
+    if (!heatmapChartRef.current || heatmapData.length === 0) return;
 
     const chart = echarts.init(heatmapChartRef.current);
     
     // Group data by sector
-    const sectors = ['Bất động sản', 'Chứng khoán', 'Ngân hàng', 'Tiêu dùng', 'Phòng thả', 'Dầu khí', 'Logistics'];
-    const treeData = sectors.map(sector => {
-      const sectorStocks = heatmapData.filter(s => s.sector === sector);
+    const sectorsMap = new Map<string, typeof heatmapData>();
+    heatmapData.forEach(stock => {
+      const sectorName = stock.sectorName;
+      if (!sectorsMap.has(sectorName)) {
+        sectorsMap.set(sectorName, []);
+      }
+      sectorsMap.get(sectorName)!.push(stock);
+    });
+
+    const treeData = Array.from(sectorsMap.entries()).map(([sectorName, sectorStocks]) => {
+      // Sort stocks by value and take top N for initial display
+      const sortedStocks = [...sectorStocks].sort((a, b) => b.value - a.value);
+      const topStocks = sortedStocks.slice(0, TOP_STOCKS_PER_SECTOR);
+      const hasMore = sortedStocks.length > TOP_STOCKS_PER_SECTOR;
+      
       return {
-        name: sector,
-        children: sectorStocks.map(stock => ({
+        name: sectorName,
+        // Store all stocks for drill-down
+        children: sortedStocks.map(stock => ({
           name: stock.name,
           value: stock.value,
           change: stock.change,
           itemStyle: {
             color: stock.change > 0 
-              ? (stock.change > 2 ? '#16a34a' : stock.change > 1 ? '#22c55e' : '#4ade80')
+              ? (stock.change >= 6.5 ? '#9333ea' : stock.change >= 3 ? '#16a34a' : stock.change >= 1 ? '#22c55e' : '#4ade80')
               : stock.change < 0
-              ? (stock.change < -2 ? '#dc2626' : stock.change < -1 ? '#ef4444' : '#f87171')
+              ? (stock.change <= -6.5 ? '#06b6d4' : stock.change <= -3 ? '#dc2626' : stock.change <= -1 ? '#ef4444' : '#f87171')
               : '#f59e0b'
           },
           label: {
-            formatter: `{name|${stock.name}}\n{change|${stock.change > 0 ? '+' : ''}${stock.change}%}`,
+            formatter: `{name|${stock.name}}\n{change|${stock.change > 0 ? '+' : ''}${stock.change.toFixed(2)}%}`,
             align: 'center',
             position: 'inside',
             rich: {
@@ -202,29 +263,63 @@ export default function HeatmapModule() {
     });
 
     const option = {
+      tooltip: {
+        formatter: (params: any) => {
+          if (params.treePathInfo && params.treePathInfo.length > 1) {
+            const stock = params.data;
+            return `<strong>${stock.name}</strong><br/>
+                    Thay đổi: <span style="color: ${stock.change >= 0 ? '#22c55e' : '#ef4444'}">
+                    ${stock.change > 0 ? '+' : ''}${stock.change.toFixed(2)}%</span><br/>
+                    Giá trị: ${stock.value.toFixed(2)}M`;
+          }
+          return `<strong>${params.name}</strong><br/>Click để xem chi tiết`;
+        },
+      },
       series: [
         {
           type: 'treemap',
           width: '100%',
           height: '100%',
           roam: false,
-          nodeClick: false,
-          breadcrumb: { show: false },
+          nodeClick: 'zoomToNode',
+          breadcrumb: {
+            show: true,
+            height: 30,
+            bottom: 0,
+            itemStyle: {
+              color: isDark ? '#374151' : '#e5e7eb',
+              textStyle: {
+                color: isDark ? '#fff' : '#000',
+              },
+            },
+            emphasis: {
+              itemStyle: {
+                color: '#3b82f6',
+              },
+            },
+          },
           label: {
             show: true,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 'bold',
             color: '#fff',
             position: 'inside',
             align: 'center',
+            formatter: (params: any) => {
+              if (params.data.change !== undefined) {
+                return params.name;
+              }
+              return params.name;
+            },
           },
           upperLabel: {
             show: true,
-            height: 28,
+            height: 32,
             color: '#fff',
-            fontSize: 15,
-            fontWeight: '300',
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            fontSize: 16,
+            fontWeight: 'bold',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            formatter: '{b}',
           },
           itemStyle: {
             borderColor: isDark ? '#000' : '#1a1a1a',
@@ -233,6 +328,13 @@ export default function HeatmapModule() {
           },
           levels: [
             {
+              // Level 0: Root (not visible)
+              itemStyle: {
+                borderWidth: 0,
+              },
+            },
+            {
+              // Level 1: Sectors
               itemStyle: {
                 borderColor: isDark ? '#000' : '#1a1a1a',
                 borderWidth: 6,
@@ -240,17 +342,22 @@ export default function HeatmapModule() {
               },
               upperLabel: {
                 show: true,
-                height: 28,
-                fontSize: 15,
-                fontWeight: '300',
-              }
+                height: 32,
+                fontSize: 16,
+                fontWeight: 'bold',
+              },
             },
             {
+              // Level 2: Stocks within sector
               itemStyle: {
                 borderColor: isDark ? '#000' : '#1a1a1a',
                 borderWidth: 2,
-                gapWidth: 1,
-              }
+                gapWidth: 2,
+              },
+              label: {
+                fontSize: 12,
+                fontWeight: 'bold',
+              },
             }
           ],
           data: treeData,
@@ -293,47 +400,66 @@ export default function HeatmapModule() {
           ))}
         </div>
 
-        {/* Exchange Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className={`mr-6 flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-              isDark ? 'text-white hover:bg-gray-800' : 'text-gray-900 hover:bg-gray-300'
-            }`}
-          >
-            <span>{exchange}</span>
-            <svg 
-              className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+        {/* Exchange Dropdown & Connection Status */}
+        <div className="flex items-center gap-3">
+          {/* Connection Status Indicator */}
+          <div className="flex items-center gap-2 text-xs">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+              {isLoading ? 'Đang tải...' : isConnected ? 'Realtime' : 'Ngắt kết nối'}
+            </span>
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                isDark ? 'text-white hover:bg-gray-800' : 'text-gray-900 hover:bg-gray-300'
+              }`}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {isDropdownOpen && (
-            <div className={`absolute right-0 mt-1 w-32 rounded shadow-lg z-50 ${isDark ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
-              {exchanges.map((ex) => (
-                <div
-                  key={ex}
-                  onClick={() => {
-                    setExchange(ex);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={`px-4 py-2 cursor-pointer text-sm ${
-                    exchange === ex
-                      ? 'bg-blue-600 text-white'
-                      : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {ex}
-                </div>
-              ))}
-            </div>
-          )}
+              <span>{exchange}</span>
+              <svg 
+                className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {isDropdownOpen && (
+              <div className={`absolute right-0 mt-1 w-32 rounded shadow-lg z-50 ${isDark ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
+                {exchanges.map((ex) => (
+                  <div
+                    key={ex}
+                    onClick={() => {
+                      setExchange(ex);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`px-4 py-2 cursor-pointer text-sm ${
+                      exchange === ex
+                        ? 'bg-blue-600 text-white'
+                        : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {ex}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="px-4 py-3 bg-red-500/10 border-l-4 border-red-500">
+          <p className="text-sm text-red-500">
+            Lỗi kết nối: {error.message}
+          </p>
+        </div>
+      )}
 
       {/* Market Overview */}
       <div className={`px-4 py-4 ${isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'}`}>
@@ -407,8 +533,23 @@ export default function HeatmapModule() {
       </div>
 
       {/* Heatmap */}
-      <div className="flex-1 p-3 overflow-hidde">
-        <div ref={heatmapChartRef} className="w-full h-full" />
+      <div className="flex-1 p-3 overflow-hidden relative">
+        {isLoading && !data ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center">
+              <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Đang tải dữ liệu...</p>
+            </div>
+          </div>
+        ) : heatmapData.length === 0 ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Không có dữ liệu
+            </p>
+          </div>
+        ) : (
+          <div ref={heatmapChartRef} className="w-full h-full" />
+        )}
       </div>
     </div>
   );
