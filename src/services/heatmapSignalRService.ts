@@ -82,7 +82,11 @@ class HeatmapSignalRService {
 
     // Listen for heatmap data updates
     this.connection.on('ReceiveHeatmapData', (data: HeatmapData) => {
-      console.log('Received heatmap update:', data.items.length, 'items');
+      console.log('[HeatmapSignalR] 🔥 Received heatmap update:', {
+        itemCount: data.items?.length || 0,
+        totalCount: data.totalCount,
+        timestamp: new Date().toISOString()
+      });
       this.callbacks.forEach((callback) => callback(data));
     });
   }
@@ -167,7 +171,11 @@ class HeatmapSignalRService {
         filters?.sector || null
       );
 
-      console.log('Subscribed to heatmap:', filters);
+      console.log('[HeatmapSignalR] ✅ Subscribed to heatmap:', {
+        subscriptionId,
+        exchange: filters?.exchange || 'ALL',
+        sector: filters?.sector || 'ALL'
+      });
       return subscriptionId;
     } catch (error) {
       console.error('Error subscribing to heatmap:', error);

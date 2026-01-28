@@ -51,6 +51,10 @@ export function useHeatmapSignalR(
    * Handle heatmap data update
    */
   const handleDataUpdate = useCallback((newData: HeatmapData) => {
+    console.log('[useHeatmapSignalR] 🔥 Received heatmap update:', {
+      itemCount: newData.items?.length || 0,
+      timestamp: new Date().toISOString()
+    });
     if (isMountedRef.current) {
       setData(newData);
       setIsLoading(false);
