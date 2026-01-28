@@ -577,8 +577,8 @@ export default function DashboardLayout({
         moduleType
       )
     ) {
-      width = 64; // 64 columns = ~67% width
-      height = 25; // 25 units = 500px
+      width = 96; // 96 columns = 100% width (full screen)
+      height = 25; // 25 units = 500px (full screen height)
     }
 
     // Financial reports - medium width, tall

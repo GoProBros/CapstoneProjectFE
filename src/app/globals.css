@@ -1,5 +1,6 @@
 /* Import custom scrollbar styles */
 @import '../styles/scrollbar.css';
+@import '../styles/heatmap.css';
 
 @tailwind base;
 @tailwind components;
