@@ -106,7 +106,7 @@ export default function LayoutSelector({
           {/* Header */}
           <div className={`px-3 py-2 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <span className={`text-xs font-medium uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Chọn layout
+              Chọn bố cục
             </span>
           </div>
 
@@ -121,7 +121,7 @@ export default function LayoutSelector({
               }`}
             >
               <Plus size={16} />
-              <span>Tạo layout mới</span>
+              <span>Tạo bố cục mới</span>
             </button>
           )}
 
@@ -136,7 +136,7 @@ export default function LayoutSelector({
               </div>
             ) : layouts.length === 0 ? (
               <div className={`px-3 py-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Không có layout nào
+                Không có bố cục nào
               </div>
             ) : (
               // Sort layouts by id ascending
@@ -178,7 +178,7 @@ export default function LayoutSelector({
                           ? 'hover:bg-red-900/50 text-gray-500 hover:text-red-400' 
                           : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
                       }`}
-                      title="Xóa layout"
+                      title="Xóa bố cục"
                     >
                       <Trash2 size={14} />
                     </button>
