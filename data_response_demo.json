@@ -1,0 +1,119 @@
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "ticker": "string",
+  "year": 0,
+  "period": 1,
+  "reportData": {
+    "balanceSheet": {
+      "shortTermAssets": {
+        "cash": 0,
+        "financialInvestments": 0,
+        "receivables": 0,
+        "inventories": 0,
+        "otherAssets": 0
+      },
+      "longTermAssets": {
+        "receivables": 0,
+        "fixedAssets": 0,
+        "investmentProperty": 0,
+        "longTermAssetsInProgress": 0,
+        "financialInvestments": 0,
+        "otherAssets": 0
+      },
+      "bankAssets": {
+        "depositsAtCentralBank": 0,
+        "depositsAtOtherCreditInstitutions": 0,
+        "tradingSecurities": 0,
+        "loansToCustomers": 0,
+        "investmentSecurities": 0,
+        "otherAssets": 0
+      },
+      "shortTermFinancialAssets": {
+        "cash": 0,
+        "loans": 0,
+        "other": 0
+      },
+      "tradingAndCapitalAssets": {
+        "heldToMaturity": 0,
+        "availableForSale": 0,
+        "fvtpl": 0
+      },
+      "liabilities": {
+        "shortTerm": 0,
+        "longTerm": 0
+      },
+      "borrowings": {
+        "shortTermBorrowings": 0,
+        "longTermBorrowings": 0
+      },
+      "equity": {
+        "contributedCapital": 0,
+        "retainedEarnings": 0,
+        "treasuryShares": 0,
+        "otherCapital": 0
+      }
+    },
+    "incomeStatement": {
+      "bankOperatingIncome": {
+        "netInterestIncome": 0,
+        "serviceFeeIncome": 0,
+        "tradingIncome": 0,
+        "otherIncome": 0
+      },
+      "insuranceBusiness": {
+        "operatingProfit": 0,
+        "netOperatingRevenue": 0,
+        "operatingExpenses": 0
+      },
+      "securitiesRevenue": {
+        "brokerageAndCustodyRevenue": 0,
+        "lendingRevenue": 0,
+        "tradingAndCapitalRevenue": 0,
+        "investmentBankingRevenue": 0
+      },
+      "grossProfit": {
+        "grossProfit": 0,
+        "netRevenue": 0,
+        "costOfGoodsSold": 0
+      },
+      "expenses": {
+        "costOfGoodsSold": 0,
+        "interestExpenses": 0,
+        "sellingExpenses": 0,
+        "financialExpenses": 0,
+        "managementExpenses": 0
+      },
+      "profitBeforeTax": {
+        "profitBeforeTax": 0,
+        "operatingProfit": 0,
+        "financialProfit": 0,
+        "shareProfitOfAssociatesAndJoint": 0,
+        "otherProfit": 0,
+        "managementExpenses": 0
+      },
+      "profitAfterTaxAndAFS": {
+        "profitAfterTaxAndAfs": 0,
+        "parentCompanyNetProfit": 0,
+        "afsGains": 0
+      },
+      "parentCompanyNetProfit": {
+        "parentCompanyNetProfit": 0,
+        "profitBeforeTax": 0,
+        "corporateIncomeTax": 0,
+        "minorityInterests": 0
+      }
+    },
+    "cashFlowStatement": {
+      "netCashFlow": 0,
+      "operatingActivities": 0,
+      "investingActivities": 0,
+      "financingActivities": 0
+    }
+  },
+  "filePath": "string",
+  "fileUrl": "string",
+  "fileSize": 0,
+  "status": 0,
+  "createdAt": "2026-01-29T07:01:06.194Z",
+  "updatedAt": "2026-01-29T07:01:06.194Z"
+}
