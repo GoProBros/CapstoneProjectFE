@@ -46,7 +46,11 @@ const FinancialReportContent = memo(function FinancialReportContent() {
   return (
     <div className="rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-between">
       <HeaderSection />
-      <FinancialReportTable data={data || []} loading={isLoading} />
+      <FinancialReportTable 
+        data={data?.items || []} 
+        loading={isLoading}
+        totalCount={data?.totalCount || 0}
+      />
     </div>
   );
 });

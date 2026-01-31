@@ -2,24 +2,25 @@
 
 /**
  * PeriodTypeSelect Component
- * Dropdown để chọn Năm/Quý
+ * Dropdown để chọn Năm/Quý/Lũy kế
  */
 
 import React from 'react';
 import { Icon } from '@iconify/react';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
 import { useTheme } from '@/contexts/ThemeContext';
+import { FinancialPeriodType } from '@/types/financialReport';
 
 export default function PeriodTypeSelect() {
   const { periodType, setPeriodType } = useFinancialReportStore();
   const { theme } = useTheme();
 
   return (
-    <div className="w-full sm:w-[100px] flex-none">
+    <div className="w-full sm:w-[120px] flex-none">
       <div className="relative">
         <select
           value={periodType}
-          onChange={(e) => setPeriodType(e.target.value as '1' | '0')}
+          onChange={(e) => setPeriodType(Number(e.target.value) as FinancialPeriodType)}
           className={`
             relative block w-full disabled:cursor-not-allowed disabled:opacity-75
             focus:outline-none border-0 form-select rounded-full text-sm px-2.5 py-1.5
@@ -31,8 +32,9 @@ export default function PeriodTypeSelect() {
             }
           `}
         >
-          <option value="1">Năm</option>
-          <option value="0">Quý</option>
+          <option value={FinancialPeriodType.Yearly}>Năm</option>
+          <option value={FinancialPeriodType.Quarterly}>Quý</option>
+          <option value={FinancialPeriodType.Cumulative}>Lũy kế</option>
         </select>
         <span className="absolute inset-y-0 end-0 flex items-center pointer-events-none px-2.5">
           <Icon

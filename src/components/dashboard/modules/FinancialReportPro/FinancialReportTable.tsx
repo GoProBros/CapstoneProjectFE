@@ -11,15 +11,16 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import './ag-grid-custom.css';
 
 import { useTheme } from '@/contexts/ThemeContext';
-import type { FinancialData } from '@/types/financialReport';
+import type { FinancialReportTableRow } from '@/types/financialReport';
 import { getColumnDefs, defaultColDef } from './columnDefs';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface FinancialReportTableProps {
-  data: FinancialData[];
+  data: FinancialReportTableRow[];
   loading?: boolean;
+  totalCount?: number;
 }
 
 // Memoize loading and empty overlays
@@ -37,12 +38,16 @@ const NoRowsOverlay = memo(() => (
 ));
 NoRowsOverlay.displayName = 'NoRowsOverlay';
 
-const FinancialReportTable = memo(function FinancialReportTable({ data, loading }: FinancialReportTableProps) {
+const FinancialReportTable = memo(function FinancialReportTable({ 
+  data, 
+  loading, 
+  totalCount = 0 
+}: FinancialReportTableProps) {
   const { theme } = useTheme();
 
   const columnDefs = useMemo(() => getColumnDefs(), []);
 
-  // Sort data by ticker (Community version - no grouping)
+  // Sort data by ticker and year
   const sortedData = useMemo(() => {
     if (!data.length) return [];
     return [...data].sort((a, b) => {
@@ -54,29 +59,39 @@ const FinancialReportTable = memo(function FinancialReportTable({ data, loading 
   }, [data]);
 
   return (
-    <div
-      id="bctcTable"
-      className={`flex-1 w-full ${
-        theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'
-      }`}
-      style={{ 
-        height: 'calc(100vh - 240px)',
-        minHeight: '400px'
-      }}
-    >
-      <AgGridReact
-        theme="legacy"
-        rowData={sortedData}
-        columnDefs={columnDefs}
-        defaultColDef={defaultColDef}
-        animateRows={false} // Disable animation for better performance
-        suppressRowTransform={true} // Improve performance
-        suppressColumnVirtualisation={false}
-        rowBuffer={20} // Render 20 extra rows for smooth scrolling
-        loading={loading}
-        loadingOverlayComponent={LoadingOverlay}
-        noRowsOverlayComponent={NoRowsOverlay}
-      />
+    <div className="flex flex-col h-full">
+      {/* Status bar */}
+      {totalCount > 0 && (
+        <div className="px-4 py-2 text-sm text-gray-500">
+          Hiển thị {sortedData.length} / {totalCount} báo cáo
+        </div>
+      )}
+      
+      {/* AG Grid table */}
+      <div
+        id="bctcTable"
+        className={`flex-1 w-full ${
+          theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'
+        }`}
+        style={{ 
+          height: 'calc(100vh - 280px)',
+          minHeight: '400px'
+        }}
+      >
+        <AgGridReact
+          theme="legacy"
+          rowData={sortedData}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          animateRows={false} // Disable animation for better performance
+          suppressRowTransform={true} // Improve performance
+          suppressColumnVirtualisation={false}
+          rowBuffer={20} // Render 20 extra rows for smooth scrolling
+          loading={loading}
+          loadingOverlayComponent={LoadingOverlay}
+          noRowsOverlayComponent={NoRowsOverlay}
+        />
+      </div>
     </div>
   );
 });

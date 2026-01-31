@@ -5,8 +5,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
-import { fetchFinancialData, fetchIndustries } from '@/services/financialReportService';
-import type { FinancialData, IndustryOption } from '@/types/financialReport';
+import { fetchFinancialReports, fetchIndustries } from '@/services/financialReportService';
+import type { FinancialReportTableRow, IndustryOption } from '@/types/financialReport';
 
 /**
  * Hook for fetching financial report data
@@ -15,12 +15,16 @@ import type { FinancialData, IndustryOption } from '@/types/financialReport';
 export function useFinancialReportQuery() {
   const filters = useFinancialReportStore((state) => state.filters);
 
-  return useQuery<FinancialData[], Error>({
+  return useQuery<{ items: FinancialReportTableRow[]; totalCount: number }, Error>({
     queryKey: ['financial-reports', filters],
-    queryFn: () => fetchFinancialData(filters),
+    queryFn: () => fetchFinancialReports(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     refetchOnWindowFocus: false,
+    select: (data) => ({
+      items: data.items || [],
+      totalCount: data.totalCount || 0,
+    }),
   });
 }
 

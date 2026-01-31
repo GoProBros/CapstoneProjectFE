@@ -5,11 +5,11 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PeriodType, FinancialReportFilters } from '@/types/financialReport';
+import type { FinancialReportFilters, FinancialPeriodType } from '@/types/financialReport';
 
 interface FinancialReportState {
   // State
-  periodType: PeriodType;
+  periodType: FinancialPeriodType;
   searchTicker: string;
   selectedIndustry: string;
   expandedGroups: Set<string>;
@@ -17,7 +17,7 @@ interface FinancialReportState {
   filters: FinancialReportFilters;
   
   // Actions
-  setPeriodType: (type: PeriodType) => void;
+  setPeriodType: (type: FinancialPeriodType) => void;
   setSearchTicker: (ticker: string) => void;
   setSelectedIndustry: (industry: string) => void;
   toggleExpanded: (ticker: string) => void;
@@ -27,14 +27,15 @@ interface FinancialReportState {
 }
 
 const defaultFilters: FinancialReportFilters = {
-  periodType: '1',
+  period: 1, // Default to Yearly
+  pageIndex: 1,
+  pageSize: 50,
 };
 
-export const useFinancialReportStore = create<FinancialReportState>()(
-  persist(
+export const useFinancialReportStore = create<FinancialReportState>()(  persist(
     (set, get) => ({
       // Initial state
-      periodType: '1',
+      periodType: 1, // Yearly
       searchTicker: '',
       selectedIndustry: '',
       expandedGroups: new Set<string>(),
@@ -45,14 +46,14 @@ export const useFinancialReportStore = create<FinancialReportState>()(
       setPeriodType: (type) => {
         set({ periodType: type });
         set((state) => ({
-          filters: { ...state.filters, periodType: type },
+          filters: { ...state.filters, period: type },
         }));
       },
 
       setSearchTicker: (ticker) => {
         set({ searchTicker: ticker });
         set((state) => ({
-          filters: { ...state.filters, searchTicker: ticker || undefined },
+          filters: { ...state.filters, ticker: ticker || undefined },
         }));
       },
 
@@ -87,7 +88,7 @@ export const useFinancialReportStore = create<FinancialReportState>()(
 
       resetFilters: () => {
         set({
-          periodType: '1',
+          periodType: 1,
           searchTicker: '',
           selectedIndustry: '',
           filters: defaultFilters,

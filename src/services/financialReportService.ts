@@ -1,191 +1,303 @@
 /**
  * Financial Report Service
- * API calls for financial data và industries
+ * API calls for financial data from backend
  */
 
 import { get } from './api';
-import type { FinancialData, IndustryOption, FinancialReportFilters } from '@/types/financialReport';
-
-export interface FinancialDataResponse {
-  data: FinancialData[];
-  total: number;
-}
+import type { ApiResponse, PaginatedResponse } from '@/types';
+import type {
+  FinancialReport,
+  FinancialReportFilters,
+  FinancialReportQueryParams,
+  FinancialReportTableRow,
+  FinancialPeriodType,
+  IndustryOption,
+} from '@/types/financialReport';
 
 /**
- * Fetch financial report data với filters
+ * Convert FinancialReport to flattened table row
  */
-export async function fetchFinancialData(filters: FinancialReportFilters): Promise<FinancialData[]> {
-  // API is developing - using mockup data for now
-  // Uncomment when API is ready:
-  /*
-  try {
-    const params = new URLSearchParams();
-    params.append('periodType', filters.periodType);
-    if (filters.searchTicker) params.append('ticker', filters.searchTicker);
-    if (filters.selectedIndustry) params.append('industry', filters.selectedIndustry);
-    if (filters.yearFrom) params.append('yearFrom', filters.yearFrom.toString());
-    if (filters.yearTo) params.append('yearTo', filters.yearTo.toString());
-
-    const result = await get<FinancialDataResponse>(`/financial-reports?${params.toString()}`);
-    return result.data.data;
-  } catch (error) {
-    console.error('Error fetching financial data:', error);
-    return getMockFinancialData(filters.searchTicker || 'FPT');
+function convertToTableRow(report: FinancialReport): FinancialReportTableRow {
+  // Validate report structure
+  if (!report || !report.reportData) {
+    throw new Error('Invalid report structure: missing reportData');
   }
-  */
 
-  // Using mockup data
-  return getMockFinancialData(filters.searchTicker || 'FPT');
+  const { reportData } = report;
+  const { balanceSheet, incomeStatement, cashFlowStatement } = reportData;
+
+  // Calculate total assets with null safety
+  const totalShortTermAssets = balanceSheet?.shortTermAssets 
+    ? Object.values(balanceSheet.shortTermAssets).reduce((sum, val) => sum + (val || 0), 0)
+    : 0;
+  const totalLongTermAssets = balanceSheet?.longTermAssets
+    ? Object.values(balanceSheet.longTermAssets).reduce((sum, val) => sum + (val || 0), 0)
+    : 0;
+  const totalAssets = totalShortTermAssets + totalLongTermAssets;
+
+  // Calculate total liabilities and equity with null safety
+  const totalLiabilities = (balanceSheet?.liabilities?.shortTerm || 0) + (balanceSheet?.liabilities?.longTerm || 0);
+  const totalEquity = balanceSheet?.equity
+    ? Object.values(balanceSheet.equity).reduce((sum, val) => sum + (val || 0), 0)
+    : 0;
+
+  // Get period label
+  const periodLabel = getPeriodLabel(report.year, report.period);
+
+  return {
+    id: report.id,
+    ticker: report.ticker,
+    year: report.year,
+    period: report.period,
+    periodLabel,
+
+    // Balance Sheet
+    totalAssets,
+    totalLiabilities,
+    totalEquity,
+    shortTermAssets: totalShortTermAssets,
+    longTermAssets: totalLongTermAssets,
+
+    // Income Statement with null safety
+    netRevenue: incomeStatement?.grossProfit?.netRevenue || 0,
+    grossProfit: incomeStatement?.grossProfit?.grossProfit || 0,
+    operatingProfit: incomeStatement?.profitBeforeTax?.operatingProfit || 0,
+    profitBeforeTax: incomeStatement?.profitBeforeTax?.profitBeforeTax || 0,
+    netProfit: incomeStatement?.parentCompanyNetProfit?.parentCompanyNetProfit || 0,
+
+    // Cash Flow with null safety
+    netCashFlow: cashFlowStatement?.netCashFlow || 0,
+    operatingCashFlow: cashFlowStatement?.operatingActivities || 0,
+    investingCashFlow: cashFlowStatement?.investingActivities || 0,
+    financingCashFlow: cashFlowStatement?.financingActivities || 0,
+
+    // Metadata
+    status: report.status,
+    fileUrl: report.fileUrl || '',
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  };
 }
 
 /**
- * Fetch danh sách ngành
+ * Get period label for display
+ * Note: For quarterly reports, the API should provide quarter number in additional field
+ * Current implementation shows only year for quarterly to avoid incorrect quarter display
+ */
+function getPeriodLabel(year: number, period: FinancialPeriodType): string {
+  switch (period) {
+    case 1: // Yearly
+      return `${year}`;
+    case 2: // Quarterly
+      // TODO: Backend should provide quarter number (1-4) in the response
+      return `${year} - Quý`; // Temporary: show "Quý" without number
+    case 3: // Cumulative
+      return `${year} - Lũy kế`;
+    default:
+      return `${year}`;
+  }
+}
+
+/**
+ * Fetch financial reports with filters and pagination
+ * @returns Promise with items array and totalCount, or empty result on error
+ */
+export async function fetchFinancialReports(
+  filters: FinancialReportFilters = {}
+): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
+  try {
+    // Build query parameters
+    const params: FinancialReportQueryParams = {};
+    if (filters.ticker) params.ticker = filters.ticker;
+    if (filters.year) params.year = filters.year;
+    if (filters.period !== undefined) params.period = filters.period;
+    if (filters.status !== undefined) params.status = filters.status;
+    if (filters.pageIndex !== undefined) params.pageIndex = filters.pageIndex;
+    if (filters.pageSize !== undefined) params.pageSize = filters.pageSize;
+
+    // Build query string
+    const queryString = new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, value]) => [key, String(value)])
+    ).toString();
+
+    // Call API
+    const endpoint = `/financial-reports${queryString ? `?${queryString}` : ''}`;
+    const response = await get<PaginatedResponse<FinancialReport>>(endpoint);
+
+    // Handle unsuccessful response
+    if (!response.isSuccess) {
+      console.error('API returned error:', response.message);
+      return { items: [], totalCount: 0 };
+    }
+
+    // Handle empty or null data
+    if (!response.data || !Array.isArray(response.data)) {
+      return { items: [], totalCount: 0 };
+    }
+
+    // Convert to table rows with error handling per item
+    const items = response.data
+      .map((report, index) => {
+        try {
+          return convertToTableRow(report);
+        } catch (err) {
+          console.error(`Error converting report at index ${index} (id: ${report?.id || 'unknown'}):`, err);
+          return null;
+        }
+      })
+      .filter((item): item is FinancialReportTableRow => item !== null);
+
+    const totalCount = response.pagination?.total || items.length;
+
+    return { items, totalCount };
+  } catch (error) {
+    console.error('Error fetching financial reports:', error);
+    // Return empty result instead of throwing to prevent app crash
+    return { items: [], totalCount: 0 };
+  }
+}
+
+/**
+ * Fetch single financial report by ID
+ * @returns FinancialReport object or null if not found/error
+ */
+export async function fetchFinancialReportById(id: string): Promise<FinancialReport | null> {
+  try {
+    // Type guard and validation
+    if (typeof id !== 'string' || !id.trim()) {
+      console.error('Invalid report ID provided:', id);
+      return null;
+    }
+
+    const response = await get<ApiResponse<FinancialReport>>(`/financial-reports/${id}`);
+
+    if (!response.isSuccess) {
+      console.error('Failed to fetch financial report:', response.message);
+      return null;
+    }
+
+    if (!response.data) {
+      console.warn(`No data found for report ID: ${id}`);
+      return null;
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching financial report:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetch financial report by ticker, year, and period
+ * @returns FinancialReport object or null if not found/error
+ */
+export async function fetchFinancialReportByParams(
+  ticker: string,
+  year: number,
+  period: FinancialPeriodType
+): Promise<FinancialReport | null> {
+  try {
+    // Type guards and input validation
+    if (typeof ticker !== 'string' || !ticker.trim()) {
+      console.error('Invalid ticker provided:', ticker);
+      return null;
+    }
+
+    if (typeof year !== 'number' || !Number.isInteger(year) || year < 1900 || year > 2100) {
+      console.error('Invalid year provided:', year);
+      return null;
+    }
+
+    if (typeof period !== 'number' || ![1, 2, 3].includes(period)) {
+      console.error('Invalid period type provided:', period);
+      return null;
+    }
+
+    // Encode ticker for URL path
+    const encodedTicker = encodeURIComponent(ticker.trim());
+    
+    const response = await get<ApiResponse<FinancialReport>>(
+      `/financial-reports/ticker/${encodedTicker}/year/${year}/period/${period}`
+    );
+
+    if (!response.isSuccess) {
+      console.warn(`Report not found for ${ticker} ${year} period ${period}:`, response.message);
+      return null;
+    }
+
+    if (!response.data) {
+      return null;
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching financial report by params:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetch available years for a ticker
+ * @returns Array of years or empty array if not found/error
+ */
+export async function fetchAvailableYears(ticker?: string): Promise<number[]> {
+  try {
+    // Build endpoint with optional ticker
+    const endpoint = ticker?.trim() 
+      ? `/financial-reports/years?ticker=${encodeURIComponent(ticker.trim())}` 
+      : '/financial-reports/years';
+    
+    const response = await get<ApiResponse<number[]>>(endpoint);
+
+    if (!response.isSuccess) {
+      console.error('Failed to fetch available years:', response.message);
+      return [];
+    }
+
+    if (!response.data || !Array.isArray(response.data)) {
+      return [];
+    }
+
+    // Filter valid years and sort descending
+    const validYears = response.data
+      .filter((year) => typeof year === 'number' && year >= 1900 && year <= 2100)
+      .sort((a, b) => b - a);
+
+    return validYears;
+  } catch (error) {
+    console.error('Error fetching available years:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch list of industries (sectors)
+ * @returns Array of industry options, always returns at least mock data
+ * TODO: Update endpoint when sectors API is ready
  */
 export async function fetchIndustries(): Promise<IndustryOption[]> {
-  // API is developing - using mockup data for now
-  // Uncomment when API is ready:
-  /*
   try {
-    const result = await get<{ data: IndustryOption[] }>('/industries');
-    return result.data;
+    // TODO: Replace with actual sectors endpoint when ready
+    // const response = await get<ApiResponse<IndustryOption[]>>('/sectors');
+    // if (response.isSuccess && Array.isArray(response.data) && response.data.length > 0) {
+    //   return response.data;
+    // }
+
+    // Using mock data until sectors API is ready
+    return getMockIndustries();
   } catch (error) {
     console.error('Error fetching industries:', error);
+    // Always return mock data as fallback to ensure UI works
     return getMockIndustries();
   }
-  */
-
-  // Using mockup data
-  return getMockIndustries();
 }
 
 /**
- * Mock data for development
+ * Mock industries data
  */
-function getMockFinancialData(ticker: string): FinancialData[] {
-  return [
-    {
-      ticker,
-      year: 2024,
-      quarter: '2024 - Q5',
-      revenue: 62849,
-      yearRevenueGrowth: 19.4,
-      costOfGoodSold: -39150,
-      grossProfit: 23698,
-      operationExpense: -13190,
-      operationProfit: 10508,
-      yearOperationProfitGrowth: 25.3,
-    },
-    {
-      ticker,
-      year: 2023,
-      quarter: '2023 - Q5',
-      revenue: 52618,
-      yearRevenueGrowth: 19.6,
-      costOfGoodSold: -32298,
-      grossProfit: 20320,
-      operationExpense: -11868,
-      operationProfit: 8452,
-      yearOperationProfitGrowth: 22.1,
-    },
-    {
-      ticker,
-      year: 2022,
-      quarter: '2022 - Q5',
-      revenue: 44010,
-      yearRevenueGrowth: 23.4,
-      costOfGoodSold: -26842,
-      grossProfit: 17167,
-      operationExpense: -10373,
-      operationProfit: 6794,
-      yearOperationProfitGrowth: 28.7,
-    },
-    {
-      ticker,
-      year: 2021,
-      quarter: '2021 - Q5',
-      revenue: 35667,
-      yearRevenueGrowth: 18.2,
-      costOfGoodSold: -22134,
-      grossProfit: 13533,
-      operationExpense: -8912,
-      operationProfit: 4621,
-      yearOperationProfitGrowth: 15.8,
-    },
-    {
-      ticker,
-      year: 2020,
-      quarter: '2020 - Q5',
-      revenue: 30172,
-      yearRevenueGrowth: 12.5,
-      costOfGoodSold: -19245,
-      grossProfit: 10927,
-      operationExpense: -7834,
-      operationProfit: 3093,
-      yearOperationProfitGrowth: 8.9,
-    },
-    {
-      ticker,
-      year: 2019,
-      quarter: '2019 - Q5',
-      revenue: 26820,
-      yearRevenueGrowth: 15.7,
-      costOfGoodSold: -17456,
-      grossProfit: 9364,
-      operationExpense: -6923,
-      operationProfit: 2441,
-      yearOperationProfitGrowth: 12.3,
-    },
-    {
-      ticker,
-      year: 2018,
-      quarter: '2018 - Q5',
-      revenue: 23187,
-      yearRevenueGrowth: 21.3,
-      costOfGoodSold: -15678,
-      grossProfit: 7509,
-      operationExpense: -5834,
-      operationProfit: 1675,
-      yearOperationProfitGrowth: 18.7,
-    },
-    {
-      ticker,
-      year: 2017,
-      quarter: '2017 - Q5',
-      revenue: 19112,
-      yearRevenueGrowth: 14.8,
-      costOfGoodSold: -13245,
-      grossProfit: 5867,
-      operationExpense: -4923,
-      operationProfit: 944,
-      yearOperationProfitGrowth: 9.2,
-    },
-    {
-      ticker,
-      year: 2016,
-      quarter: '2016 - Q5',
-      revenue: 16648,
-      yearRevenueGrowth: 8.9,
-      costOfGoodSold: -11892,
-      grossProfit: 4756,
-      operationExpense: -4123,
-      operationProfit: 633,
-      yearOperationProfitGrowth: -5.4,
-    },
-    {
-      ticker,
-      year: 2015,
-      quarter: '2015 - Q5',
-      revenue: 15289,
-      yearRevenueGrowth: 6.2,
-      costOfGoodSold: -11234,
-      grossProfit: 4055,
-      operationExpense: -3892,
-      operationProfit: 163,
-      yearOperationProfitGrowth: -12.8,
-    },
-  ];
-}
-
 function getMockIndustries(): IndustryOption[] {
   return [
     { value: 'oil-gas', label: 'Sản xuất dầu khí' },
