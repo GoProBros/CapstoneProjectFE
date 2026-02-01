@@ -24,6 +24,12 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/symbol',
   },
   
+  // Sector endpoints
+  SECTORS: {
+    BASE: '/api/v1/sectors',
+    BY_ID: (id: string) => `/api/v1/sectors/${id}`,
+  },
+  
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
     LIST: '/financial-reports',
