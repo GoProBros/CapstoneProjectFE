@@ -1,17 +1,23 @@
 /**
  * AG Grid Column Definitions
  * Configuration cho Financial Report table
+ * Updated to match backend API response structure
  */
 
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
-import type { FinancialData } from '@/types/financialReport';
+import type { FinancialReportTableRow } from '@/types/financialReport';
 
 /**
- * Format number với dấu phân cách
+ * Format number với dấu phân cách và đơn vị tỷ đồng
+ * Converts from VND to billion VND
  */
 export const formatNumber = (num: number): string => {
   if (num == null || num === 0) return '';
-  return num.toLocaleString('en-US');
+  const billion = num / 1_000_000_000; // Convert to billion
+  return billion.toLocaleString('en-US', { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  });
 };
 
 /**
@@ -31,175 +37,556 @@ const percentageCellClassRules = {
 };
 
 /**
- * Column definitions cho Financial Report (93 columns)
- * Note: Using any type for fields since FinancialData type is incomplete
+ * Format period label
+ */
+const periodFormatter = (params: any) => {
+  return params.data?.periodLabel || '';
+};
+
+/**
+ * Column definitions cho Financial Report
+ * Mapped from backend API response structure
  */
 export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
   // KỲ BÁO CÁO Group
   {
     headerName: 'KỲ BÁO CÁO',
     children: [
-      { field: 'ticker', headerName: 'Mã', width: 100, pinned: 'left', cellClass: 'font-bold' },
-      { field: 'year', headerName: 'Năm', width: 100, pinned: 'left' },
-      { field: 'quarter', headerName: 'Quý', width: 100, pinned: 'left' },
+      { 
+        field: 'ticker', 
+        headerName: 'Mã', 
+        width: 100, 
+        pinned: 'left', 
+        cellClass: 'font-bold',
+        cellStyle: (params: any) => {
+          // For ticker header rows, apply larger bold font
+          if (params.data?.isTickerHeader) {
+            return {
+              fontWeight: 'bold',
+              fontSize: '14px',
+            };
+          }
+          return undefined;
+        }
+      },
+      { 
+        field: 'year', 
+        headerName: 'Năm', 
+        width: 100, 
+        pinned: 'left',
+        cellRenderer: (params: any) => {
+          // Hide for ticker header rows
+          if (params.data?.isTickerHeader) return '';
+          return params.value;
+        }
+      },
+      { 
+        field: 'periodLabel', 
+        headerName: 'Kỳ', 
+        width: 150, 
+        pinned: 'left',
+        valueFormatter: periodFormatter,
+        cellRenderer: (params: any) => {
+          // Hide for ticker header rows
+          if (params.data?.isTickerHeader) return '';
+          return params.data?.periodLabel || '';
+        }
+      },
     ],
   },
   
-  // KẾT QUẢ KINH DOANH Group
+  // BẢNG CÂN ĐỐI KẾ TOÁN - Balance Sheet Summary
   {
-    headerName: 'KẾT QUẢ KINH DOANH',
+    headerName: 'BẢNG CÂN ĐỐI KẾ TOÁN - TỔNG QUAN (tỷ đồng)',
     children: [
-      { field: 'revenue', headerName: 'Doanh thu thuần', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'revenueYoY', headerName: 'DTT YoY (%)', width: 120, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-      { field: 'costOfGoodsSold', headerName: 'Giá vốn hàng bán', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'grossProfit', headerName: 'Lợi nhuận gộp', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'operatingExpense', headerName: 'Chi phí hoạt động', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'operatingProfit', headerName: 'LN hoạt động KD', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'operatingProfitYoY', headerName: 'LNKD YoY (%)', width: 130, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-      { field: 'interestExpense', headerName: 'Chi phí lãi vay', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'profitBeforeTax', headerName: 'LN trước thuế', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'profitAfterTax', headerName: 'LN sau thuế', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'profitAfterTaxMinority', headerName: 'LNST và CĐ thiểu số', width: 160, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'profitAfterTaxYoY', headerName: 'LNST YoY (%)', width: 130, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-      { field: 'ebitda', headerName: 'EBITDA', width: 130, valueFormatter: (p) => formatNumber(p.value) },
+      { 
+        field: 'totalAssets', 
+        headerName: 'Tổng tài sản', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-bold' 
+      },
+      { 
+        field: 'shortTermAssets', 
+        headerName: 'Tài sản ngắn hạn', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'longTermAssets', 
+        headerName: 'Tài sản dài hạn', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'totalLiabilities', 
+        headerName: 'Tổng nợ phải trả', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'totalEquity', 
+        headerName: 'Vốn chủ sở hữu', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
     ],
   },
 
-  // BẢNG CÂN ĐỐI KẾ TOÁN Group
+  // BẢNG CÂN ĐỐI KẾ TOÁN - CHI TIẾT TÀI SẢN (Gom tất cả loại công ty)
   {
-    headerName: 'BẢNG CÂN ĐỐI KẾ TOÁN',
+    headerName: 'CHI TIẾT TÀI SẢN (tỷ đồng)',
     children: [
-      // TÀI SẢN NGẮN HẠN
-      {
-        headerName: 'TÀI SẢN NGẮN HẠN',
-        children: [
-          { field: 'cashAndEquivalents', headerName: 'Tiền và tương đương tiền', width: 180, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'shortTermInvestments', headerName: 'Đầu tư TC ngắn hạn', width: 160, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'receivables', headerName: 'Các khoản phải thu', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'inventory', headerName: 'Hàng tồn kho', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'otherCurrentAssets', headerName: 'Tài sản NH khác', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-        ],
+      // Regular company assets
+      { 
+        field: 'cash', 
+        headerName: 'Tiền và tương đương tiền', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
       },
-      // TÀI SẢN DÀI HẠN
-      {
-        headerName: 'TÀI SẢN DÀI HẠN',
-        children: [
-          { field: 'fixedAssets', headerName: 'Tài sản cố định', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'investmentProperty', headerName: 'BĐS đầu tư', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'longTermInvestments', headerName: 'Đầu tư TC dài hạn', width: 160, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'constructionInProgress', headerName: 'Tài sản dở dang', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'otherLongTermAssets', headerName: 'Tài sản DH khác', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-        ],
+      { 
+        field: 'financialInvestmentsShortTerm', 
+        headerName: 'Đầu tư tài chính NH', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
       },
-      { field: 'totalAssets', headerName: 'Tổng tài sản', width: 140, valueFormatter: (p) => formatNumber(p.value), cellClass: 'font-bold' },
-      
-      // NGUỒN VỐN
-      { field: 'totalLiabilities', headerName: 'Tổng nợ phải trả', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'shortTermDebt', headerName: 'Vay ngắn hạn', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'longTermDebt', headerName: 'Vay dài hạn', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'otherLiabilities', headerName: 'Nợ khác', width: 120, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'equity', headerName: 'Vốn chủ sở hữu', width: 140, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'charteredCapital', headerName: 'Vốn điều lệ', width: 130, valueFormatter: (p) => formatNumber(p.value) },
+      { 
+        field: 'receivablesShortTerm', 
+        headerName: 'Phải thu ngắn hạn', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'inventories', 
+        headerName: 'Hàng tồn kho', 
+        width: 140, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'otherAssetsShortTerm', 
+        headerName: 'Tài sản NH khác', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'receivablesLongTerm', 
+        headerName: 'Phải thu dài hạn', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'fixedAssets', 
+        headerName: 'Tài sản cố định', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'investmentProperty', 
+        headerName: 'Bất động sản đầu tư', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'longTermAssetsInProgress', 
+        headerName: 'TSCĐ dở dang', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'financialInvestmentsLongTerm', 
+        headerName: 'Đầu tư tài chính DH', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'otherAssetsLongTerm', 
+        headerName: 'Tài sản DH khác', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      // Bank-specific assets
+      { 
+        field: 'depositsAtCentralBank', 
+        headerName: 'Tiền gửi NHNN', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'depositsAtOtherCreditInstitutions', 
+        headerName: 'Tiền gửi tại TCTD khác', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'tradingSecurities', 
+        headerName: 'Chứng khoán kinh doanh', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'loansToCustomers', 
+        headerName: 'Cho vay khách hàng', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'investmentSecurities', 
+        headerName: 'Chứng khoán đầu tư', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'bankOtherAssets', 
+        headerName: 'Tài sản khác (NH)', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      // Securities short-term financial assets
+      { 
+        field: 'shortTermFinancialAssetsCash', 
+        headerName: 'Tiền (CK)', 
+        width: 140, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'shortTermFinancialAssetsLoans', 
+        headerName: 'Cho vay (CK)', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'shortTermFinancialAssetsOther', 
+        headerName: 'Khác (CK)', 
+        width: 140, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      // Securities trading and capital assets
+      { 
+        field: 'heldToMaturity', 
+        headerName: 'Nắm giữ đến ngày đáo hạn', 
+        width: 190, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'availableForSale', 
+        headerName: 'Sẵn sàng bán', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'fvtpl', 
+        headerName: 'FVTPL', 
+        width: 120, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
     ],
   },
 
-  // LƯU CHUYỂN TIỀN TỆ Group
+  // NỢ PHẢI TRẢ & VỐN CHỦ SỞ HỮU
   {
-    headerName: 'LƯU CHUYỂN TIỀN TỆ',
+    headerName: 'NỢ & VỐN CHỦ SỞ HỮU (tỷ đồng)',
     children: [
-      { field: 'cashFlowOperating', headerName: 'LC tiền từ HĐKD', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'cashFlowInvesting', headerName: 'LC tiền từ HĐĐT', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'cashFlowFinancing', headerName: 'LC tiền từ HĐTC', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'netCashFlow', headerName: 'Lưu chuyển tiền thuần', width: 160, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'beginningCash', headerName: 'Tiền đầu kỳ', width: 130, valueFormatter: (p) => formatNumber(p.value) },
-      { field: 'endingCash', headerName: 'Tiền cuối kỳ', width: 130, valueFormatter: (p) => formatNumber(p.value) },
+      { 
+        field: 'shortTermLiabilities', 
+        headerName: 'Nợ ngắn hạn', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'longTermLiabilities', 
+        headerName: 'Nợ dài hạn', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'shortTermBorrowings', 
+        headerName: 'Vay ngắn hạn', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'longTermBorrowings', 
+        headerName: 'Vay dài hạn', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'contributedCapital', 
+        headerName: 'Vốn góp', 
+        width: 140, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'retainedEarnings', 
+        headerName: 'Lợi nhuận giữ lại', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'treasuryShares', 
+        headerName: 'Cổ phiếu quỹ', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'otherCapital', 
+        headerName: 'Vốn khác', 
+        width: 130, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
     ],
   },
 
-  // CHỈ SỐ TÀI CHÍNH Group
+  // KẾT QUẢ KINH DOANH (Gom tất cả loại công ty)
   {
-    headerName: 'CHỈ SỐ TÀI CHÍNH',
+    headerName: 'KẾT QUẢ KINH DOANH (tỷ đồng)',
     children: [
-      // ĐỊNH GIÁ
-      {
-        headerName: 'ĐỊNH GIÁ',
-        children: [
-          { field: 'pe', headerName: 'P/E', width: 100, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'evEbitda', headerName: 'EV/EBITDA', width: 120, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'pb', headerName: 'P/B', width: 100, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'eps', headerName: 'EPS', width: 100, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'epsGrowth', headerName: 'Thay đổi EPS (%)', width: 150, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-          { field: 'ebitdaPerShare', headerName: 'EBITDA/cp', width: 120, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'ebitdaPerShareGrowth', headerName: 'Thay đổi EBITDA/cp (%)', width: 180, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-          { field: 'bvps', headerName: 'BVPS', width: 100, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'bvpsGrowth', headerName: 'Thay đổi BVPS (%)', width: 160, valueFormatter: (p) => formatPercentage(p.value), cellClassRules: percentageCellClassRules },
-          { field: 'dividendYield', headerName: 'Tỷ suất cổ tức (%)', width: 160, valueFormatter: (p) => formatPercentage(p.value) },
-        ],
+      // Regular company income
+      { 
+        field: 'netRevenue', 
+        headerName: 'Doanh thu thuần', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
       },
-      
-      // HIỆU QUẢ HOẠT ĐỘNG
-      {
-        headerName: 'HIỆU QUẢ HOẠT ĐỘNG',
-        children: [
-          { field: 'roe', headerName: 'ROE (%)', width: 110, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'roa', headerName: 'ROA (%)', width: 110, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'grossMargin', headerName: 'Biên LN gộp (%)', width: 140, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'operatingMargin', headerName: 'Biên LN hoạt động (%)', width: 170, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'netMargin', headerName: 'Biên LNST (%)', width: 130, valueFormatter: (p) => formatPercentage(p.value) },
-        ],
+      { 
+        field: 'costOfGoodsSold', 
+        headerName: 'Giá vốn hàng bán', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
       },
+      { 
+        field: 'grossProfit', 
+        headerName: 'Lợi nhuận gộp', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'sellingExpenses', 
+        headerName: 'Chi phí bán hàng', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'managementExpenses', 
+        headerName: 'Chi phí quản lý', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'financialExpenses', 
+        headerName: 'Chi phí tài chính', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'interestExpenses', 
+        headerName: 'Chi phí lãi vay', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'operatingProfit', 
+        headerName: 'Lợi nhuận hoạt động', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'financialProfit', 
+        headerName: 'Lợi nhuận tài chính', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'shareProfitOfAssociates', 
+        headerName: 'LN từ công ty liên kết', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'otherProfit', 
+        headerName: 'Lợi nhuận khác', 
+        width: 150, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'profitBeforeTax', 
+        headerName: 'Lợi nhuận trước thuế', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-bold' 
+      },
+      { 
+        field: 'corporateIncomeTax', 
+        headerName: 'Thuế TNDN', 
+        width: 140, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'minorityInterests', 
+        headerName: 'Lợi ích cổ đông thiểu số', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'netProfit', 
+        headerName: 'Lợi nhuận sau thuế', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-bold' 
+      },
+      // Bank-specific income
+      { 
+        field: 'netInterestIncome', 
+        headerName: 'Thu nhập lãi thuần', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'serviceFeeIncome', 
+        headerName: 'Thu nhập phí dịch vụ', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'tradingIncome', 
+        headerName: 'Thu nhập từ kinh doanh', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'bankOtherIncome', 
+        headerName: 'Thu nhập khác (NH)', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      // Insurance-specific income
+      { 
+        field: 'insuranceNetOperatingRevenue', 
+        headerName: 'Doanh thu hoạt động BH', 
+        width: 190, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'insuranceOperatingExpenses', 
+        headerName: 'Chi phí hoạt động BH', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'insuranceOperatingProfit', 
+        headerName: 'Lợi nhuận hoạt động BH', 
+        width: 190, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      // Securities-specific income
+      { 
+        field: 'brokerageAndCustodyRevenue', 
+        headerName: 'DT môi giới & lưu ký', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'lendingRevenue', 
+        headerName: 'DT cho vay & GDCPS', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'tradingAndCapitalRevenue', 
+        headerName: 'DT kinh doanh & ĐT', 
+        width: 170, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      { 
+        field: 'investmentBankingRevenue', 
+        headerName: 'DT ngân hàng đầu tư', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+      // Additional profit fields
+      { 
+        field: 'profitAfterTaxAndAfs', 
+        headerName: 'Lợi nhuận sau thuế & AFS', 
+        width: 190, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold' 
+      },
+      { 
+        field: 'afsGains', 
+        headerName: 'Lãi AFS', 
+        width: 130, 
+        valueFormatter: (p) => formatNumber(p.value) 
+      },
+    ],
+  },
 
-      // SỨC KHỎE TÀI CHÍNH
-      {
-        headerName: 'SỨC KHỎE TÀI CHÍNH',
-        children: [
-          { field: 'debtToEquity', headerName: 'Vay/VCSH', width: 120, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'debtToAssets', headerName: 'Vay/Tài sản', width: 130, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'debtToEbitda', headerName: 'Vay/EBITDA', width: 130, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'shortToLongDebt', headerName: 'Vay NH/Vay DH', width: 140, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'interestCoverage', headerName: 'EBIT/Lãi vay', width: 130, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'leverage', headerName: 'Đòn bẩy tài chính (A/E)', width: 180, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'workingCapital', headerName: 'Cân đối vốn TDH', width: 150, valueFormatter: (p) => formatNumber(p.value) },
-          { field: 'cashToEquity', headerName: 'Tiền mặt/VCSH', width: 140, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'cashToMarketCap', headerName: 'Tiền mặt/Vốn hóa', width: 160, valueFormatter: (p) => formatPercentage(p.value) },
-        ],
+  // LƯU CHUYỂN TIỀN TỆ - Cash Flow Statement
+  {
+    headerName: 'LƯU CHUYỂN TIỀN TỆ (tỷ đồng)',
+    children: [
+      { 
+        field: 'netCashFlow', 
+        headerName: 'Lưu chuyển tiền thuần', 
+        width: 180, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClass: 'font-semibold',
+        cellClassRules: percentageCellClassRules
       },
-
-      // KHẢ NĂNG THANH TOÁN
-      {
-        headerName: 'KHẢ NĂNG THANH TOÁN',
-        children: [
-          { field: 'currentRatio', headerName: 'Thanh toán hiện hành', width: 170, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'quickRatio', headerName: 'Thanh toán nhanh', width: 150, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'daysReceivable', headerName: 'Số ngày phải thu', width: 150, valueFormatter: (p) => p.value?.toFixed(0) || '' },
-          { field: 'daysInventory', headerName: 'Số ngày tồn kho', width: 150, valueFormatter: (p) => p.value?.toFixed(0) || '' },
-          { field: 'daysPayable', headerName: 'Số ngày phải trả', width: 150, valueFormatter: (p) => p.value?.toFixed(0) || '' },
-          { field: 'cashConversionCycle', headerName: 'Chu kỳ tiền mặt', width: 150, valueFormatter: (p) => p.value?.toFixed(0) || '' },
-        ],
+      { 
+        field: 'operatingCashFlow', 
+        headerName: 'LC tiền từ HĐKD', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClassRules: percentageCellClassRules
       },
-
-      // HIỆU QUẢ SỬ DỤNG TÀI SẢN
-      {
-        headerName: 'HIỆU QUẢ SỬ DỤNG TÀI SẢN',
-        children: [
-          { field: 'workingCapitalTurnover', headerName: 'Vòng quay vốn LĐ', width: 160, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'capexToFixedAssets', headerName: 'Chi phí đầu tư/TSCĐ', width: 170, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'assetTurnover', headerName: 'Vòng quay tài sản', width: 160, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-        ],
+      { 
+        field: 'investingCashFlow', 
+        headerName: 'LC tiền từ HĐĐT', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClassRules: percentageCellClassRules
       },
+      { 
+        field: 'financingCashFlow', 
+        headerName: 'LC tiền từ HĐTC', 
+        width: 160, 
+        valueFormatter: (p) => formatNumber(p.value),
+        cellClassRules: percentageCellClassRules
+      },
+    ],
+  },
 
-      // PHÂN TÍCH DUPONT
-      {
-        headerName: 'PHÂN TÍCH DUPONT',
-        children: [
-          { field: 'dupontNetToEbt', headerName: 'LNST/LNTT', width: 120, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'dupontEbtToEbit', headerName: 'LNTT/EBIT', width: 120, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'dupontEbitMargin', headerName: 'EBIT/DT thuần (%)', width: 160, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'dupontAssetTurnover', headerName: 'DT thuần/Tài sản', width: 160, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'dupontRoa', headerName: 'ROA (%)', width: 110, valueFormatter: (p) => formatPercentage(p.value) },
-          { field: 'dupontEquityMultiplier', headerName: 'Tài sản/VCSH', width: 140, valueFormatter: (p) => p.value?.toFixed(2) || '' },
-          { field: 'dupontRoe', headerName: 'ROE (%)', width: 110, valueFormatter: (p) => formatPercentage(p.value) },
-        ],
+  // FILE DOWNLOAD
+  {
+    headerName: 'TÀI LIỆU',
+    children: [
+      { 
+        field: 'fileUrl', 
+        headerName: 'Tải xuống', 
+        width: 110,
+        cellRenderer: (params: any) => {
+          // Skip for ticker header rows
+          if (params.data?.isTickerHeader) return '';
+          
+          const fileUrl = params.value;
+          if (!fileUrl) return '';
+          
+          // Return download icon with link
+          return `<a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center text-blue-600 hover:text-blue-800">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </a>`;
+        },
+        cellStyle: { textAlign: 'center' }
       },
     ],
   },

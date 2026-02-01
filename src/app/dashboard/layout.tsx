@@ -307,9 +307,9 @@ export default function DashboardLayout({
   const handleAddPage = async (pageName: string, layoutType: string) => {
     console.log("handleAddPage called with:", { pageName, layoutType });
 
-    // Check workspace limit (maximum 6 workspaces)
+    // Check giao diện limit (maximum 6 giao diện)
     if (pages.length >= 6) {
-      setNotification('Bạn đã đạt giới hạn 6 workspace. Vui lòng xóa workspace cũ trước khi tạo mới.');
+      setNotification('Bạn đã đạt giới hạn giao diện. Vui lòng xóa giao diện cũ hoặc nâng cấp gói đăng kí để tạo mới.');
       setTimeout(() => setNotification(null), 3000);
       return;
     }

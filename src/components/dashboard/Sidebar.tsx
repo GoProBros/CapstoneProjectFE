@@ -161,22 +161,20 @@ export default function Sidebar({
                         </div>
                     ))}
 
-                    {/* Grid Icon - Add page button (hidden when workspace count >= 6) */}
-                    {workspaceCount < 6 && (
-                        <div className="relative group">
-                            <button 
-                                onClick={onAddPage}
-                                className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                            >
-                                <LayoutGrid className={`w-10 h-10 ${
-                                    theme === 'dark' ? 'text-white-400' : 'text-gray-700'
-                                }`} strokeWidth={2} />
-                            </button>
-                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                Thêm page tùy chọn
-                            </div>
+                    {/* Grid Icon - Add page button / Workspace management */}
+                    <div className="relative group">
+                        <button 
+                            onClick={onAddPage}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                        >
+                            <LayoutGrid className={`w-10 h-10 ${
+                                theme === 'dark' ? 'text-white-400' : 'text-gray-700'
+                            }`} strokeWidth={2} />
+                        </button>
+                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                            {workspaceCount >= 6 ? 'Quản lý workspace' : 'Thêm page tùy chọn'}
                         </div>
-                    )}
+                    </div>
                 </div>
 
             

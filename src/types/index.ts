@@ -21,17 +21,26 @@ export * from './symbol';
 export * from './layout';
 export * from './watchList';
 export * from './workspace';
+export * from './sector';
 
 export interface PaginationParams {
   page: number;
   limit: number;
 }
 
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+/**
+ * Paginated data structure from backend
+ */
+export interface PaginatedData<T> {
+  items: T[];
+  pageIndex: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
+
+/**
+ * API Response with paginated data
+ */
+export type PaginatedResponse<T> = ApiResponse<PaginatedData<T>>;

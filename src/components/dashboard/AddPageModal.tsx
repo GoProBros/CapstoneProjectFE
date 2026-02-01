@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, LayoutGrid, Save, Copy, Check, AlertTriangle } from 'lucide-react';
+import { ChevronDown, LayoutGrid, Save, Copy, Check, AlertTriangle, X } from 'lucide-react';
 import * as workspaceService from '@/services/workspaceService';
 import type { Workspace } from '@/types';
 
@@ -220,9 +220,18 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
             onClick={handleClose}
         >
             <div 
-                className="w-full max-w-[1200px] h-[85vh] bg-[#0a0a0a] rounded-3xl border border-accentGreen shadow-2xl shadow-accentGreen/20 flex overflow-hidden"
+                className="w-full max-w-[1200px] h-[85vh] bg-[#0a0a0a] rounded-3xl border border-accentGreen shadow-2xl shadow-accentGreen/20 flex overflow-hidden relative"
                 onClick={(e) => e.stopPropagation()}
             >
+                {/* Close Button */}
+                <button
+                    onClick={handleClose}
+                    className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center bg-gray-800 hover:bg-red-600 rounded-full transition-colors group"
+                    title="Đóng"
+                >
+                    <X className="w-5 h-5 text-gray-300 group-hover:text-white" />
+                </button>
+
                 {/* Content - Two Column Layout */}
                 <div className="flex-1 flex overflow-hidden">
                     {/* Left Column - Workspace Management */}
@@ -231,7 +240,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
                             <h3 className="text-white font-medium mb-3 flex items-center gap-2">
                                 <Copy className="w-4 h-4 text-accentGreen" />
-                                Apply Workspace từ Share Code
+                                Áp dụng Giao diện bằng Code
                             </h3>
                             <div className="flex gap-2">
                                 <input
@@ -246,7 +255,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                     disabled={isApplying || !shareCode.trim() || workspaceCount >= 6}
                                     className="px-4 py-2 bg-accentGreen hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
                                 >
-                                    {isApplying ? 'Đang xử lý...' : 'Apply'}
+                                    {isApplying ? 'Đang xử lý...' : 'Áp dụng'}
                                 </button>
                             </div>
                             {error && (
@@ -261,13 +270,13 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
                             <div className="flex items-center gap-2 text-white font-medium mb-3">
                                 <LayoutGrid className="w-4 h-4 text-accentGreen" />
-                                <span>Danh sách Workspace ({workspaces.length}/6)</span>
+                                <span>Danh sách Giao diện ({workspaces.length}/6)</span>
                             </div>
                             
                             <div className="space-y-2 max-h-[calc(85vh-300px)] overflow-y-auto pr-2">
                                 {workspaces.length === 0 ? (
                                     <div className="text-gray-500 text-sm text-center py-4">
-                                        Không có workspace nào
+                                        Chưa có giao diện nào
                                     </div>
                                 ) : (
                                     workspaces.map((ws) => (
@@ -322,7 +331,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                                     )}
                                                     {ws.shareCode && (
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-gray-400 text-xs">Share Code:</span>
+                                                            <span className="text-gray-400 text-xs">Code:</span>
                                                             <span className="text-accentGreen text-xs font-mono">{ws.shareCode}</span>
                                                         </div>
                                                     )}
@@ -367,6 +376,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                     {/* Right Column - Layout Preview */}
                     <div className="flex-1 bg-moduleBackground overflow-y-auto p-8">
                         {/* Controls Section */}
+                        <h3 className="text-white font-semibold mb-4">Tạo giao diện mới</h3>
                         <div className="mb-6 flex items-center justify-between gap-4 pb-4 border-b border-gray-700">
                             <div className="flex items-center gap-4 flex-1">
                                 {/* Dropdown Button */}
@@ -410,7 +420,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                         type="text"
                                         value={pageName}
                                         onChange={(e) => setPageName(e.target.value)}
-                                        placeholder="Nhập tên menu"
+                                        placeholder="Nhập tên giao diện mới"
                                         className="bg-transparent border-none outline-none text-white placeholder-gray-500 text-sm w-52"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
@@ -431,7 +441,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                             </button>
                         </div>
 
-                        <h3 className="text-white font-medium mb-4">Preview Layout</h3>
+                        <h3 className="text-white font-medium mb-4">Xem trước giao diện</h3>
                     {selectedLayout === 'Giao diện mặc định' && (
                         <div className="grid grid-cols-12 gap-4">
                             {/* Row 1: Large module (8 cols) + Small module (4 cols) */}
@@ -556,13 +566,13 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                         <div className="flex items-start gap-3 mb-4">
                             <AlertTriangle className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
                             <div>
-                                <h3 className="text-white font-semibold mb-2">Xác nhận Apply Workspace</h3>
+                                <h3 className="text-white font-semibold mb-2">Xác nhận Áp dụng Giao diện</h3>
                                 <p className="text-gray-300 text-sm">
-                                    Việc apply workspace được share này tương đương với việc bạn tạo 1 workspace mới. 
-                                    Vui lòng đảm bảo rằng số workspace không vượt quá cho phép (tối đa 6 workspace).
+                                    Việc áp dụng giao diện được share này tương đương với việc bạn tạo 1 giao diện mới. 
+                                    Vui lòng đảm bảo rằng số giao diện không vượt quá cho phép (tối đa 6 giao diện).
                                 </p>
                                 <p className="text-gray-400 text-xs mt-2">
-                                    Hiện tại: {workspaceCount}/6 workspaces
+                                    Hiện tại: {workspaceCount}/6 giao diện
                                 </p>
                             </div>
                         </div>

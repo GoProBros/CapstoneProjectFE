@@ -5,16 +5,11 @@
  * Optimized non-realtime module with extended caching and memoization
  */
 
-import React, { useEffect, useState, memo } from 'react';
+import React, { memo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFinancialReportQuery } from '@/hooks/useFinancialReportQuery';
-import { useModule } from '@/contexts/ModuleContext';
-import { useDashboard } from '@/contexts/DashboardContext';
 import HeaderSection from './FinancialReportPro/HeaderSection';
 import FinancialReportTable from './FinancialReportPro/FinancialReportTable';
-
-// Module type constant for Financial Report Pro
-const MODULE_TYPE_FINANCIAL_REPORT_PRO = 2;
 
 // Optimized QueryClient for non-realtime data with extended caching
 const queryClient = new QueryClient({
@@ -46,7 +41,11 @@ const FinancialReportContent = memo(function FinancialReportContent() {
   return (
     <div className="rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-between">
       <HeaderSection />
-      <FinancialReportTable data={data || []} loading={isLoading} />
+      <FinancialReportTable 
+        data={data?.items || []} 
+        loading={isLoading}
+        totalCount={data?.totalCount || 0}
+      />
     </div>
   );
 });

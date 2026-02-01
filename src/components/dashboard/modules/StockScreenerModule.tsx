@@ -996,7 +996,7 @@ export default function StockScreenerModule() {
               <div className="flex flex-col items-center gap-3">
                 <div className="animate-spin rounded-full h-10 w-10 border-4 border-buttonGreen border-t-transparent"></div>
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                  Đang tải cấu hình workspace...
+                  Đang tải cấu hình giao diện...
                 </span>
               </div>
             </div>
