@@ -4,17 +4,18 @@
  */
 
 import { get } from './api';
-import type { ApiResponse, PaginatedResponse, PaginatedData } from '@/types';
+import { API_ENDPOINTS } from '@/constants';
+import type { PaginatedData } from '@/types';
 import type {
   FinancialReport,
   FinancialReportFilters,
-  FinancialReportQueryParams,
   FinancialReportTableRow,
   FinancialPeriodType,
 } from '@/types/financialReport';
 
 /**
  * Convert FinancialReport to flattened table row
+ * Supports all company types: Regular, Bank, Insurance, Securities
  */
 function convertToTableRow(report: FinancialReport): FinancialReportTableRow {
   // Validate report structure
@@ -25,20 +26,224 @@ function convertToTableRow(report: FinancialReport): FinancialReportTableRow {
   const { reportData } = report;
   const { balanceSheet, incomeStatement, cashFlowStatement } = reportData;
 
-  // Calculate total assets with null safety
-  const totalShortTermAssets = balanceSheet?.shortTermAssets 
-    ? Object.values(balanceSheet.shortTermAssets).reduce((sum, val) => sum + (val || 0), 0)
-    : 0;
-  const totalLongTermAssets = balanceSheet?.longTermAssets
-    ? Object.values(balanceSheet.longTermAssets).reduce((sum, val) => sum + (val || 0), 0)
-    : 0;
-  const totalAssets = totalShortTermAssets + totalLongTermAssets;
+  // Determine company type
+  const isBank = !!balanceSheet?.bankAssets;
+  const isInsurance = !!incomeStatement?.insuranceBusiness;
+  const isSecurities = !!incomeStatement?.securitiesRevenue;
 
-  // Calculate total liabilities and equity with null safety
-  const totalLiabilities = (balanceSheet?.liabilities?.shortTerm || 0) + (balanceSheet?.liabilities?.longTerm || 0);
-  const totalEquity = balanceSheet?.equity
-    ? Object.values(balanceSheet.equity).reduce((sum, val) => sum + (val || 0), 0)
-    : 0;
+  // ========== BALANCE SHEET ==========
+  
+  // Calculate total assets
+  let totalShortTermAssets = 0;
+  let totalLongTermAssets = 0;
+  let totalAssets = 0;
+  
+  // Regular company asset details
+  let cash = 0;
+  let financialInvestmentsShortTerm = 0;
+  let receivablesShortTerm = 0;
+  let inventories = 0;
+  let otherAssetsShortTerm = 0;
+  let receivablesLongTerm = 0;
+  let fixedAssets = 0;
+  let investmentProperty = 0;
+  let longTermAssetsInProgress = 0;
+  let financialInvestmentsLongTerm = 0;
+  let otherAssetsLongTerm = 0;
+  
+  // Bank-specific assets
+  let depositsAtCentralBank = 0;
+  let depositsAtOtherCreditInstitutions = 0;
+  let tradingSecurities = 0;
+  let loansToCustomers = 0;
+  let investmentSecurities = 0;
+  let bankOtherAssets = 0;
+  
+  // Securities short-term financial assets
+  let shortTermFinancialAssetsCash = 0;
+  let shortTermFinancialAssetsLoans = 0;
+  let shortTermFinancialAssetsOther = 0;
+  
+  // Securities trading and capital assets
+  let heldToMaturity = 0;
+  let availableForSale = 0;
+  let fvtpl = 0;
+
+  if (isBank && balanceSheet?.bankAssets) {
+    // Bank assets
+    depositsAtCentralBank = balanceSheet.bankAssets.depositsAtCentralBank || 0;
+    depositsAtOtherCreditInstitutions = balanceSheet.bankAssets.depositsAtOtherCreditInstitutions || 0;
+    tradingSecurities = balanceSheet.bankAssets.tradingSecurities || 0;
+    loansToCustomers = balanceSheet.bankAssets.loansToCustomers || 0;
+    investmentSecurities = balanceSheet.bankAssets.investmentSecurities || 0;
+    bankOtherAssets = balanceSheet.bankAssets.otherAssets || 0;
+    
+    totalShortTermAssets = depositsAtCentralBank + depositsAtOtherCreditInstitutions + tradingSecurities;
+    totalLongTermAssets = loansToCustomers + investmentSecurities + bankOtherAssets;
+    totalAssets = totalShortTermAssets + totalLongTermAssets;
+  } else {
+    // Regular company assets
+    if (balanceSheet?.shortTermAssets) {
+      cash = balanceSheet.shortTermAssets.cash || 0;
+      financialInvestmentsShortTerm = balanceSheet.shortTermAssets.financialInvestments || 0;
+      receivablesShortTerm = balanceSheet.shortTermAssets.receivables || 0;
+      inventories = balanceSheet.shortTermAssets.inventories || 0;
+      otherAssetsShortTerm = balanceSheet.shortTermAssets.otherAssets || 0;
+      totalShortTermAssets = cash + financialInvestmentsShortTerm + receivablesShortTerm + inventories + otherAssetsShortTerm;
+    }
+    
+    if (balanceSheet?.longTermAssets) {
+      receivablesLongTerm = balanceSheet.longTermAssets.receivables || 0;
+      fixedAssets = balanceSheet.longTermAssets.fixedAssets || 0;
+      investmentProperty = balanceSheet.longTermAssets.investmentProperty || 0;
+      longTermAssetsInProgress = balanceSheet.longTermAssets.longTermAssetsInProgress || 0;
+      financialInvestmentsLongTerm = balanceSheet.longTermAssets.financialInvestments || 0;
+      otherAssetsLongTerm = balanceSheet.longTermAssets.otherAssets || 0;
+      totalLongTermAssets = receivablesLongTerm + fixedAssets + investmentProperty + longTermAssetsInProgress + financialInvestmentsLongTerm + otherAssetsLongTerm;
+    }
+    
+    totalAssets = totalShortTermAssets + totalLongTermAssets;
+  }
+  
+  // Securities-specific assets
+  if (balanceSheet?.shortTermFinancialAssets) {
+    shortTermFinancialAssetsCash = balanceSheet.shortTermFinancialAssets.cash || 0;
+    shortTermFinancialAssetsLoans = balanceSheet.shortTermFinancialAssets.loans || 0;
+    shortTermFinancialAssetsOther = balanceSheet.shortTermFinancialAssets.other || 0;
+  }
+  
+  if (balanceSheet?.tradingAndCapitalAssets) {
+    heldToMaturity = balanceSheet.tradingAndCapitalAssets.heldToMaturity || 0;
+    availableForSale = balanceSheet.tradingAndCapitalAssets.availableForSale || 0;
+    fvtpl = balanceSheet.tradingAndCapitalAssets.fvtpl || 0;
+  }
+
+  // Liabilities and Equity
+  const shortTermLiabilities = balanceSheet?.liabilities?.shortTerm || 0;
+  const longTermLiabilities = balanceSheet?.liabilities?.longTerm || 0;
+  const totalLiabilities = shortTermLiabilities + longTermLiabilities;
+  
+  const shortTermBorrowings = balanceSheet?.borrowings?.shortTermBorrowings || 0;
+  const longTermBorrowings = balanceSheet?.borrowings?.longTermBorrowings || 0;
+  
+  const contributedCapital = balanceSheet?.equity?.contributedCapital || 0;
+  const retainedEarnings = balanceSheet?.equity?.retainedEarnings || 0;
+  const treasuryShares = balanceSheet?.equity?.treasuryShares || 0;
+  const otherCapital = balanceSheet?.equity?.otherCapital || 0;
+  const totalEquity = contributedCapital + retainedEarnings + treasuryShares + otherCapital;
+
+  // ========== INCOME STATEMENT ==========
+  
+  // Regular company income fields
+  let netRevenue = 0;
+  let costOfGoodsSold = 0;
+  let grossProfit = 0;
+  let sellingExpenses = 0;
+  let managementExpenses = 0;
+  let financialExpenses = 0;
+  let interestExpenses = 0;
+  let operatingProfit = 0;
+  let financialProfit = 0;
+  let shareProfitOfAssociates = 0;
+  let otherProfit = 0;
+  let profitBeforeTax = 0;
+  let corporateIncomeTax = 0;
+  let minorityInterests = 0;
+  let netProfit = 0;
+  
+  // Bank-specific income fields
+  let netInterestIncome = 0;
+  let serviceFeeIncome = 0;
+  let tradingIncome = 0;
+  let bankOtherIncome = 0;
+  
+  // Insurance-specific income fields
+  let insuranceOperatingProfit = 0;
+  let insuranceNetOperatingRevenue = 0;
+  let insuranceOperatingExpenses = 0;
+  
+  // Securities-specific income fields
+  let brokerageAndCustodyRevenue = 0;
+  let lendingRevenue = 0;
+  let tradingAndCapitalRevenue = 0;
+  let investmentBankingRevenue = 0;
+  
+  // Additional profit fields
+  let profitAfterTaxAndAfs = 0;
+  let afsGains = 0;
+
+  if (isBank && incomeStatement?.bankOperatingIncome) {
+    // Bank income
+    netInterestIncome = incomeStatement.bankOperatingIncome.netInterestIncome || 0;
+    serviceFeeIncome = incomeStatement.bankOperatingIncome.serviceFeeIncome || 0;
+    tradingIncome = incomeStatement.bankOperatingIncome.tradingIncome || 0;
+    bankOtherIncome = incomeStatement.bankOperatingIncome.otherIncome || 0;
+    
+    netRevenue = netInterestIncome;
+    grossProfit = netInterestIncome + serviceFeeIncome + tradingIncome + bankOtherIncome;
+    operatingProfit = grossProfit;
+    profitBeforeTax = incomeStatement.parentCompanyNetProfit?.profitBeforeTax || 0;
+    corporateIncomeTax = incomeStatement.parentCompanyNetProfit?.corporateIncomeTax || 0;
+    minorityInterests = incomeStatement.parentCompanyNetProfit?.minorityInterests || 0;
+    netProfit = incomeStatement.parentCompanyNetProfit?.parentCompanyNetProfit || 0;
+  } else if (isInsurance && incomeStatement?.insuranceBusiness) {
+    // Insurance income
+    insuranceOperatingProfit = incomeStatement.insuranceBusiness.operatingProfit || 0;
+    insuranceNetOperatingRevenue = incomeStatement.insuranceBusiness.netOperatingRevenue || 0;
+    insuranceOperatingExpenses = incomeStatement.insuranceBusiness.operatingExpenses || 0;
+    
+    netRevenue = insuranceNetOperatingRevenue;
+    grossProfit = insuranceNetOperatingRevenue + insuranceOperatingExpenses; // operatingExpenses is negative
+    operatingProfit = insuranceOperatingProfit;
+    profitBeforeTax = incomeStatement.profitBeforeTax?.profitBeforeTax || 0;
+    financialProfit = incomeStatement.profitBeforeTax?.financialProfit || 0;
+    shareProfitOfAssociates = incomeStatement.profitBeforeTax?.shareProfitOfAssociatesAndJoint || 0;
+    otherProfit = incomeStatement.profitBeforeTax?.otherProfit || 0;
+    managementExpenses = incomeStatement.profitBeforeTax?.managementExpenses || 0;
+    corporateIncomeTax = incomeStatement.parentCompanyNetProfit?.corporateIncomeTax || 0;
+    minorityInterests = incomeStatement.parentCompanyNetProfit?.minorityInterests || 0;
+    netProfit = incomeStatement.parentCompanyNetProfit?.parentCompanyNetProfit || 0;
+  } else if (isSecurities && incomeStatement?.securitiesRevenue) {
+    // Securities income
+    brokerageAndCustodyRevenue = incomeStatement.securitiesRevenue.brokerageAndCustodyRevenue || 0;
+    lendingRevenue = incomeStatement.securitiesRevenue.lendingRevenue || 0;
+    tradingAndCapitalRevenue = incomeStatement.securitiesRevenue.tradingAndCapitalRevenue || 0;
+    investmentBankingRevenue = incomeStatement.securitiesRevenue.investmentBankingRevenue || 0;
+    
+    netRevenue = brokerageAndCustodyRevenue + lendingRevenue + tradingAndCapitalRevenue + investmentBankingRevenue;
+    grossProfit = netRevenue;
+    operatingProfit = incomeStatement.profitBeforeTax?.operatingProfit || 0;
+    profitBeforeTax = incomeStatement.profitBeforeTax?.profitBeforeTax || 0;
+    corporateIncomeTax = incomeStatement.parentCompanyNetProfit?.corporateIncomeTax || 0;
+    minorityInterests = incomeStatement.parentCompanyNetProfit?.minorityInterests || 0;
+    netProfit = incomeStatement.parentCompanyNetProfit?.parentCompanyNetProfit || 0;
+  } else {
+    // Regular company income
+    netRevenue = incomeStatement?.grossProfit?.netRevenue || 0;
+    costOfGoodsSold = incomeStatement?.grossProfit?.costOfGoodsSold || 0;
+    grossProfit = incomeStatement?.grossProfit?.grossProfit || 0;
+    
+    sellingExpenses = incomeStatement?.expenses?.sellingExpenses || 0;
+    managementExpenses = incomeStatement?.expenses?.managementExpenses || 0;
+    financialExpenses = incomeStatement?.expenses?.financialExpenses || 0;
+    interestExpenses = incomeStatement?.expenses?.interestExpenses || 0;
+    
+    operatingProfit = incomeStatement?.profitBeforeTax?.operatingProfit || 0;
+    financialProfit = incomeStatement?.profitBeforeTax?.financialProfit || 0;
+    shareProfitOfAssociates = incomeStatement?.profitBeforeTax?.shareProfitOfAssociatesAndJoint || 0;
+    otherProfit = incomeStatement?.profitBeforeTax?.otherProfit || 0;
+    profitBeforeTax = incomeStatement?.profitBeforeTax?.profitBeforeTax || 0;
+    
+    corporateIncomeTax = incomeStatement?.parentCompanyNetProfit?.corporateIncomeTax || 0;
+    minorityInterests = incomeStatement?.parentCompanyNetProfit?.minorityInterests || 0;
+    netProfit = incomeStatement?.parentCompanyNetProfit?.parentCompanyNetProfit || 0;
+  }
+  
+  // Extract profit after tax and AFS gains
+  if (incomeStatement?.profitAfterTaxAndAFS) {
+    profitAfterTaxAndAfs = incomeStatement.profitAfterTaxAndAFS.profitAfterTaxAndAfs || 0;
+    afsGains = incomeStatement.profitAfterTaxAndAFS.afsGains || 0;
+  }
 
   // Get period label
   const periodLabel = getPeriodLabel(report.year, report.period);
@@ -50,21 +255,93 @@ function convertToTableRow(report: FinancialReport): FinancialReportTableRow {
     period: report.period,
     periodLabel,
 
-    // Balance Sheet
+    // Balance Sheet - Summary
     totalAssets,
     totalLiabilities,
     totalEquity,
     shortTermAssets: totalShortTermAssets,
     longTermAssets: totalLongTermAssets,
+    
+    // Balance Sheet - Regular Company Details
+    cash,
+    financialInvestmentsShortTerm,
+    receivablesShortTerm,
+    inventories,
+    otherAssetsShortTerm,
+    receivablesLongTerm,
+    fixedAssets,
+    investmentProperty,
+    longTermAssetsInProgress,
+    financialInvestmentsLongTerm,
+    otherAssetsLongTerm,
+    
+    // Balance Sheet - Bank Specific
+    depositsAtCentralBank,
+    depositsAtOtherCreditInstitutions,
+    tradingSecurities,
+    loansToCustomers,
+    investmentSecurities,
+    bankOtherAssets,
+    
+    // Balance Sheet - Securities Short-term Financial Assets
+    shortTermFinancialAssetsCash,
+    shortTermFinancialAssetsLoans,
+    shortTermFinancialAssetsOther,
+    
+    // Balance Sheet - Securities Trading and Capital Assets
+    heldToMaturity,
+    availableForSale,
+    fvtpl,
+    
+    // Balance Sheet - Liabilities & Equity Details
+    shortTermLiabilities,
+    longTermLiabilities,
+    shortTermBorrowings,
+    longTermBorrowings,
+    contributedCapital,
+    retainedEarnings,
+    treasuryShares,
+    otherCapital,
 
-    // Income Statement with null safety
-    netRevenue: incomeStatement?.grossProfit?.netRevenue || 0,
-    grossProfit: incomeStatement?.grossProfit?.grossProfit || 0,
-    operatingProfit: incomeStatement?.profitBeforeTax?.operatingProfit || 0,
-    profitBeforeTax: incomeStatement?.profitBeforeTax?.profitBeforeTax || 0,
-    netProfit: incomeStatement?.parentCompanyNetProfit?.parentCompanyNetProfit || 0,
+    // Income Statement - Regular Company
+    netRevenue,
+    costOfGoodsSold,
+    grossProfit,
+    sellingExpenses,
+    managementExpenses,
+    financialExpenses,
+    interestExpenses,
+    operatingProfit,
+    financialProfit,
+    shareProfitOfAssociates,
+    otherProfit,
+    profitBeforeTax,
+    corporateIncomeTax,
+    minorityInterests,
+    netProfit,
+    
+    // Income Statement - Bank Specific
+    netInterestIncome,
+    serviceFeeIncome,
+    tradingIncome,
+    bankOtherIncome,
+    
+    // Income Statement - Insurance Specific
+    insuranceOperatingProfit,
+    insuranceNetOperatingRevenue,
+    insuranceOperatingExpenses,
+    
+    // Income Statement - Securities Specific
+    brokerageAndCustodyRevenue,
+    lendingRevenue,
+    tradingAndCapitalRevenue,
+    investmentBankingRevenue,
+    
+    // Income Statement - Additional Profit Fields
+    profitAfterTaxAndAfs,
+    afsGains,
 
-    // Cash Flow with null safety
+    // Cash Flow
     netCashFlow: cashFlowStatement?.netCashFlow || 0,
     operatingCashFlow: cashFlowStatement?.operatingActivities || 0,
     investingCashFlow: cashFlowStatement?.investingActivities || 0,
@@ -80,55 +357,44 @@ function convertToTableRow(report: FinancialReport): FinancialReportTableRow {
 
 /**
  * Get period label for display
- * Note: For quarterly reports, the API should provide quarter number in additional field
- * Current implementation shows only year for quarterly to avoid incorrect quarter display
  */
 function getPeriodLabel(year: number, period: FinancialPeriodType): string {
   switch (period) {
-    case 1: // Yearly
-      return `${year}`;
-    case 2: // Quarterly
-      // TODO: Backend should provide quarter number (1-4) in the response
-      return `${year} - Quý`; // Temporary: show "Quý" without number
-    case 3: // Cumulative
-      return `${year} - Lũy kế`;
+    case 1:
+      return `Quý 1/${year}`;
+    case 2:
+      return `Quý 2/${year}`;
+    case 3:
+      return `Quý 3/${year}`;
+    case 4:
+      return `Quý 4/${year}`;
+    case 5:
+      return `Năm ${year}`;
     default:
       return `${year}`;
   }
 }
 
 /**
- * Fetch financial reports with filters and pagination
- * @returns Promise with items array and totalCount, or empty result on error
+ * Fetch financial reports by single ticker
+ * @param ticker - Single ticker symbol (required)
+ * @returns Promise with items array and totalCount
  */
-export async function fetchFinancialReports(
-  filters: FinancialReportFilters = {}
+export async function fetchFinancialReportsByTicker(
+  ticker: string
 ): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
   try {
-    // If sectorId is provided, fetch all symbols in that sector
-    // and get financial reports for all of them
-    if (filters.sectorId) {
-      return await fetchFinancialReportsBySector(filters);
-    }
-
-    // Build query parameters for regular single-ticker fetch
-    const params: FinancialReportQueryParams = {};
-    if (filters.ticker) params.ticker = filters.ticker;
-    if (filters.year) params.year = filters.year;
-    if (filters.period !== undefined) params.period = filters.period;
-    if (filters.status !== undefined) params.status = filters.status;
-    if (filters.pageIndex !== undefined) params.pageIndex = filters.pageIndex;
-    if (filters.pageSize !== undefined) params.pageSize = filters.pageSize;
+    const pageIndex = 1;
+    const pageSize = 100;
 
     // Build query string
-    const queryString = new URLSearchParams(
-      Object.entries(params)
-        .filter(([_, value]) => value !== undefined)
-        .map(([key, value]) => [key, String(value)])
-    ).toString();
+    const params = new URLSearchParams({
+      Ticker: ticker,
+      PageIndex: pageIndex.toString(),
+      PageSize: pageSize.toString(),
+    });
 
-    // Call API
-    const endpoint = `/financial-reports${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.TICKER}?${params.toString()}`;
     const response = await get<PaginatedData<FinancialReport>>(endpoint);
 
     // Handle unsuccessful response
@@ -142,13 +408,13 @@ export async function fetchFinancialReports(
       return { items: [], totalCount: 0 };
     }
 
-    // Convert to table rows with error handling per item
+    // Convert to table rows with error handling
     const items = response.data.items
       .map((report, index) => {
         try {
           return convertToTableRow(report);
         } catch (err) {
-          console.error(`Error converting report at index ${index} (id: ${report?.id || 'unknown'}):`, err);
+          console.error(`Error converting report at index ${index}:`, err);
           return null;
         }
       })
@@ -158,210 +424,7 @@ export async function fetchFinancialReports(
 
     return { items, totalCount };
   } catch (error) {
-    console.error('Error fetching financial reports:', error);
-    // Return empty result instead of throwing to prevent app crash
+    console.error(`Error fetching financial reports for ${ticker}:`, error);
     return { items: [], totalCount: 0 };
-  }
-}
-
-/**
- * Fetch financial reports for all symbols in a sector
- * Makes individual API calls for each ticker and aggregates results
- * @param filters - Filters including sectorId
- * @returns Aggregated financial reports from all tickers in the sector
- */
-async function fetchFinancialReportsBySector(
-  filters: FinancialReportFilters
-): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
-  try {
-    // Import sector store dynamically to avoid circular dependencies
-    const { useSectorStore } = await import('@/stores/sectorStore');
-    const getSectorFromCache = useSectorStore.getState().getSectorFromCache;
-    
-    // Get the sector from cache
-    const sector = getSectorFromCache(filters.sectorId!);
-    
-    if (!sector || !sector.symbols || sector.symbols.length === 0) {
-      console.warn(`No symbols found for sector: ${filters.sectorId}`);
-      return { items: [], totalCount: 0 };
-    }
-
-    // Fetch financial reports for each symbol in parallel
-    const reportPromises = sector.symbols.map(async (ticker) => {
-      try {
-        const params: FinancialReportQueryParams = {
-          ticker,
-          year: filters.year,
-          period: filters.period,
-          status: filters.status,
-          pageIndex: 1, // Always fetch first page for each ticker
-          pageSize: 100, // Get up to 100 reports per ticker
-        };
-
-        const queryString = new URLSearchParams(
-          Object.entries(params)
-            .filter(([_, value]) => value !== undefined)
-            .map(([key, value]) => [key, String(value)])
-        ).toString();
-
-        const endpoint = `/financial-reports${queryString ? `?${queryString}` : ''}`;
-        const response = await get<PaginatedData<FinancialReport>>(endpoint);
-
-        if (response.isSuccess && response.data && response.data.items && Array.isArray(response.data.items)) {
-          return response.data.items;
-        }
-        return [];
-      } catch (err) {
-        console.error(`Error fetching reports for ticker ${ticker}:`, err);
-        return [];
-      }
-    });
-
-    // Wait for all API calls to complete
-    const allReportsArrays = await Promise.all(reportPromises);
-    
-    // Flatten all reports into a single array
-    const allReports = allReportsArrays.flat();
-
-    // Convert to table rows with error handling
-    const items = allReports
-      .map((report, index) => {
-        try {
-          return convertToTableRow(report);
-        } catch (err) {
-          console.error(`Error converting report at index ${index} (id: ${report?.id || 'unknown'}):`, err);
-          return null;
-        }
-      })
-      .filter((item): item is FinancialReportTableRow => item !== null);
-
-    // Apply client-side pagination if needed
-    const pageIndex = filters.pageIndex || 1;
-    const pageSize = filters.pageSize || 50;
-    const startIndex = (pageIndex - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedItems = items.slice(startIndex, endIndex);
-
-    return { 
-      items: paginatedItems, 
-      totalCount: items.length 
-    };
-  } catch (error) {
-    console.error('Error fetching financial reports by sector:', error);
-    return { items: [], totalCount: 0 };
-  }
-}
-
-/**
- * Fetch single financial report by ID
- * @returns FinancialReport object or null if not found/error
- */
-export async function fetchFinancialReportById(id: string): Promise<FinancialReport | null> {
-  try {
-    // Type guard and validation
-    if (typeof id !== 'string' || !id.trim()) {
-      console.error('Invalid report ID provided:', id);
-      return null;
-    }
-
-    const response = await get<FinancialReport>(`/financial-reports/${id}`);
-
-    if (!response.isSuccess) {
-      console.error('Failed to fetch financial report:', response.message);
-      return null;
-    }
-
-    if (!response.data) {
-      console.warn(`No data found for report ID: ${id}`);
-      return null;
-    }
-
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching financial report:', error);
-    return null;
-  }
-}
-
-/**
- * Fetch financial report by ticker, year, and period
- * @returns FinancialReport object or null if not found/error
- */
-export async function fetchFinancialReportByParams(
-  ticker: string,
-  year: number,
-  period: FinancialPeriodType
-): Promise<FinancialReport | null> {
-  try {
-    // Type guards and input validation
-    if (typeof ticker !== 'string' || !ticker.trim()) {
-      console.error('Invalid ticker provided:', ticker);
-      return null;
-    }
-
-    if (typeof year !== 'number' || !Number.isInteger(year) || year < 1900 || year > 2100) {
-      console.error('Invalid year provided:', year);
-      return null;
-    }
-
-    if (typeof period !== 'number' || ![1, 2, 3].includes(period)) {
-      console.error('Invalid period type provided:', period);
-      return null;
-    }
-
-    // Encode ticker for URL path
-    const encodedTicker = encodeURIComponent(ticker.trim());
-    
-    const response = await get<FinancialReport>(
-      `/financial-reports/ticker/${encodedTicker}/year/${year}/period/${period}`
-    );
-
-    if (!response.isSuccess) {
-      console.warn(`Report not found for ${ticker} ${year} period ${period}:`, response.message);
-      return null;
-    }
-
-    if (!response.data) {
-      return null;
-    }
-
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching financial report by params:', error);
-    return null;
-  }
-}
-
-/**
- * Fetch available years for a ticker
- * @returns Array of years or empty array if not found/error
- */
-export async function fetchAvailableYears(ticker?: string): Promise<number[]> {
-  try {
-    // Build endpoint with optional ticker
-    const endpoint = ticker?.trim() 
-      ? `/financial-reports/years?ticker=${encodeURIComponent(ticker.trim())}` 
-      : '/financial-reports/years';
-    
-    const response = await get<number[]>(endpoint);
-
-    if (!response.isSuccess) {
-      console.error('Failed to fetch available years:', response.message);
-      return [];
-    }
-
-    if (!response.data || !Array.isArray(response.data)) {
-      return [];
-    }
-
-    // Filter valid years and sort descending
-    const validYears = response.data
-      .filter((year) => typeof year === 'number' && year >= 1900 && year <= 2100)
-      .sort((a, b) => b - a);
-
-    return validYears;
-  } catch (error) {
-    console.error('Error fetching available years:', error);
-    return [];
   }
 }

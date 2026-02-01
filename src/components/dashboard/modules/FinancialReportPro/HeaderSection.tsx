@@ -7,7 +7,6 @@
 
 import React, { memo } from 'react';
 import LockToggle from './LockToggle';
-import PeriodTypeSelect from './PeriodTypeSelect';
 import TickerSearchBox from './TickerSearchBox';
 import IndustrySelect from './IndustrySelect';
 import FilterLayoutSelector from './FilterLayoutSelector';
@@ -18,7 +17,6 @@ const HeaderSection = memo(function HeaderSection() {
       {/* Left side: Lock + Filters */}
       <div className="flex-1 flex flex-wrap items-center gap-1 py-1 px-2 overflow-x-auto">
         <LockToggle />
-        <PeriodTypeSelect />
         <TickerSearchBox />
         <IndustrySelect />
       </div>
@@ -75,7 +73,7 @@ const HeaderSection = memo(function HeaderSection() {
 
       {/* Right side: Layout selectors */}
       <div className="flex-1 flex flex-wrap items-center justify-end gap-2 py-1 px-2 md:px-8 overflow-x-auto">
-        <FilterLayoutSelector />
+        {/* <FilterLayoutSelector /> */}
       </div>
     </div>
   );

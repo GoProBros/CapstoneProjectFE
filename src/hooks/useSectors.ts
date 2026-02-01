@@ -152,5 +152,6 @@ export const useSectors = () => {
     resetFilters,
     clearSectors,
     getTickersBySectorId,
+    getSectorFromCache, // Export cache getter
   };
 };

@@ -211,7 +211,6 @@ export interface FinancialReport {
 export interface FinancialReportFilters {
   ticker?: string;
   year?: number;
-  period?: FinancialPeriodType;
   status?: FinancialReportStatus;
   pageIndex?: number;
   pageSize?: number;
@@ -253,6 +252,7 @@ export interface FilterConfig {
 
 /**
  * Flattened view for table display
+ * Supports all company types: Regular, Bank, Insurance, Securities
  */
 export interface FinancialReportTableRow {
   id: string;
@@ -261,21 +261,93 @@ export interface FinancialReportTableRow {
   period: FinancialPeriodType;
   periodLabel: string;
   
-  // Balance Sheet - Key Metrics
+  // Balance Sheet - Summary
   totalAssets: number;
   totalLiabilities: number;
   totalEquity: number;
   shortTermAssets: number;
   longTermAssets: number;
   
-  // Income Statement - Key Metrics
-  netRevenue: number;
-  grossProfit: number;
-  operatingProfit: number;
+  // Balance Sheet - Regular Company Details
+  cash?: number;
+  financialInvestmentsShortTerm?: number;
+  receivablesShortTerm?: number;
+  inventories?: number;
+  otherAssetsShortTerm?: number;
+  receivablesLongTerm?: number;
+  fixedAssets?: number;
+  investmentProperty?: number;
+  longTermAssetsInProgress?: number;
+  financialInvestmentsLongTerm?: number;
+  otherAssetsLongTerm?: number;
+  
+  // Balance Sheet - Bank Specific
+  depositsAtCentralBank?: number;
+  depositsAtOtherCreditInstitutions?: number;
+  tradingSecurities?: number;
+  loansToCustomers?: number;
+  investmentSecurities?: number;
+  bankOtherAssets?: number;
+  
+  // Balance Sheet - Securities Short-term Financial Assets
+  shortTermFinancialAssetsCash?: number;
+  shortTermFinancialAssetsLoans?: number;
+  shortTermFinancialAssetsOther?: number;
+  
+  // Balance Sheet - Securities Trading and Capital Assets
+  heldToMaturity?: number;
+  availableForSale?: number;
+  fvtpl?: number;
+  
+  // Balance Sheet - Liabilities & Equity Details
+  shortTermLiabilities?: number;
+  longTermLiabilities?: number;
+  shortTermBorrowings?: number;
+  longTermBorrowings?: number;
+  contributedCapital?: number;
+  retainedEarnings?: number;
+  treasuryShares?: number;
+  otherCapital?: number;
+  
+  // Income Statement - Regular Company
+  netRevenue?: number;
+  costOfGoodsSold?: number;
+  grossProfit?: number;
+  sellingExpenses?: number;
+  managementExpenses?: number;
+  financialExpenses?: number;
+  interestExpenses?: number;
+  operatingProfit?: number;
+  financialProfit?: number;
+  shareProfitOfAssociates?: number;
+  otherProfit?: number;
   profitBeforeTax: number;
+  corporateIncomeTax?: number;
+  minorityInterests?: number;
   netProfit: number;
   
-  // Cash Flow - Key Metrics
+  // Income Statement - Bank Specific
+  netInterestIncome?: number;
+  serviceFeeIncome?: number;
+  tradingIncome?: number;
+  bankOtherIncome?: number;
+  
+  // Income Statement - Insurance Specific
+  insuranceOperatingProfit?: number;
+  insuranceNetOperatingRevenue?: number;
+  insuranceOperatingExpenses?: number;
+  
+  // Income Statement - Securities Specific
+  brokerageAndCustodyRevenue?: number;
+  lendingRevenue?: number;
+  tradingAndCapitalRevenue?: number;
+  investmentBankingRevenue?: number;
+  
+  // Income Statement - Additional Profit Fields
+  profitAfterTaxAndAfs?: number;
+  afsGains?: number;
+  
+  // Cash Flow
   netCashFlow: number;
   operatingCashFlow: number;
   investingCashFlow: number;

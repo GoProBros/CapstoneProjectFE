@@ -32,8 +32,7 @@ export const API_ENDPOINTS = {
   
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
-    LIST: '/financial-reports',
-    INDUSTRIES: '/industries',
+    TICKER: `/api/v1/financial-reports/ticker`,
   },
   
   // Watch List endpoints

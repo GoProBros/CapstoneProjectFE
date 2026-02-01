@@ -47,15 +47,36 @@ const FinancialReportTable = memo(function FinancialReportTable({
 
   const columnDefs = useMemo(() => getColumnDefs(), []);
 
-  // Sort data by ticker and year
-  const sortedData = useMemo(() => {
+  // Group data by ticker and add header rows
+  const groupedData = useMemo(() => {
     if (!data.length) return [];
-    return [...data].sort((a, b) => {
+    
+    // Sort by ticker (A-Z) then by year (descending)
+    const sorted = [...data].sort((a, b) => {
       if (a.ticker !== b.ticker) {
         return a.ticker.localeCompare(b.ticker);
       }
-      return b.year - a.year; // Descending by year
+      return b.year - a.year;
     });
+
+    // Group by ticker and insert header rows
+    const result: any[] = [];
+    let currentTicker = '';
+
+    sorted.forEach((row) => {
+      if (row.ticker !== currentTicker) {
+        // Add ticker header row
+        result.push({
+          isTickerHeader: true,
+          ticker: row.ticker,
+          id: `header-${row.ticker}`,
+        });
+        currentTicker = row.ticker;
+      }
+      result.push(row);
+    });
+
+    return result;
   }, [data]);
 
   return (
@@ -63,7 +84,7 @@ const FinancialReportTable = memo(function FinancialReportTable({
       {/* Status bar */}
       {totalCount > 0 && (
         <div className="px-4 py-2 text-sm text-gray-500">
-          Hiển thị {sortedData.length} / {totalCount} báo cáo
+          Hiển thị {data.length} / {totalCount} báo cáo
         </div>
       )}
       
@@ -80,16 +101,25 @@ const FinancialReportTable = memo(function FinancialReportTable({
       >
         <AgGridReact
           theme="legacy"
-          rowData={sortedData}
+          rowData={groupedData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          animateRows={false} // Disable animation for better performance
-          suppressRowTransform={true} // Improve performance
+          animateRows={false}
+          suppressRowTransform={true}
           suppressColumnVirtualisation={false}
-          rowBuffer={20} // Render 20 extra rows for smooth scrolling
+          rowBuffer={20}
           loading={loading}
           loadingOverlayComponent={LoadingOverlay}
           noRowsOverlayComponent={NoRowsOverlay}
+          getRowStyle={(params) => {
+            if (params.data?.isTickerHeader) {
+              return {
+                fontWeight: 'bold',
+                backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+              };
+            }
+            return undefined;
+          }}
         />
       </div>
     </div>

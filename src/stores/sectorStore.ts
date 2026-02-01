@@ -64,8 +64,16 @@ export const useSectorStore = create<SectorState>()(
 
       // Actions
       setSectors: (data) => {
+        // Remove duplicates by id before setting
+        const uniqueItems = data.items.reduce((acc, sector) => {
+          if (!acc.find(s => s.id === sector.id)) {
+            acc.push(sector);
+          }
+          return acc;
+        }, [] as Sector[]);
+        
         set({
-          sectors: data.items,
+          sectors: uniqueItems,
           paginationInfo: {
             pageIndex: data.pageIndex,
             totalPages: data.totalPages,
@@ -78,7 +86,7 @@ export const useSectorStore = create<SectorState>()(
         
         // Update cache with new sectors
         const newCache = { ...get().sectorCache };
-        data.items.forEach((sector) => {
+        uniqueItems.forEach((sector) => {
           newCache[sector.id] = sector;
         });
         set({ sectorCache: newCache });
