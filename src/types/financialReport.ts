@@ -9,12 +9,14 @@
 
 /**
  * Period type for financial reports
- * 1 = Yearly (Năm), 2 = Quarterly (Quý), 3 = Cumulative (Lũy kế)
+ * 1 = quý 1, 2 = quý 2, 3 = quý 3, 4 = quý 4, 5 = lũy kế cả năm
  */
 export enum FinancialPeriodType {
-  Yearly = 1,
-  Quarterly = 2,
-  Cumulative = 3,
+  FirstQuarter = 1,
+  SecondQuarter = 2,
+  ThirdQuarter = 3,
+  FourthQuarter = 4,
+  YearToDate = 5,
 }
 
 /**
@@ -213,6 +215,7 @@ export interface FinancialReportFilters {
   status?: FinancialReportStatus;
   pageIndex?: number;
   pageSize?: number;
+  sectorId?: string; // For fetching reports by sector
 }
 
 export interface FinancialReportQueryParams {

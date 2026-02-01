@@ -2,26 +2,34 @@
 
 /**
  * IndustrySelect Component
- * Dropdown chọn ngành với data từ API
+ * Dropdown chọn ngành với data từ Sector Store
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
-import { useIndustriesQuery } from '@/hooks/useFinancialReportQuery';
+import { useSectors } from '@/hooks';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function IndustrySelect() {
-  const { selectedIndustry, setSelectedIndustry } = useFinancialReportStore();
-  const { data: industries, isLoading } = useIndustriesQuery();
+  const { selectedSectorId, setSelectedSectorId } = useFinancialReportStore();
+  const { sectors, isLoading, fetchSectors } = useSectors();
   const { theme } = useTheme();
 
+  // Fetch sectors on component mount (only once)
+  useEffect(() => {
+    if (sectors.length === 0 && !isLoading) {
+      fetchSectors({ status: 1, pageIndex: 1, pageSize: 100 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty to run only once on mount
+
   return (
-    <div className="w-full sm:w-[160px] flex-none">
+    <div className="w-full sm:w-[180px] flex-none">
       <div className="relative">
         <select
-          value={selectedIndustry}
-          onChange={(e) => setSelectedIndustry(e.target.value)}
+          value={selectedSectorId}
+          onChange={(e) => setSelectedSectorId(e.target.value)}
           disabled={isLoading}
           className={`
             relative block w-full disabled:cursor-not-allowed disabled:opacity-75
@@ -32,15 +40,15 @@ export default function IndustrySelect() {
                 ? 'bg-gray-900 text-white ring-gray-700 focus:ring-primary-400'
                 : 'bg-white ring-gray-300 focus:ring-primary-500'
             }
-            ${!selectedIndustry ? 'text-gray-400' : ''}
+            ${!selectedSectorId ? 'text-gray-400' : ''}
           `}
         >
-          <option value="" disabled>
+          <option value="">
             {isLoading ? 'Đang tải...' : 'Xem theo ngành...'}
           </option>
-          {industries?.map((industry) => (
-            <option key={industry.value} value={industry.value}>
-              {industry.label}
+          {sectors?.map((sector) => (
+            <option key={sector.id} value={sector.id}>
+              {sector.viName} ({sector.symbols.length})
             </option>
           ))}
         </select>

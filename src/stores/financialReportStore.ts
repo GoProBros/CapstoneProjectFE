@@ -11,7 +11,7 @@ interface FinancialReportState {
   // State
   periodType: FinancialPeriodType;
   searchTicker: string;
-  selectedIndustry: string;
+  selectedSectorId: string; // Changed from selectedIndustry to selectedSectorId
   expandedGroups: Set<string>;
   lockState: boolean;
   filters: FinancialReportFilters;
@@ -19,7 +19,7 @@ interface FinancialReportState {
   // Actions
   setPeriodType: (type: FinancialPeriodType) => void;
   setSearchTicker: (ticker: string) => void;
-  setSelectedIndustry: (industry: string) => void;
+  setSelectedSectorId: (sectorId: string) => void; // Changed from setSelectedIndustry
   toggleExpanded: (ticker: string) => void;
   toggleLock: () => void;
   setFilters: (filters: Partial<FinancialReportFilters>) => void;
@@ -37,7 +37,7 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
       // Initial state
       periodType: 1, // Yearly
       searchTicker: '',
-      selectedIndustry: '',
+      selectedSectorId: '', // Changed from selectedIndustry
       expandedGroups: new Set<string>(),
       lockState: false,
       filters: defaultFilters,
@@ -57,10 +57,15 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
         }));
       },
 
-      setSelectedIndustry: (industry) => {
-        set({ selectedIndustry: industry });
+      setSelectedSectorId: (sectorId) => {
+        set({ selectedSectorId: sectorId });
+        // When sector changes, clear ticker filter to show all tickers in sector
         set((state) => ({
-          filters: { ...state.filters, selectedIndustry: industry || undefined },
+          filters: { 
+            ...state.filters, 
+            ticker: undefined, // Clear individual ticker filter
+            sectorId: sectorId || undefined 
+          },
         }));
       },
 
@@ -90,7 +95,7 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
         set({
           periodType: 1,
           searchTicker: '',
-          selectedIndustry: '',
+          selectedSectorId: '',
           filters: defaultFilters,
         });
       },

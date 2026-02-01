@@ -4,14 +4,13 @@
  */
 
 import { get } from './api';
-import type { ApiResponse, PaginatedResponse } from '@/types';
+import type { ApiResponse, PaginatedResponse, PaginatedData } from '@/types';
 import type {
   FinancialReport,
   FinancialReportFilters,
   FinancialReportQueryParams,
   FinancialReportTableRow,
   FinancialPeriodType,
-  IndustryOption,
 } from '@/types/financialReport';
 
 /**
@@ -106,7 +105,13 @@ export async function fetchFinancialReports(
   filters: FinancialReportFilters = {}
 ): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
   try {
-    // Build query parameters
+    // If sectorId is provided, fetch all symbols in that sector
+    // and get financial reports for all of them
+    if (filters.sectorId) {
+      return await fetchFinancialReportsBySector(filters);
+    }
+
+    // Build query parameters for regular single-ticker fetch
     const params: FinancialReportQueryParams = {};
     if (filters.ticker) params.ticker = filters.ticker;
     if (filters.year) params.year = filters.year;
@@ -124,7 +129,7 @@ export async function fetchFinancialReports(
 
     // Call API
     const endpoint = `/financial-reports${queryString ? `?${queryString}` : ''}`;
-    const response = await get<PaginatedResponse<FinancialReport>>(endpoint);
+    const response = await get<PaginatedData<FinancialReport>>(endpoint);
 
     // Handle unsuccessful response
     if (!response.isSuccess) {
@@ -133,12 +138,12 @@ export async function fetchFinancialReports(
     }
 
     // Handle empty or null data
-    if (!response.data || !Array.isArray(response.data)) {
+    if (!response.data || !response.data.items || !Array.isArray(response.data.items)) {
       return { items: [], totalCount: 0 };
     }
 
     // Convert to table rows with error handling per item
-    const items = response.data
+    const items = response.data.items
       .map((report, index) => {
         try {
           return convertToTableRow(report);
@@ -149,12 +154,100 @@ export async function fetchFinancialReports(
       })
       .filter((item): item is FinancialReportTableRow => item !== null);
 
-    const totalCount = response.pagination?.total || items.length;
+    const totalCount = response.data.totalCount || items.length;
 
     return { items, totalCount };
   } catch (error) {
     console.error('Error fetching financial reports:', error);
     // Return empty result instead of throwing to prevent app crash
+    return { items: [], totalCount: 0 };
+  }
+}
+
+/**
+ * Fetch financial reports for all symbols in a sector
+ * Makes individual API calls for each ticker and aggregates results
+ * @param filters - Filters including sectorId
+ * @returns Aggregated financial reports from all tickers in the sector
+ */
+async function fetchFinancialReportsBySector(
+  filters: FinancialReportFilters
+): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
+  try {
+    // Import sector store dynamically to avoid circular dependencies
+    const { useSectorStore } = await import('@/stores/sectorStore');
+    const getSectorFromCache = useSectorStore.getState().getSectorFromCache;
+    
+    // Get the sector from cache
+    const sector = getSectorFromCache(filters.sectorId!);
+    
+    if (!sector || !sector.symbols || sector.symbols.length === 0) {
+      console.warn(`No symbols found for sector: ${filters.sectorId}`);
+      return { items: [], totalCount: 0 };
+    }
+
+    // Fetch financial reports for each symbol in parallel
+    const reportPromises = sector.symbols.map(async (ticker) => {
+      try {
+        const params: FinancialReportQueryParams = {
+          ticker,
+          year: filters.year,
+          period: filters.period,
+          status: filters.status,
+          pageIndex: 1, // Always fetch first page for each ticker
+          pageSize: 100, // Get up to 100 reports per ticker
+        };
+
+        const queryString = new URLSearchParams(
+          Object.entries(params)
+            .filter(([_, value]) => value !== undefined)
+            .map(([key, value]) => [key, String(value)])
+        ).toString();
+
+        const endpoint = `/financial-reports${queryString ? `?${queryString}` : ''}`;
+        const response = await get<PaginatedData<FinancialReport>>(endpoint);
+
+        if (response.isSuccess && response.data && response.data.items && Array.isArray(response.data.items)) {
+          return response.data.items;
+        }
+        return [];
+      } catch (err) {
+        console.error(`Error fetching reports for ticker ${ticker}:`, err);
+        return [];
+      }
+    });
+
+    // Wait for all API calls to complete
+    const allReportsArrays = await Promise.all(reportPromises);
+    
+    // Flatten all reports into a single array
+    const allReports = allReportsArrays.flat();
+
+    // Convert to table rows with error handling
+    const items = allReports
+      .map((report, index) => {
+        try {
+          return convertToTableRow(report);
+        } catch (err) {
+          console.error(`Error converting report at index ${index} (id: ${report?.id || 'unknown'}):`, err);
+          return null;
+        }
+      })
+      .filter((item): item is FinancialReportTableRow => item !== null);
+
+    // Apply client-side pagination if needed
+    const pageIndex = filters.pageIndex || 1;
+    const pageSize = filters.pageSize || 50;
+    const startIndex = (pageIndex - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedItems = items.slice(startIndex, endIndex);
+
+    return { 
+      items: paginatedItems, 
+      totalCount: items.length 
+    };
+  } catch (error) {
+    console.error('Error fetching financial reports by sector:', error);
     return { items: [], totalCount: 0 };
   }
 }
@@ -171,7 +264,7 @@ export async function fetchFinancialReportById(id: string): Promise<FinancialRep
       return null;
     }
 
-    const response = await get<ApiResponse<FinancialReport>>(`/financial-reports/${id}`);
+    const response = await get<FinancialReport>(`/financial-reports/${id}`);
 
     if (!response.isSuccess) {
       console.error('Failed to fetch financial report:', response.message);
@@ -219,7 +312,7 @@ export async function fetchFinancialReportByParams(
     // Encode ticker for URL path
     const encodedTicker = encodeURIComponent(ticker.trim());
     
-    const response = await get<ApiResponse<FinancialReport>>(
+    const response = await get<FinancialReport>(
       `/financial-reports/ticker/${encodedTicker}/year/${year}/period/${period}`
     );
 
@@ -250,7 +343,7 @@ export async function fetchAvailableYears(ticker?: string): Promise<number[]> {
       ? `/financial-reports/years?ticker=${encodeURIComponent(ticker.trim())}` 
       : '/financial-reports/years';
     
-    const response = await get<ApiResponse<number[]>>(endpoint);
+    const response = await get<number[]>(endpoint);
 
     if (!response.isSuccess) {
       console.error('Failed to fetch available years:', response.message);
@@ -271,47 +364,4 @@ export async function fetchAvailableYears(ticker?: string): Promise<number[]> {
     console.error('Error fetching available years:', error);
     return [];
   }
-}
-
-/**
- * Fetch list of industries (sectors)
- * @returns Array of industry options, always returns at least mock data
- * TODO: Update endpoint when sectors API is ready
- */
-export async function fetchIndustries(): Promise<IndustryOption[]> {
-  try {
-    // TODO: Replace with actual sectors endpoint when ready
-    // const response = await get<ApiResponse<IndustryOption[]>>('/sectors');
-    // if (response.isSuccess && Array.isArray(response.data) && response.data.length > 0) {
-    //   return response.data;
-    // }
-
-    // Using mock data until sectors API is ready
-    return getMockIndustries();
-  } catch (error) {
-    console.error('Error fetching industries:', error);
-    // Always return mock data as fallback to ensure UI works
-    return getMockIndustries();
-  }
-}
-
-/**
- * Mock industries data
- */
-function getMockIndustries(): IndustryOption[] {
-  return [
-    { value: 'oil-gas', label: 'Sản xuất dầu khí' },
-    { value: 'oil-equipment', label: 'Thiết bị, dịch vụ và phân phối dầu khí' },
-    { value: 'renewable', label: 'Năng lượng thay thế' },
-    { value: 'chemicals', label: 'Hóa chất' },
-    { value: 'forestry', label: 'Lâm nghiệp và giấy' },
-    { value: 'metals', label: 'Kim loại công nghiệp' },
-    { value: 'mining', label: 'Khai khoáng' },
-    { value: 'construction', label: 'Xây dựng và vật liệu xây dựng' },
-    { value: 'banking', label: 'Ngân hàng' },
-    { value: 'insurance', label: 'Bảo hiểm' },
-    { value: 'securities', label: 'Công ty Chứng khoán' },
-    { value: 'software', label: 'Phần mềm và dịch vụ điện toán' },
-    { value: 'hardware', label: 'Công nghệ phần cứng và thiết bị' },
-  ];
 }
