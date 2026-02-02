@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo, useRef } from 'react';
 import SignalRService from '@/services/signalRService';
 import { MarketSymbolDto, ConnectionState } from '@/types/market';
 
@@ -98,7 +98,7 @@ export function SignalRProvider({
     const service = SignalRService.getInstance();
     
     // Lấy API URL từ props hoặc environment variable
-    const baseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7148';
+    const baseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL;
     
     // Initialize service
     service.initialize({
@@ -232,8 +232,8 @@ export function SignalRProvider({
     return marketData.get(ticker.toUpperCase());
   }, [marketData]);
   
-  // Context value
-  const value: SignalRContextValue = {
+  // Memoize context value để tránh re-render không cần thiết
+  const value: SignalRContextValue = useMemo(() => ({
     connectionState,
     isConnected: connectionState === ConnectionState.Connected,
     marketData,
@@ -243,7 +243,16 @@ export function SignalRProvider({
     subscribeToSymbols,
     unsubscribeFromSymbols,
     getSymbolData,
-  };
+  }), [
+    connectionState,
+    marketData,
+    subscribedSymbols,
+    connect,
+    disconnect,
+    subscribeToSymbols,
+    unsubscribeFromSymbols,
+    getSymbolData,
+  ]);
   
   return (
     <SignalRContext.Provider value={value}>
@@ -321,11 +330,22 @@ export function useSignalRSubscription(
   const context = useSignalR();
   const { subscribeToSymbols, unsubscribeFromSymbols, isConnected } = context;
   
+  // Sử dụng ref để track symbols hiện tại và tránh re-subscribe không cần thiết
+  const prevSymbolsRef = useRef<string>('');
+  const symbolsKey = symbols.join(',');
+  
   useEffect(() => {
     // Chỉ subscribe khi enabled và đã connected
     if (!enabled || !isConnected || symbols.length === 0) {
       return;
     }
+    
+    // Kiểm tra nếu symbols không thay đổi thì không subscribe lại
+    if (prevSymbolsRef.current === symbolsKey) {
+      return;
+    }
+    
+    prevSymbolsRef.current = symbolsKey;
     
     // Subscribe to symbols
     subscribeToSymbols(symbols).catch(() => {});
@@ -334,7 +354,8 @@ export function useSignalRSubscription(
     return () => {
       unsubscribeFromSymbols(symbols).catch(() => {});
     };
-  }, [symbols.join(','), enabled, isConnected, subscribeToSymbols, unsubscribeFromSymbols]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbolsKey, enabled, isConnected]);
   
   return context;
 }

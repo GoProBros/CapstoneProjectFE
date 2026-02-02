@@ -2,71 +2,128 @@
 
 /**
  * FinancialReportTable Component
- * AG Grid Community table với grouping, sticky columns, virtual scroll
+ * Optimized AG Grid table with memoization for non-realtime data
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import './ag-grid-custom.css';
 
 import { useTheme } from '@/contexts/ThemeContext';
-import type { FinancialData } from '@/types/financialReport';
+import type { FinancialReportTableRow } from '@/types/financialReport';
 import { getColumnDefs, defaultColDef } from './columnDefs';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface FinancialReportTableProps {
-  data: FinancialData[];
+  data: FinancialReportTableRow[];
   loading?: boolean;
+  totalCount?: number;
 }
 
-export default function FinancialReportTable({ data, loading }: FinancialReportTableProps) {
+// Memoize loading and empty overlays
+const LoadingOverlay = memo(() => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-lg">Đang tải dữ liệu...</div>
+  </div>
+));
+LoadingOverlay.displayName = 'LoadingOverlay';
+
+const NoRowsOverlay = memo(() => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-lg">Không có dữ liệu</div>
+  </div>
+));
+NoRowsOverlay.displayName = 'NoRowsOverlay';
+
+const FinancialReportTable = memo(function FinancialReportTable({ 
+  data, 
+  loading, 
+  totalCount = 0 
+}: FinancialReportTableProps) {
   const { theme } = useTheme();
 
   const columnDefs = useMemo(() => getColumnDefs(), []);
 
-  // Sort data by ticker (Community version - no grouping)
-  const sortedData = useMemo(() => {
-    return [...data].sort((a, b) => {
+  // Group data by ticker and add header rows
+  const groupedData = useMemo(() => {
+    if (!data.length) return [];
+    
+    // Sort by ticker (A-Z) then by year (descending)
+    const sorted = [...data].sort((a, b) => {
       if (a.ticker !== b.ticker) {
         return a.ticker.localeCompare(b.ticker);
       }
-      return b.year - a.year; // Descending by year
+      return b.year - a.year;
     });
+
+    // Group by ticker and insert header rows
+    const result: any[] = [];
+    let currentTicker = '';
+
+    sorted.forEach((row) => {
+      if (row.ticker !== currentTicker) {
+        // Add ticker header row
+        result.push({
+          isTickerHeader: true,
+          ticker: row.ticker,
+          id: `header-${row.ticker}`,
+        });
+        currentTicker = row.ticker;
+      }
+      result.push(row);
+    });
+
+    return result;
   }, [data]);
 
   return (
-    <div
-      id="bctcTable"
-      className={`flex-1 w-full ${
-        theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'
-      }`}
-      style={{ 
-        height: 'calc(100vh - 240px)',
-        minHeight: '400px'
-      }}
-    >
-      <AgGridReact<FinancialData>
-        rowData={sortedData}
-        columnDefs={columnDefs}
-        defaultColDef={defaultColDef}
-        animateRows={false}
-        suppressRowTransform={true}
-        suppressColumnVirtualisation={false}
-        loading={loading}
-        loadingOverlayComponent={() => (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-lg">Đang tải dữ liệu...</div>
-          </div>
-        )}
-        noRowsOverlayComponent={() => (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-lg">Không có dữ liệu</div>
-          </div>
-        )}
-      />
+    <div className="flex flex-col h-full">
+      {/* Status bar */}
+      {totalCount > 0 && (
+        <div className="px-4 py-2 text-sm text-gray-500">
+          Hiển thị {data.length} / {totalCount} báo cáo
+        </div>
+      )}
+      
+      {/* AG Grid table */}
+      <div
+        id="bctcTable"
+        className={`flex-1 w-full ${
+          theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'
+        }`}
+        style={{ 
+          height: 'calc(100vh - 280px)',
+          minHeight: '400px'
+        }}
+      >
+        <AgGridReact
+          theme="legacy"
+          rowData={groupedData}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          animateRows={false}
+          suppressRowTransform={true}
+          suppressColumnVirtualisation={false}
+          rowBuffer={20}
+          loading={loading}
+          loadingOverlayComponent={LoadingOverlay}
+          noRowsOverlayComponent={NoRowsOverlay}
+          getRowStyle={(params) => {
+            if (params.data?.isTickerHeader) {
+              return {
+                fontWeight: 'bold',
+                backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+              };
+            }
+            return undefined;
+          }}
+        />
+      </div>
     </div>
   );
-}
+});
+
+export default FinancialReportTable;

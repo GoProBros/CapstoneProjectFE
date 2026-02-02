@@ -2,28 +2,33 @@
 
 /**
  * FinancialReportProModule
- * Main component integrating all subcomponents with TanStack Query + Zustand
+ * Optimized non-realtime module with extended caching and memoization
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFinancialReportQuery } from '@/hooks/useFinancialReportQuery';
 import HeaderSection from './FinancialReportPro/HeaderSection';
 import FinancialReportTable from './FinancialReportPro/FinancialReportTable';
 
-// Create QueryClient instance
+// Optimized QueryClient for non-realtime data with extended caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1,
+      refetchOnReconnect: false,
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+      gcTime: 30 * 60 * 1000, // 30 minutes - garbage collection time (keep in cache longer)
     },
   },
 });
 
-function FinancialReportContent() {
+// Memoized content component to prevent unnecessary re-renders
+const FinancialReportContent = memo(function FinancialReportContent() {
   const { data, isLoading, isError, error } = useFinancialReportQuery();
 
+  // Error state
   if (isError) {
     return (
       <div className="rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-center items-center p-8">
@@ -36,10 +41,14 @@ function FinancialReportContent() {
   return (
     <div className="rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-between">
       <HeaderSection />
-      <FinancialReportTable data={data || []} loading={isLoading} />
+      <FinancialReportTable 
+        data={data?.items || []} 
+        loading={isLoading}
+        totalCount={data?.totalCount || 0}
+      />
     </div>
   );
-}
+});
 
 export default function FinancialReportProModule() {
   return (

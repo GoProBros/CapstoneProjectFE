@@ -3,6 +3,7 @@
  */
 
 import { post } from '@/services/api';
+import { API_ENDPOINTS } from '@/constants';
 import type { ApiResponse } from '@/types';
 import type {
   LoginRequest,
@@ -17,7 +18,7 @@ import type {
  */
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
   try {
-    const result = await post<AuthResponse>('/api/v1/auth/register', data);
+    const result = await post<AuthResponse>(API_ENDPOINTS.AUTH.REGISTER, data);
     
     if (result.isSuccess && result.data) {
       return result.data;
@@ -35,7 +36,7 @@ export async function register(data: RegisterRequest): Promise<AuthResponse> {
  */
 export async function login(data: LoginRequest): Promise<AuthResponse> {
   try {
-    const result = await post<AuthResponse>('/api/v1/auth/login', data);
+    const result = await post<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, data);
     
     if (result.isSuccess && result.data) {
       return result.data;
@@ -53,7 +54,7 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
  */
 export async function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
   try {
-    const result = await post<AuthResponse>('/api/v1/auth/refresh-token', data);
+    const result = await post<AuthResponse>(API_ENDPOINTS.AUTH.REFRESH_TOKEN, data);
     
     if (result.isSuccess && result.data) {
       return result.data;
@@ -71,7 +72,7 @@ export async function refreshToken(data: RefreshTokenRequest): Promise<AuthRespo
  */
 export async function logout(data: LogoutRequest): Promise<void> {
   try {
-    await post<void>('/api/v1/auth/logout', {
+    await post<void>(API_ENDPOINTS.AUTH.LOGOUT, {
       refreshToken: data.refreshToken,
       accessToken: data.accessToken
     });

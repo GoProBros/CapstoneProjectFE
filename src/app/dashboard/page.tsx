@@ -8,6 +8,7 @@ import "react-resizable/css/styles.css";
 import "./dashboard.css";
 import { X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { ModuleContext } from "@/contexts/ModuleContext";
 
 const moduleComponents: Record<string, React.ComponentType> = {
   'overview-chart': Modules.OverviewChartModule,
@@ -110,9 +111,9 @@ export default function DashboardPage() {
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
             return (
-              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-hidden transition-colors duration-300 flex flex-col">
-                {/* Drag handle bar - top invisible bar for dragging */}
-                <div className="drag-handle absolute top-0 left-0 right-0 h-8 cursor-move z-10 pointer-events-auto" />
+              <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-visible transition-colors duration-300 flex flex-col">
+                {/* Drag handle bar - smaller and doesn't cover right edge */}
+                <div className="drag-handle absolute top-0 left-0 right-16 h-6 cursor-move z-10 pointer-events-auto" />
                 
                 {/* Remove button - shows on hover */}
                 <button
@@ -132,9 +133,11 @@ export default function DashboardPage() {
                   </div>
                 </button>
 
-                {/* Module Content - scrollable */}
+                {/* Module Content - scrollable, wrapped with ModuleContext */}
                 <div className="flex-1 overflow-auto relative z-0 pointer-events-auto">
-                  {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
+                  <ModuleContext.Provider value={{ moduleId: module.id, moduleType: module.type }}>
+                    {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
+                  </ModuleContext.Provider>
                 </div>
               </div>
             );

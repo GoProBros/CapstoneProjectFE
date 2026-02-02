@@ -157,17 +157,19 @@ export function ColumnSidebar() {
         <div className={`p-4 border-b flex justify-between items-center ${
           isDark ? 'border-gray-800' : 'border-gray-200'
         }`}>
-          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Quản lý cột
-          </h3>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
-              isDark ? 'text-gray-400' : 'text-gray-600'
-            }`}
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              <X size={20} />
+            </button>
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Quản lý cột
+            </h3>
+          </div>
         </div>
 
         {/* Action Buttons */}

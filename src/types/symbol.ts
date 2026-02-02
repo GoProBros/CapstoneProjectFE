@@ -86,16 +86,6 @@ export interface PaginatedSymbolData {
 }
 
 /**
- * Symbol API response
- */
-export interface SymbolApiResponse {
-  data: PaginatedSymbolData;
-  isSuccess: boolean;
-  message: string;
-  responseTime: string;
-}
-
-/**
  * Symbol query params
  */
 export interface SymbolQueryParams {

@@ -2,23 +2,21 @@
 
 /**
  * HeaderSection Component
- * Header với Lock, Filters, và Title với SVG decoration
+ * Memoized header with filters and title decoration
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import LockToggle from './LockToggle';
-import PeriodTypeSelect from './PeriodTypeSelect';
 import TickerSearchBox from './TickerSearchBox';
 import IndustrySelect from './IndustrySelect';
 import FilterLayoutSelector from './FilterLayoutSelector';
 
-export default function HeaderSection() {
+const HeaderSection = memo(function HeaderSection() {
   return (
     <div className="flex flex-col md:flex-row justify-between mb-2 gap-2">
       {/* Left side: Lock + Filters */}
       <div className="flex-1 flex flex-wrap items-center gap-1 py-1 px-2 overflow-x-auto">
         <LockToggle />
-        <PeriodTypeSelect />
         <TickerSearchBox />
         <IndustrySelect />
       </div>
@@ -75,8 +73,10 @@ export default function HeaderSection() {
 
       {/* Right side: Layout selectors */}
       <div className="flex-1 flex flex-wrap items-center justify-end gap-2 py-1 px-2 md:px-8 overflow-x-auto">
-        <FilterLayoutSelector />
+        {/* <FilterLayoutSelector /> */}
       </div>
     </div>
   );
-}
+});
+
+export default HeaderSection;

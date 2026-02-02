@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * Validate password requirements:
@@ -43,6 +44,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ error, setError }: LoginFormProps) {
   const router = useRouter();
+  const { login: authLogin, register: authRegister } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
@@ -80,20 +82,11 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
     setIsLoading(true);
 
     try {
-      const { login } = await import('@/services/authService');
-      const authData = await login({
+      await authLogin({
         email: email,
         password: password,
       });
-      
-      // Save auth data to localStorage
-      localStorage.setItem('accessToken', authData.accessToken);
-      localStorage.setItem('refreshToken', authData.refreshToken);
-      localStorage.setItem('expiresAt', authData.expiresAt);
-      localStorage.setItem('user', JSON.stringify(authData.user));
-      
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // AuthContext will handle saving to localStorage and navigation
     } catch (err: any) {
       setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
@@ -116,22 +109,13 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
     }
 
     try {
-      const { register } = await import('@/services/authService');
-      const authData = await register({
+      await authRegister({
         email: email,
         password: password,
         fullName: registerFullName,
         phoneNumber: registerPhoneNumber,
       });
-      
-      // Save auth data to localStorage
-      localStorage.setItem('accessToken', authData.accessToken);
-      localStorage.setItem('refreshToken', authData.refreshToken);
-      localStorage.setItem('expiresAt', authData.expiresAt);
-      localStorage.setItem('user', JSON.stringify(authData.user));
-      
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // AuthContext will handle saving to localStorage and navigation
     } catch (err: any) {
       setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {

@@ -1,7 +1,7 @@
 'use client';
 
-import { Plus, Minus, Bell, Sun, Moon, Power, LayoutGrid, SquarePlus, X } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, Minus, Bell, Sun, Moon, Power, LogIn, LayoutGrid, SquarePlus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,7 @@ interface SidebarProps {
     currentPageId: string;
     onSwitchPage: (pageId: string) => void;
     onDeletePage: (pageId: string) => void;
+    workspaceCount?: number; // Add workspace count prop
 }
 
 export default function Sidebar({ 
@@ -30,11 +31,12 @@ export default function Sidebar({
     pages, 
     currentPageId, 
     onSwitchPage, 
-    onDeletePage 
+    onDeletePage,
+    workspaceCount = 0
 }: SidebarProps) {
     const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
     const { theme, toggleTheme } = useTheme();
-    const { logout } = useAuth();
+    const { logout, isAuthenticated, user } = useAuth();
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
     const [pageToDelete, setPageToDelete] = useState<string | null>(null);
@@ -57,6 +59,10 @@ export default function Sidebar({
             // Even if logout fails, redirect to login
             router.push('/login');
         }
+    };
+
+    const handleLogin = () => {
+        router.push('/login');
     };
 
     const handleDeleteClick = (e: React.MouseEvent, pageId: string) => {
@@ -97,13 +103,11 @@ export default function Sidebar({
                         </div>
                     </div>
 
-                    {/* Pages (excluding default) */}
-                    {pages.filter(page => page.id !== 'default').map((page) => (
+                    {/* Pages - Only show current page */}
+                    {pages.filter(page => page.id === currentPageId && page.id !== 'default').map((page) => (
                         <div 
                             key={page.id} 
-                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group hover:bg-white dark:hover:bg-[rgba(14,13,21,0.6)] transition-colors ${
-                                currentPageId === page.id ? 'bg-[rgba(14,13,21,0.6)]' : ''
-                            }`}
+                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group bg-[rgba(14,13,21,0.6)] transition-colors`}
                             onMouseEnter={() => setHoveredPage(page.id)}
                             onMouseLeave={() => setHoveredPage(null)}
                         >
@@ -135,13 +139,11 @@ export default function Sidebar({
                         </div>
                     ))}
 
-                    {/* Default Page Button (G) */}
-                    {pages.filter(page => page.id === 'default').map((page) => (
+                    {/* Default Page Button (G) - Only show if it's the current page */}
+                    {pages.filter(page => page.id === 'default' && currentPageId === 'default').map((page) => (
                         <div 
                             key={page.id}
-                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group hover:bg-white dark:hover:bg-[rgba(14,13,21,0.6)] transition-colors ${
-                                currentPageId === 'default' ? 'bg-[rgba(14,13,21,0.6)]' : ''
-                            }`}
+                            className={`w-[45px] h-[45px] flex items-center justify-center rounded-[4px] relative group bg-[rgba(14,13,21,0.6)] transition-colors`}
                         >
                             <button 
                                 onClick={() => onSwitchPage('default')}
@@ -159,7 +161,7 @@ export default function Sidebar({
                         </div>
                     ))}
 
-                    {/* Grid Icon */}
+                    {/* Grid Icon - Add page button / Workspace management */}
                     <div className="relative group">
                         <button 
                             onClick={onAddPage}
@@ -170,7 +172,7 @@ export default function Sidebar({
                             }`} strokeWidth={2} />
                         </button>
                         <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                            Thêm page tùy chọn
+                            {workspaceCount >= 6 ? 'Quản lý workspace' : 'Thêm page tùy chọn'}
                         </div>
                     </div>
                 </div>
@@ -270,18 +272,32 @@ export default function Sidebar({
                             </div>
                         </div>
 
-                        {/* Power Icon - White background */}
-                        <div className="relative group">
-                            <button 
-                                onClick={handleLogout}
-                                className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
-                            >
-                                <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
-                            </button>
-                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                Đăng xuất
+                        {/* Power/Login Icon - Conditional based on authentication */}
+                        {isAuthenticated ? (
+                            <div className="relative group">
+                                <button 
+                                    onClick={handleLogout}
+                                    className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                >
+                                    <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
+                                </button>
+                                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                    Đăng xuất
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="relative group">
+                                <button 
+                                    onClick={handleLogin}
+                                    className="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center hover:bg-blue-700 transition-colors"
+                                >
+                                    <LogIn className="w-5 h-5 text-white" strokeWidth={2} />
+                                </button>
+                                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                    Đăng nhập
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </aside>

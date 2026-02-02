@@ -8,6 +8,7 @@ import { ChevronDown } from 'lucide-react';
 interface SymbolTypeFilterProps {
   onSymbolTypeChange: (type: SymbolType | null) => void;
   isLoading?: boolean;
+  selectedType?: SymbolType | null;
 }
 
 const SYMBOL_TYPE_OPTIONS = [
@@ -18,10 +19,9 @@ const SYMBOL_TYPE_OPTIONS = [
   { value: SymbolType.Futures, label: 'Phái sinh' },
 ];
 
-export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false }: SymbolTypeFilterProps) {
+export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false, selectedType = null }: SymbolTypeFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [selectedType, setSelectedType] = useState<SymbolType | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -30,7 +30,6 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
   const selectedOption = SYMBOL_TYPE_OPTIONS.find(opt => opt.value === selectedType) || SYMBOL_TYPE_OPTIONS[0];
 
   const handleSelect = (value: SymbolType | null) => {
-    setSelectedType(value);
     onSymbolTypeChange(value);
     setIsOpen(false);
   };

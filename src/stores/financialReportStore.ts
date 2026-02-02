@@ -5,62 +5,81 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PeriodType, FinancialReportFilters } from '@/types/financialReport';
+import type { FinancialReportFilters, FinancialReportTableRow } from '@/types/financialReport';
 
 interface FinancialReportState {
   // State
-  periodType: PeriodType;
-  searchTicker: string;
-  selectedIndustry: string;
+  tickerList: string[]; // List of tickers to fetch
+  tickerDataCache: Record<string, FinancialReportTableRow[]>; // Cache data per ticker
+  selectedSectorId: string;
   expandedGroups: Set<string>;
   lockState: boolean;
   filters: FinancialReportFilters;
   
   // Actions
-  setPeriodType: (type: PeriodType) => void;
-  setSearchTicker: (ticker: string) => void;
-  setSelectedIndustry: (industry: string) => void;
+  setTickerList: (tickers: string[]) => void;
+  setTickerData: (ticker: string, data: FinancialReportTableRow[]) => void;
+  clearTickerData: (ticker: string) => void;
+  setSelectedSectorId: (sectorId: string) => void;
   toggleExpanded: (ticker: string) => void;
   toggleLock: () => void;
   setFilters: (filters: Partial<FinancialReportFilters>) => void;
   resetFilters: () => void;
+  clearAllData: () => void;
 }
 
 const defaultFilters: FinancialReportFilters = {
-  periodType: '1',
+  pageIndex: 1,
+  pageSize: 100,
 };
 
-export const useFinancialReportStore = create<FinancialReportState>()(
-  persist(
+export const useFinancialReportStore = create<FinancialReportState>()(  persist(
     (set, get) => ({
       // Initial state
-      periodType: '1',
-      searchTicker: '',
-      selectedIndustry: '',
+      tickerList: [],
+      tickerDataCache: {},
+      selectedSectorId: '',
       expandedGroups: new Set<string>(),
       lockState: false,
       filters: defaultFilters,
 
       // Actions
-      setPeriodType: (type) => {
-        set({ periodType: type });
+      setTickerList: (tickers) => {
+        const currentList = get().tickerList;
+        const newList = tickers;
+        
+        // Find tickers that are in current list but not in new list
+        const removedTickers = currentList.filter(t => !newList.includes(t));
+        
+        // Clear data for removed tickers
+        set((state) => {
+          const newCache = { ...state.tickerDataCache };
+          removedTickers.forEach(ticker => {
+            delete newCache[ticker];
+          });
+          return { tickerList: newList, tickerDataCache: newCache };
+        });
+      },
+
+      setTickerData: (ticker, data) => {
         set((state) => ({
-          filters: { ...state.filters, periodType: type },
+          tickerDataCache: {
+            ...state.tickerDataCache,
+            [ticker]: data,
+          },
         }));
       },
 
-      setSearchTicker: (ticker) => {
-        set({ searchTicker: ticker });
-        set((state) => ({
-          filters: { ...state.filters, searchTicker: ticker || undefined },
-        }));
+      clearTickerData: (ticker) => {
+        set((state) => {
+          const newCache = { ...state.tickerDataCache };
+          delete newCache[ticker];
+          return { tickerDataCache: newCache };
+        });
       },
 
-      setSelectedIndustry: (industry) => {
-        set({ selectedIndustry: industry });
-        set((state) => ({
-          filters: { ...state.filters, selectedIndustry: industry || undefined },
-        }));
+      setSelectedSectorId: (sectorId) => {
+        set({ selectedSectorId: sectorId });
       },
 
       toggleExpanded: (ticker) => {
@@ -87,17 +106,24 @@ export const useFinancialReportStore = create<FinancialReportState>()(
 
       resetFilters: () => {
         set({
-          periodType: '1',
-          searchTicker: '',
-          selectedIndustry: '',
+          tickerList: [],
+          selectedSectorId: '',
           filters: defaultFilters,
+        });
+      },
+
+      clearAllData: () => {
+        set({
+          tickerList: [],
+          tickerDataCache: {},
+          selectedSectorId: '',
+          expandedGroups: new Set<string>(),
         });
       },
     }),
     {
       name: 'financial-report-storage',
       partialize: (state) => ({
-        periodType: state.periodType,
         lockState: state.lockState,
         filters: state.filters,
       }),
