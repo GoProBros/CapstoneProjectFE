@@ -30,7 +30,7 @@ export default function VNStockChartModule() {
   const pendingUpdatesRef = useRef<KLineData[]>([]);
   
   const [chartType, setChartType] = useState<ChartType>('candle_solid');
-  const [timeInterval, setTimeInterval] = useState<TimeInterval>('1m'); // Changed from '1d' to '1m' for realtime M1 updates
+  const [timeInterval, setTimeInterval] = useState<TimeInterval>('1d');
   const [symbol, setSymbol] = useState('FPT');
   const [isLoading, setIsLoading] = useState(false);
   const indicators = [
@@ -68,111 +68,33 @@ export default function VNStockChartModule() {
   };
 
   // Memoized callback to handle real-time candle updates
-  const handleCandleUpdate = useCallback(async (candle: any) => {
+  const handleCandleUpdate = useCallback((candle: any) => {
     const klineData: KLineData = {
-      timestamp: new Date(candle.startTime).getTime(), // Use startTime from OhlcvCandle
-      open: candle.open / 1000,       // Divide by 1000 to match historical data format
-      high: candle.high / 1000,       // SSI API returns prices in VND (e.g., 99800)
-      low: candle.low / 1000,         // Chart expects prices in K VND (e.g., 99.8)
+      timestamp: new Date(candle.startTime).getTime(),
+      open: candle.open / 1000,
+      high: candle.high / 1000,
+      low: candle.low / 1000,
       close: candle.close / 1000,
       volume: candle.volume || 0,
     };
-    
-    const timestampDate = new Date(klineData.timestamp);
-    console.log('[VNStockChart] handleCandleUpdate:', 
-      candle.ticker, 
-      candle.timeframe, 
-      candle.isComplete ? '✅ COMPLETED' : '⏳ in-progress',
-      '\n  timestamp:', klineData.timestamp,
-      '\n  date:', timestampDate.toISOString(),
-      '\n  close:', klineData.close,
-      '\n  matches symbol:', candle.ticker === symbol,
-      '\n  matches timeframe:', candle.timeframe === getAPITimeframe(timeInterval),
-      '\n  current timeInterval:', timeInterval,
-      '\n  expected API timeframe:', getAPITimeframe(timeInterval)
-    );
-    
-    // CRITICAL: Handle completed vs in-progress differently
-    if (candle.isComplete) {
-      console.log('[VNStockChart] 🎯 Completed candle detected');
-      
-      // Completed candle: Just call the callback with final data
-      // KLineCharts DataLoader will handle persistence automatically
-      if (realtimeCallbackRef.current && candle.ticker === symbol && candle.timeframe === getAPITimeframe(timeInterval)) {
-        console.log('[VNStockChart] ✅ Updating completed candle via subscribeBar callback');
-        try {
-          realtimeCallbackRef.current(klineData);
-          console.log('[VNStockChart] ✅ Completed candle callback executed');
-        } catch (err) {
-          console.error('[VNStockChart] ❌ Completed candle callback error:', err);
-        }
-      }
+
+    console.log('[VNStockChart] handleCandleUpdate:', candle.ticker, candle.timeframe, 'timestamp:', klineData.timestamp);
+
+    // Use the DataLoader's subscribeBar callback if available
+    if (realtimeCallbackRef.current) {
+      console.log('[VNStockChart] ✅ Updating via subscribeBar callback');
+      realtimeCallbackRef.current(klineData);
     } else {
-      // In-progress candle: Update via subscribeBar callback OR add new candle if needed
-      if (realtimeCallbackRef.current) {
-        // Check if this update is for current symbol and timeframe
-        if (candle.ticker === symbol && candle.timeframe === getAPITimeframe(timeInterval)) {
-          console.log('[VNStockChart] ✅ Updating in-progress candle via subscribeBar');
-          console.log('[VNStockChart] 📊 Data:', klineData.timestamp, 'Close:', klineData.close, 'Volume:', klineData.volume);
-          console.log('[VNStockChart] 📊 Full KLineData:', JSON.stringify(klineData));
-          
-          // Get current chart data to compare
-          if (chartRef.current) {
-            const dataList = chartRef.current.getDataList();
-            if (dataList.length > 0) {
-              const lastCandle = dataList[dataList.length - 1];
-              console.log('[VNStockChart] 📊 Last candle in chart:', lastCandle.timestamp, new Date(lastCandle.timestamp).toISOString());
-              console.log('[VNStockChart] 📊 New candle timestamp:', klineData.timestamp, new Date(klineData.timestamp).toISOString());
-              console.log('[VNStockChart] 📊 Timestamps match:', lastCandle.timestamp === klineData.timestamp);
-              
-              // CRITICAL: Check if this is a NEW candle (newer timestamp)
-              if (klineData.timestamp > lastCandle.timestamp) {
-                console.log('[VNStockChart] 🆕 New candle detected - adding to chart');
-                // Use applyNewData to add new candle instead of updating last one
-                chartRef.current.applyNewData([klineData]);
-                return; // Skip subscribeBar callback
-              }
-            } else {
-              // No candles yet, add the first one
-              console.log('[VNStockChart] 📝 First candle - adding to chart');
-              chartRef.current.applyNewData([klineData]);
-              return;
-            }
-          }
-          
-          // Update existing candle via subscribeBar callback
-          realtimeCallbackRef.current(klineData);
-        } else {
-          console.log('[VNStockChart] ⏭️ Skipping update - different symbol/timeframe');
-        }
-      } else {
-        // Buffer update until subscribeBar is called
-        console.warn('[VNStockChart] ⚠️ Buffering update (subscribeBar not ready yet)');
-        pendingUpdatesRef.current.push(klineData);
-        
-        // Keep only last 100 pending updates to avoid memory issues
-        if (pendingUpdatesRef.current.length > 100) {
-          pendingUpdatesRef.current = pendingUpdatesRef.current.slice(-100);
-        }
+      // Buffer update until subscribeBar is called
+      console.warn('[VNStockChart] ⚠️ Buffering update (subscribeBar not ready yet)');
+      pendingUpdatesRef.current.push(klineData);
+
+      // Keep only last 100 pending updates to avoid memory issues
+      if (pendingUpdatesRef.current.length > 100) {
+        pendingUpdatesRef.current = pendingUpdatesRef.current.slice(-100);
       }
     }
-  }, [symbol, timeInterval]); // Add symbol and timeInterval to deps
-  
-  // Helper function to get timeframe duration in milliseconds
-  const getTimeframeMillis = (timeframe: string): number => {
-    const map: Record<string, number> = {
-      'M1': 60 * 1000,
-      'M5': 5 * 60 * 1000,
-      'M15': 15 * 60 * 1000,
-      'M30': 30 * 60 * 1000,
-      'H1': 60 * 60 * 1000,
-      'H4': 4 * 60 * 60 * 1000,
-      'D1': 24 * 60 * 60 * 1000,
-      'W1': 7 * 24 * 60 * 60 * 1000,
-      'MN1': 30 * 24 * 60 * 60 * 1000,
-    };
-    return map[timeframe] || 60 * 1000;
-  };
+  }, []);
 
   // Real-time OHLCV updates via SignalR
   const { candle: realtimeCandle, isConnected } = useOhlcvSignalR(
@@ -182,11 +104,6 @@ export default function VNStockChartModule() {
       onCandleUpdate: handleCandleUpdate
     }
   );
-  
-  // Debug: Log connection status
-  useEffect(() => {
-    console.log('[VNStockChart] SignalR Connection Status:', isConnected ? '✅ CONNECTED' : '❌ DISCONNECTED');
-  }, [isConnected]);
 
   // Helper function to determine visible bar count based on timeframe
   const getVisibleBarCount = (interval: TimeInterval): number => {
@@ -301,15 +218,12 @@ export default function VNStockChartModule() {
       
       // Format dates to ISO string
       const fromDateStr = fromDate.toISOString().split('T')[0];
-      // CRITICAL: Don't send toDate - let backend use current time to include today's data
+      const toDateStr = toDate.toISOString().split('T')[0];
       
-      console.log(`Fetching ${timeframe} data for ${ticker} from ${fromDateStr} to NOW`);
-      
-      // CRITICAL: Don't cache M1/M5/M15 data - it changes frequently with realtime updates
-      const shouldCache = !['M1', 'M5', 'M15'].includes(timeframe);
+      console.log(`Fetching ${timeframe} data for ${ticker} from ${fromDateStr} to ${toDateStr}`);
       
       const response = await fetch(
-        `http://localhost:5146/api/Ohlcv/${ticker}?timeframe=${timeframe}&fromDate=${fromDateStr}&useCache=${shouldCache}`
+        `http://localhost:5146/api/Ohlcv/${ticker}?timeframe=${timeframe}&fromDate=${fromDateStr}&toDate=${toDateStr}&useCache=true`
       );
       
       if (!response.ok) {
@@ -320,9 +234,9 @@ export default function VNStockChartModule() {
       
       if (result.isSuccess && result.data && result.data.data) {
         // Transform API data to KLineData format and divide prices by 1000
-        // Backend stores timestamp in UTC, browser will display in local timezone
+        // Data in DB is already UTC+7, so subtract 7 hours to display correctly
         const klineData: KLineData[] = result.data.data.map((item: any) => ({
-          timestamp: item.time, // Use timestamp as-is from DB (UTC milliseconds)
+          timestamp: item.time - (7 * 60 * 60 * 1000),
           open: item.open / 1000,
           high: item.high / 1000,
           low: item.low / 1000,
@@ -333,14 +247,7 @@ export default function VNStockChartModule() {
         // Sort by timestamp ascending
         klineData.sort((a, b) => a.timestamp - b.timestamp);
         
-        // DEBUG: Log first and last candles with readable dates
-        if (klineData.length > 0) {
-          console.log(`[VNStockChart] Successfully loaded ${klineData.length} ${timeframe} bars for ${ticker}`);
-          console.log('[VNStockChart] First candle:', new Date(klineData[0].timestamp).toISOString(), klineData[0]);
-          console.log('[VNStockChart] Last candle:', new Date(klineData[klineData.length - 1].timestamp).toISOString(), klineData[klineData.length - 1]);
-          console.log('[VNStockChart] Today is:', new Date().toISOString());
-        }
-        
+        console.log(`Successfully loaded ${klineData.length} ${timeframe} bars for ${ticker}`);
         return klineData;
       } else {
         console.error('API returned unsuccessful response:', result.message || 'Unknown error');
@@ -406,36 +313,15 @@ export default function VNStockChartModule() {
         tooltip: {
           showRule: 'always',
           showType: 'standard',
-          text: {
-            format: (data: any) => {
-              if (!data) return [];
-              return [
-                { title: 'Time: ', value: data.timestamp },
-                { title: 'O: ', value: data.open.toFixed(2) },
-                { title: 'H: ', value: data.high.toFixed(2) },
-                { title: 'L: ', value: data.low.toFixed(2) },
-                { title: 'C: ', value: data.close.toFixed(2) },
-                { title: 'V: ', value: data.volume ? (data.volume / 1000000).toFixed(2) + 'M' : '-' },
-              ];
-            },
-          },
         },
         priceMark: {
           high: {
             show: true,
             color: '#26a69a',
-            text: {
-              show: true,
-              color: '#ffffff',
-            },
           },
           low: {
             show: true,
             color: '#ef5350',
-            text: {
-              show: true,
-              color: '#ffffff',
-            },
           },
           last: {
             show: true,
@@ -549,59 +435,53 @@ export default function VNStockChartModule() {
       return timeframeMap[interval];
     };
 
-    // Set DataLoader immediately (before fetching data) to ensure subscribeBar is registered early
-    chart.setDataLoader({
-      getBars: async (params) => {
-        console.log('[VNStockChart] DataLoader getBars called, fetching data...');
-        try {
-          const data = await fetchOHLCVData(symbol, getAPITimeframe(timeInterval));
-          console.log('[VNStockChart] Data fetched:', data.length, 'candles');
-          params.callback(data, false); // No more data to load
-          
-          // Set appropriate visible range after data is loaded
-          setTimeout(() => {
-            const visibleBarCount = getVisibleBarCount(timeInterval);
-            chart.scrollToRealTime();
-            const currentBarSpace = chart.getBarSpace();
-            if (currentBarSpace && typeof currentBarSpace === 'number') {
-              const containerWidth = chartContainerRef.current?.offsetWidth || 800;
-              const targetBarSpace = containerWidth / visibleBarCount;
-              const zoomRatio = targetBarSpace / currentBarSpace;
-              chart.zoomAtCoordinate(zoomRatio, { x: containerWidth, y: 0 }, 0);
+    // Fetch and set data using DataLoader pattern with realtime support
+    fetchOHLCVData(symbol, getAPITimeframe(timeInterval)).then(data => {
+      if (data.length > 0) {
+        chart.setDataLoader({
+          getBars: (params) => {
+            // Return data immediately with no more data to load
+            params.callback(data, false);
+          },
+          subscribeBar: (params) => {
+            // Store the callback for real-time updates
+            console.log('[VNStockChart] ✅ DataLoader subscribeBar registered for', params.symbol.ticker, params.period.type);
+            realtimeCallbackRef.current = params.callback;
+
+            // Apply any pending buffered updates
+            if (pendingUpdatesRef.current.length > 0) {
+              console.log('[VNStockChart] 📊 Applying', pendingUpdatesRef.current.length, 'buffered updates');
+              pendingUpdatesRef.current.forEach(update => {
+                try {
+                  params.callback(update);
+                } catch (err) {
+                  console.error('[VNStockChart] Error applying buffered update:', err);
+                }
+              });
+              pendingUpdatesRef.current = [];
             }
-          }, 100);
-        } catch (error) {
-          console.error('[VNStockChart] Failed to fetch OHLCV data:', error);
-          params.callback([], false);
-        }
-      },
-      subscribeBar: (params) => {
-        // Store the callback for real-time updates
-        console.log('[VNStockChart] ✅ DataLoader subscribeBar called for', params.symbol.ticker, params.period.type, params.period);
+          },
+          unsubscribeBar: (params) => {
+            console.log('[VNStockChart] DataLoader unsubscribeBar called for', params.symbol.ticker, params.period.type);
+            realtimeCallbackRef.current = null;
+          },
+        });
         
-        // CRITICAL: Store the raw params.callback directly without wrapper
-        // The callback updates the LAST candle only, not create new ones
-        realtimeCallbackRef.current = params.callback;
-        
-        console.log('[VNStockChart] 📝 Stored callback reference, type:', typeof params.callback);
-        
-        // Apply any pending buffered updates
-        if (pendingUpdatesRef.current.length > 0) {
-          console.log('[VNStockChart] 📦 Applying', pendingUpdatesRef.current.length, 'buffered updates');
-          pendingUpdatesRef.current.forEach(update => {
-            try {
-              params.callback(update);
-            } catch (err) {
-              console.error('[VNStockChart] Error applying buffered update:', err);
-            }
-          });
-          pendingUpdatesRef.current = [];
-        }
-      },
-      unsubscribeBar: (params) => {
-        console.log('[VNStockChart] DataLoader unsubscribeBar called for', params.symbol.ticker, params.period.type);
-        realtimeCallbackRef.current = null;
-      },
+        // Set appropriate visible range based on timeframe
+        setTimeout(() => {
+          const visibleBarCount = getVisibleBarCount(timeInterval);
+          // Scroll to show recent data with appropriate amount of history
+          chart.scrollToRealTime();
+          // Adjust zoom to show desired number of bars
+          const currentBarSpace = chart.getBarSpace();
+          if (currentBarSpace && typeof currentBarSpace === 'number') {
+            const containerWidth = chartContainerRef.current?.offsetWidth || 800;
+            const targetBarSpace = containerWidth / visibleBarCount;
+            const zoomRatio = targetBarSpace / currentBarSpace;
+            chart.zoomAtCoordinate(zoomRatio, { x: containerWidth, y: 0 }, 0);
+          }
+        }, 100);
+      }
     });
 
     // Add volume indicator in separate pane if enabled
@@ -661,22 +541,17 @@ export default function VNStockChartModule() {
     // Fetch and reload data for new symbol
     fetchOHLCVData(symbol, getAPITimeframe(timeInterval)).then(data => {
       if (data.length > 0 && chartRef.current) {
-        // CRITICAL: Re-register DataLoader with BOTH getBars AND subscribeBar
-        // DO NOT use closure data - always fetch fresh
         chartRef.current.setDataLoader({
-          getBars: async (params) => {
-            console.log('[VNStockChart] getBars called for symbol change, fetching fresh data...');
-            const freshData = await fetchOHLCVData(symbol, getAPITimeframe(timeInterval));
-            params.callback(freshData, false);
+          getBars: (params) => {
+            params.callback(data, false);
           },
           subscribeBar: (params) => {
-            // Re-register the real-time callback
-            console.log('[VNStockChart] ✅ DataLoader subscribeBar re-registered for', params.symbol.ticker, params.period.type);
+            console.log('[VNStockChart] ✅ DataLoader subscribeBar re-registered for', params.symbol.ticker);
             realtimeCallbackRef.current = params.callback;
             
-            // Apply any pending buffered updates
+            // Apply buffered updates
             if (pendingUpdatesRef.current.length > 0) {
-              console.log('[VNStockChart] 📦 Applying', pendingUpdatesRef.current.length, 'buffered updates');
+              console.log('[VNStockChart] 📊 Applying', pendingUpdatesRef.current.length, 'buffered updates');
               pendingUpdatesRef.current.forEach(update => {
                 try {
                   params.callback(update);
@@ -688,7 +563,7 @@ export default function VNStockChartModule() {
             }
           },
           unsubscribeBar: (params) => {
-            console.log('[VNStockChart] DataLoader unsubscribeBar called for', params.symbol.ticker, params.period.type);
+            console.log('[VNStockChart] unsubscribeBar for', params.symbol.ticker);
             realtimeCallbackRef.current = null;
           },
         });
@@ -736,22 +611,17 @@ export default function VNStockChartModule() {
       // Fetch new data based on interval
       fetchOHLCVData(symbol, apiTimeframe).then(data => {
         if (data.length > 0 && chartRef.current) {
-          // CRITICAL: Re-register DataLoader with BOTH getBars AND subscribeBar
-          // DO NOT use closure data - always fetch fresh
           chartRef.current.setDataLoader({
-            getBars: async (params) => {
-              console.log('[VNStockChart] getBars called for interval change, fetching fresh data...');
-              const freshData = await fetchOHLCVData(symbol, apiTimeframe);
-              params.callback(freshData, false);
+            getBars: (params) => {
+              params.callback(data, false);
             },
             subscribeBar: (params) => {
-              // Re-register the real-time callback
-              console.log('[VNStockChart] ✅ DataLoader subscribeBar re-registered for', params.symbol.ticker, params.period.type);
+              console.log('[VNStockChart] ✅ DataLoader subscribeBar re-registered for interval change');
               realtimeCallbackRef.current = params.callback;
               
-              // Apply any pending buffered updates
+              // Apply buffered updates
               if (pendingUpdatesRef.current.length > 0) {
-                console.log('[VNStockChart] 📦 Applying', pendingUpdatesRef.current.length, 'buffered updates');
+                console.log('[VNStockChart] 📊 Applying', pendingUpdatesRef.current.length, 'buffered updates');
                 pendingUpdatesRef.current.forEach(update => {
                   try {
                     params.callback(update);
@@ -763,7 +633,6 @@ export default function VNStockChartModule() {
               }
             },
             unsubscribeBar: (params) => {
-              console.log('[VNStockChart] DataLoader unsubscribeBar called for', params.symbol.ticker, params.period.type);
               realtimeCallbackRef.current = null;
             },
           });
@@ -1127,16 +996,6 @@ export default function VNStockChartModule() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* SignalR Connection Status */}
-          <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${
-            isConnected
-              ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-              : isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
-            <span className="font-medium">{isConnected ? 'Live' : 'Offline'}</span>
-          </div>
-          
           {drawingMode && (
             <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
               isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
