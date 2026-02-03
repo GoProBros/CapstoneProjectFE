@@ -32,7 +32,7 @@ export const API_ENDPOINTS = {
   
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
-    TICKER: `/api/v1/financial-reports/ticker`,
+    FINANCIAL_REPORTS: `/api/v1/financial-reports`,
   },
   
   // Watch List endpoints

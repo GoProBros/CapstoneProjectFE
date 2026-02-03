@@ -386,15 +386,17 @@ export async function fetchFinancialReportsByTicker(
   try {
     const pageIndex = 1;
     const pageSize = 100;
+    const status = 2; // Status 2 = Active/Published reports
 
-    // Build query string
+    // Build query string with 4 params: Ticker, Status, PageIndex, PageSize
     const params = new URLSearchParams({
       Ticker: ticker,
+      Status: status.toString(),
       PageIndex: pageIndex.toString(),
       PageSize: pageSize.toString(),
     });
 
-    const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.TICKER}?${params.toString()}`;
+    const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.FINANCIAL_REPORTS}?${params.toString()}`;
     const response = await get<PaginatedData<FinancialReport>>(endpoint);
 
     // Handle unsuccessful response
