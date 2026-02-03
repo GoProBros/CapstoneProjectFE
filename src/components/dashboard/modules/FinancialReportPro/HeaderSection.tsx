@@ -23,22 +23,7 @@ const HeaderSection = memo(function HeaderSection() {
 
       {/* Center: Title với SVG decoration */}
       <div className="flex-none hidden md:block">
-        <div className="flex relative origin-top-left text-yellow-400">
-          {/* Left SVG */}
-          <svg
-            className="origin-top-left transform scale-x-[-1]"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            width="30"
-            height="32"
-            viewBox="0 0 30 32"
-          >
-            <path
-              d="M30,32C32.56273,31.7585,37.31779,31.219,40.7812,28C44.2447,24.781,46.875,18.1176,47.9297,15.8824C48.846599999999995,13.939,51.3281,8.47059,53.3163,4.94118C55.3347,1.35811,59.145399999999995,0,59.9781,0L30,0L30,32Z"
-              fill="currentColor"
-            />
-          </svg>
-
+        <div className="flex relative origin-top-left text-yellow-400 rounded-b-lg overflow-hidden">
           {/* Title */}
           <div className="relative overflow-hidden -mx-0.5">
             <svg
@@ -53,21 +38,6 @@ const HeaderSection = memo(function HeaderSection() {
               Báo cáo tài chính
             </div>
           </div>
-
-          {/* Right SVG */}
-          <svg
-            className="origin-top-left"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            width="30"
-            height="32"
-            viewBox="0 0 30 32"
-          >
-            <path
-              d="M0,32C2.56273,31.7585,7.31779,31.219,10.7812,28C14.2447,24.781,16.875,18.1176,17.9297,15.8824C18.8466,13.939,21.3281,8.47059,23.3163,4.94118C25.3347,1.35811,29.1454,0,29.9781,0L0,0L0,32Z"
-              fill="currentColor"
-            />
-          </svg>
         </div>
       </div>
 

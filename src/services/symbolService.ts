@@ -5,14 +5,13 @@
 import { 
   SymbolSearchParams, 
   PaginatedSymbolSearchResponse,
-  ApiResponse,
   SymbolQueryParams,
   SymbolData,
   PaginatedSymbolData,
   ExchangeCode
 } from '@/types/symbol';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5146';
+import { get } from './api';
+import { API_ENDPOINTS } from '@/constants';
 
 /**
  * Search symbols with pagination support
@@ -28,21 +27,10 @@ export async function searchSymbols(params: SymbolSearchParams): Promise<Paginat
     PageSize: String(pageSize),
   });
   
-  const url = `${API_BASE_URL}/api/v1/symbol/search?${queryParams}`;
+  const endpoint = `${API_ENDPOINTS.SYMBOL.SEARCH}?${queryParams}`;
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Search failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const result: ApiResponse<PaginatedSymbolSearchResponse> = await response.json();
+    const result = await get<PaginatedSymbolSearchResponse>(endpoint);
     
     // Handle ApiResponse wrapper
     if (result.isSuccess && result.data) {
@@ -60,21 +48,8 @@ export async function searchSymbols(params: SymbolSearchParams): Promise<Paginat
  * Get all stock tickers
  */
 export async function getAllTickers(): Promise<string[]> {
-  const url = `http://localhost:5146/api/v1/symbol/tickers`;
-  
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Get tickers failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const result: ApiResponse<string[]> = await response.json();
+    const result = await get<string[]>('/api/v1/symbol/tickers');
     
     // Handle ApiResponse wrapper
     if (result.isSuccess && result.data) {
@@ -92,21 +67,10 @@ export async function getAllTickers(): Promise<string[]> {
  * Fetch symbols by exchange
  */
 export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<string[]> {
-  const url = `${API_BASE_URL}/api/v1/symbol?Exchange=${exchange}&PageSize=5000&PageIndex=1`;
+  const endpoint = `${API_ENDPOINTS.SYMBOL.LIST}?Exchange=${exchange}&PageSize=5000&PageIndex=1`;
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Fetch symbols by exchange failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const result: ApiResponse<PaginatedSymbolData> = await response.json();
+    const result = await get<PaginatedSymbolData>(endpoint);
     
     // Handle ApiResponse wrapper
     if (result.isSuccess && result.data && result.data.items) {
@@ -132,23 +96,12 @@ export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolDat
   if (params.PageIndex !== undefined) queryParams.append('PageIndex', String(params.PageIndex));
   if (params.PageSize !== undefined) queryParams.append('PageSize', String(params.PageSize));
   
-  const url = `${API_BASE_URL}/api/v1/symbol?${queryParams}`;
+  const endpoint = `${API_ENDPOINTS.SYMBOL.LIST}?${queryParams}`;
   
-  console.log('[SymbolService] Fetching symbols from:', url);
+  console.log('[SymbolService] Fetching symbols from:', endpoint);
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Fetch symbols failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const result: ApiResponse<PaginatedSymbolData> = await response.json();
+    const result = await get<PaginatedSymbolData>(endpoint);
     
     console.log('[SymbolService] API response:', result);
     

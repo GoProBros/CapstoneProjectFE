@@ -101,7 +101,7 @@ export default function WatchListSelector({
           currentWatchListId !== null
             ? isDark 
               ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+              : 'bg-blue-400 hover:bg-blue-500 text-white disabled:bg-blue-300'
             : isDark 
               ? 'bg-gray-600 hover:bg-gray-700 text-white disabled:bg-gray-700 disabled:opacity-50' 
               : 'bg-gray-400 hover:bg-gray-500 text-white disabled:bg-gray-300'
@@ -131,7 +131,7 @@ export default function WatchListSelector({
           {/* Header */}
           <div className={`px-3 py-2 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <span className={`text-xs font-medium uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Chọn watch list
+              Chọn danh mục theo dõi
             </span>
           </div>
 
@@ -148,7 +148,7 @@ export default function WatchListSelector({
                   }`}
                 >
                   <Plus size={16} />
-                  <span>Tạo watch list mới</span>
+                  <span>Tạo danh mục mới</span>
                 </button>
               ) : (
                 <div className="p-3 space-y-2">
@@ -193,7 +193,7 @@ export default function WatchListSelector({
                     </button>
                   </div>
                   <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Watch list mới sẽ không chứa mã nào. Bạn có thể thêm mã sau khi tạo.
+                    danh mục mới sẽ không chứa mã nào. Bạn có thể thêm mã sau khi tạo.
                   </p>
                 </div>
               )}
@@ -211,7 +211,7 @@ export default function WatchListSelector({
               </div>
             ) : watchLists.length === 0 ? (
               <div className={`px-3 py-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Không có watch list nào
+                Không có danh mục theo dõi nào
               </div>
             ) : (
               // Sort watch lists by id ascending
@@ -223,16 +223,13 @@ export default function WatchListSelector({
                     currentWatchListId === watchList.id
                       ? isDark 
                         ? 'bg-blue-900/30 text-blue-400' 
-                        : 'bg-blue-50 text-blue-600'
+                        : 'bg-blue-50 text-blue-400'
                       : isDark 
                         ? 'hover:bg-gray-700 text-gray-200' 
                         : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {currentWatchListId === watchList.id && (
-                      <Check size={16} className="flex-shrink-0 text-blue-500" />
-                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">
                         {watchList.name}
@@ -252,7 +249,7 @@ export default function WatchListSelector({
                           ? 'hover:bg-red-900/50 text-gray-500 hover:text-red-400' 
                           : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
                       }`}
-                      title="Xóa watch list"
+                      title="Xóa danh mục theo dõi"
                     >
                       <Trash2 size={14} />
                     </button>
