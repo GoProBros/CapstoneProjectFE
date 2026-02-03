@@ -39,7 +39,7 @@ export default function ExchangeFilter({ onExchangeChange, isLoading, selectedEx
             ${selectedExchange === exchange
               ? isDark
                 ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-blue-500 text-white shadow-lg'
+                : 'bg-blue-400 text-white shadow-lg'
               : isDark
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'

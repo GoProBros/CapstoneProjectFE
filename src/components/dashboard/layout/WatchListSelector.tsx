@@ -101,7 +101,7 @@ export default function WatchListSelector({
           currentWatchListId !== null
             ? isDark 
               ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-800 disabled:opacity-50' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-blue-300'
+              : 'bg-blue-400 hover:bg-blue-500 text-white disabled:bg-blue-300'
             : isDark 
               ? 'bg-gray-600 hover:bg-gray-700 text-white disabled:bg-gray-700 disabled:opacity-50' 
               : 'bg-gray-400 hover:bg-gray-500 text-white disabled:bg-gray-300'
@@ -223,16 +223,13 @@ export default function WatchListSelector({
                     currentWatchListId === watchList.id
                       ? isDark 
                         ? 'bg-blue-900/30 text-blue-400' 
-                        : 'bg-blue-50 text-blue-600'
+                        : 'bg-blue-50 text-blue-400'
                       : isDark 
                         ? 'hover:bg-gray-700 text-gray-200' 
                         : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {currentWatchListId === watchList.id && (
-                      <Check size={16} className="flex-shrink-0 text-blue-500" />
-                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">
                         {watchList.name}
