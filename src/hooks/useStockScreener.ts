@@ -108,7 +108,7 @@ export function useStockScreener() {
   // Watch List state
   const [watchLists, setWatchLists] = useState<WatchListSummary[]>([]);
   const [currentWatchListId, setCurrentWatchListId] = useState<number | null>(null);
-  const [currentWatchListName, setCurrentWatchListName] = useState<string>('Watch-list của tôi');
+  const [currentWatchListName, setCurrentWatchListName] = useState<string>('Danh mục của tôi');
   const [isLoadingWatchLists, setIsLoadingWatchLists] = useState(false);
   
   // Dialog and Toast state
@@ -162,28 +162,37 @@ export function useStockScreener() {
     setSelectedExchange(exchange);
     
     try {
-      // Clear watch-list selection and tracking when using exchange filter
-      setCurrentWatchListId(null);
-      setCurrentWatchListName('Watch-list của tôi');
-      currentWatchListTickers.current.clear();
-      
-      // 1. Get current subscribed tickers
-      const currentTickers = Array.from(marketData.keys());
-      
-      // 2. Unsubscribe all current symbols
-      if (currentTickers.length > 0) {
-        await unsubscribeFromSymbols(currentTickers);
-        
-        // 3. Clear grid data
-        if (gridApi) {
-          gridApi.setGridOption('rowData', []);
+      // 1. Clear grid data TRƯỚC TIÊN - Sử dụng Transaction API
+      if (gridApi) {
+        const allRows: any[] = [];
+        gridApi.forEachNode((node: any) => {
+          if (node.data) allRows.push(node.data);
+        });
+        if (allRows.length > 0) {
+          console.log('[StockScreener] Removing', allRows.length, 'rows from grid...');
+          gridApi.applyTransaction({ remove: allRows });
         }
       }
       
-      // 4. Reset flag để cho phép reload default symbols
+      // 2. Clear watch-list selection and tracking when using exchange filter
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Danh mục của tôi');
+      currentWatchListTickers.current.clear();
+      
+      // 3. Get current subscribed tickers
+      const currentTickers = Array.from(marketData.keys());
+      
+      // 4. Unsubscribe all current symbols
+      if (currentTickers.length > 0) {
+        await unsubscribeFromSymbols(currentTickers);
+        // Đợi một chút để Context clear marketData
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      // 5. Reset flag để cho phép reload default symbols
       hasLoadedDefaultSymbols.current = false;
       
-      // 5. Fetch new symbols by exchange
+      // 6. Fetch new symbols by exchange
       const newTickers = await fetchSymbolsByExchange(exchange);
       
       if (newTickers.length === 0) {
@@ -195,7 +204,7 @@ export function useStockScreener() {
         return;
       }
       
-      // 6. Subscribe to new symbols
+      // 7. Subscribe to new symbols
       await subscribeToSymbols(newTickers);
       
       setToast({
@@ -237,7 +246,7 @@ export function useStockScreener() {
     try {
       // Clear watch-list selection and tracking when using index filter
       setCurrentWatchListId(null);
-      setCurrentWatchListName('Watch-list của tôi');
+      setCurrentWatchListName('Danh mục của tôi');
       currentWatchListTickers.current.clear();
       
       // TODO: Replace with actual API call when available
@@ -318,22 +327,31 @@ export function useStockScreener() {
     setSelectedSymbolType(type);
     
     try {
-      // Clear watch-list selection and tracking when using symbol type filter
+      // 1. Clear grid data TRƯỚC TIÊN - Sử dụng Transaction API
+      if (gridApi) {
+        const allRows: any[] = [];
+        gridApi.forEachNode((node: any) => {
+          if (node.data) allRows.push(node.data);
+        });
+        if (allRows.length > 0) {
+          console.log('[StockScreener] Removing', allRows.length, 'rows from grid...');
+          gridApi.applyTransaction({ remove: allRows });
+        }
+      }
+      
+      // 2. Clear watch-list selection and tracking when using symbol type filter
       setCurrentWatchListId(null);
-      setCurrentWatchListName('Watch-list của tôi');
+      setCurrentWatchListName('Danh mục của tôi');
       currentWatchListTickers.current.clear();
       
-      // 1. Get current subscribed tickers
+      // 3. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
       
-      // 2. Unsubscribe all current symbols
+      // 4. Unsubscribe all current symbols
       if (currentTickers.length > 0) {
         await unsubscribeFromSymbols(currentTickers);
-        
-        // 3. Clear grid data
-        if (gridApi) {
-          gridApi.setGridOption('rowData', []);
-        }
+        // Đợi một chút để Context clear marketData
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
       // 4. Reset flag để cho phép reload default symbols
@@ -536,9 +554,26 @@ export function useStockScreener() {
    * Update row data khi nhận được market data từ SignalR
    * SỬ DỤNG AG GRID TRANSACTION API - Chỉ update cells thay đổi, KHÔNG reload toàn bộ grid
    * Grid LUÔN LUÔN update từ marketData Map (từ Context), BẤT KỂ có logging hay không
+   * 
+   * CRITICAL: Include currentWatchListId in dependencies để đảm bảo filter được apply
+   * khi chuyển đổi giữa Exchange và Watch-list
    */
   useEffect(() => {
-    if (marketData.size === 0 || !gridApi) {
+    if (!gridApi) {
+      return;
+    }
+
+    // CRITICAL: Nếu marketData rỗng nhưng grid vẫn còn rows → Clear grid
+    if (marketData.size === 0) {
+      const allRows: any[] = [];
+      gridApi.forEachNode((node: any) => {
+        if (node.data) allRows.push(node.data);
+      });
+      
+      if (allRows.length > 0) {
+        console.log('[StockScreener] marketData is empty, clearing', allRows.length, 'rows from grid');
+        gridApi.applyTransaction({ remove: allRows });
+      }
       return;
     }
 
@@ -550,12 +585,33 @@ export function useStockScreener() {
     
     // FILTER: Nếu đang dùng watch-list, CHỈ hiển thị ticker trong watch-list
     if (currentWatchListId !== null && currentWatchListTickers.current.size > 0) {
+      const allowedTickers = currentWatchListTickers.current;
+      console.log('[StockScreener] Filtering grid for watch-list. Allowed tickers:', Array.from(allowedTickers));
+      
       validRows = validRows.filter(row => 
-        currentWatchListTickers.current.has(row.ticker.toUpperCase())
+        allowedTickers.has(row.ticker.toUpperCase())
       );
+      
+      console.log('[StockScreener] After filter: validRows =', validRows.length, 'rows');
+      
+      // CLEANUP: Xóa các rows KHÔNG thuộc watch-list khỏi grid
+      const rowsToRemove: MarketSymbolDto[] = [];
+      gridApi.forEachNode((node: any) => {
+        if (node.data?.ticker && !allowedTickers.has(node.data.ticker.toUpperCase())) {
+          rowsToRemove.push(node.data);
+        }
+      });
+      
+      if (rowsToRemove.length > 0) {
+        console.log('[StockScreener] Removing', rowsToRemove.length, 'rows not in watch-list');
+        gridApi.applyTransaction({ remove: rowsToRemove });
+      }
     }
 
     if (validRows.length === 0) {
+      // Nếu không có rows hợp lệ, skip update nhưng KHÔNG clear grid
+      // (grid có thể đã được clear ở trên bởi cleanup logic)
+      console.log('[StockScreener] No valid rows to display, skipping grid update');
       return;
     }
 
@@ -594,7 +650,7 @@ export function useStockScreener() {
       // KHÔNG CẬP NHẬT rowData STATE - để AG Grid tự quản lý data qua Transaction API
       // Việc update state sẽ gây conflict với Transaction API
     }
-  }, [marketData, gridApi]);
+  }, [marketData, gridApi, currentWatchListId]); // CRITICAL: Add currentWatchListId to dependencies
 
   // Persist column width changes to Zustand
   const onColumnResized = useCallback((event: any) => {
@@ -1007,26 +1063,60 @@ export function useStockScreener() {
     }
 
     try {
-      // 1. Get current subscribed tickers
-      const currentTickers = Array.from(marketData.keys());
+      console.log('[StockScreener] ========== SWITCHING TO WATCH-LIST ==========');
+      console.log('[StockScreener] Watch-list:', watchList.name, '(ID:', watchList.id, ')');
       
-      // 2. Unsubscribe all current symbols
-      if (currentTickers.length > 0) {
-        await unsubscribeFromSymbols(currentTickers);
+      // 1. Get current subscribed tickers TRƯỚC KHI thay đổi state
+      const currentTickers = Array.from(marketData.keys());
+      console.log('[StockScreener] Current subscribed tickers:', currentTickers.length, 'symbols');
+      
+      // 2. CLEAR grid data TRƯỚC TIÊN - Sử dụng Transaction API để xóa TẤT CẢ rows
+      if (gridApi) {
+        const allRows: any[] = [];
+        gridApi.forEachNode((node: any) => {
+          if (node.data) {
+            allRows.push(node.data);
+          }
+        });
         
-        // 3. Clear grid data
-        if (gridApi) {
-          gridApi.setGridOption('rowData', []);
+        if (allRows.length > 0) {
+          console.log('[StockScreener] Removing', allRows.length, 'rows from grid...');
+          gridApi.applyTransaction({ remove: allRows });
         }
       }
       
-      // 4. Reset flag để cho phép reload default symbols
+      // 3. CLEAR state ngay sau khi clear grid
+      console.log('[StockScreener] Clearing watch-list state...');
+      setCurrentWatchListId(null);
+      currentWatchListTickers.current.clear();
+      
+      // 4. Clear filter selections để tránh conflict
+      setSelectedExchange(null);
+      setSelectedSymbolType(null);
+      setSelectedIndex(null);
+      
+      // 5. Unsubscribe all current symbols (marketData sẽ tự động xóa trong Context)
+      if (currentTickers.length > 0) {
+        console.log('[StockScreener] Unsubscribing from', currentTickers.length, 'symbols...');
+        await unsubscribeFromSymbols(currentTickers);
+        console.log('[StockScreener] Unsubscribe completed');
+        
+        // 6. Đợi để đảm bảo:
+        // - Context đã xóa data khỏi marketData Map
+        // - useEffect đã chạy và thấy marketData.size = 0
+        // - Grid đã được clear hoàn toàn
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      // 7. Reset flag để cho phép reload default symbols nếu cần
       hasLoadedDefaultSymbols.current = false;
       
-      // 5. Get watch list detail to fetch tickers
+      // 8. Get watch list detail to fetch tickers
+      console.log('[StockScreener] Fetching watch-list detail...');
       const watchListDetail: WatchListDetail = await watchListService.getWatchListById(watchList.id);
       
       if (!watchListDetail.tickers || watchListDetail.tickers.length === 0) {
+        console.log('[StockScreener] Watch-list is empty');
         setToast({
           isOpen: true,
           message: `Watch-list "${watchList.name}" không có mã nào`,
@@ -1036,26 +1126,28 @@ export function useStockScreener() {
         // Update state
         setCurrentWatchListId(watchList.id);
         setCurrentWatchListName(watchList.name);
-        currentWatchListTickers.current.clear();
         return;
       }
       
-      // 6. Subscribe to watch list tickers
-      await subscribeToSymbols(watchListDetail.tickers);
+      // 9. Normalize tickers to uppercase
+      const normalizedTickers = watchListDetail.tickers.map(t => t.toUpperCase());
+      console.log('[StockScreener] Watch-list tickers:', normalizedTickers);
       
-      // 7. Update state - QUAN TRỌNG: Track tickers để filter grid display
+      // 10. UPDATE state TRƯỚC KHI subscribe để filter trong useEffect hoạt động ngay
+      console.log('[StockScreener] Setting watch-list state...');
       setCurrentWatchListId(watchList.id);
       setCurrentWatchListName(watchList.name);
-      currentWatchListTickers.current = new Set(watchListDetail.tickers.map(t => t.toUpperCase()));
+      currentWatchListTickers.current = new Set(normalizedTickers);
       
-      // 8. Clear filter selections when using watch-list
-      setSelectedExchange(null);
-      setSelectedSymbolType(null);
-      setSelectedIndex(null);
+      // 11. Subscribe to watch list tickers
+      console.log('[StockScreener] Subscribing to', normalizedTickers.length, 'watch-list tickers...');
+      await subscribeToSymbols(normalizedTickers);
+      console.log('[StockScreener] Subscribe completed');
       
+      console.log('[StockScreener] ========== WATCH-LIST LOADED SUCCESSFULLY ==========');
       setToast({
         isOpen: true,
-        message: `Đã tải ${watchListDetail.tickers.length} mã từ watch-list "${watchList.name}"`,
+        message: `Đã tải ${normalizedTickers.length} mã từ watch-list "${watchList.name}"`,
         type: 'success'
       });
     } catch (error) {
@@ -1065,6 +1157,11 @@ export function useStockScreener() {
         message: 'Lỗi khi tải watch-list. Vui lòng thử lại.',
         type: 'error'
       });
+      
+      // Reset state on error
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Danh mục của tôi');
+      currentWatchListTickers.current.clear();
     }
   };
 
@@ -1114,7 +1211,7 @@ export function useStockScreener() {
           // If deleted watch list is current, clear selection
           if (currentWatchListId === watchList.id) {
             setCurrentWatchListId(null);
-            setCurrentWatchListName('Watch-list của tôi');
+            setCurrentWatchListName('Danh mục của tôi');
             currentWatchListTickers.current.clear();
           }
           

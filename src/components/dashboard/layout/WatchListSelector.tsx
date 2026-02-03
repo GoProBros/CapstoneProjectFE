@@ -131,7 +131,7 @@ export default function WatchListSelector({
           {/* Header */}
           <div className={`px-3 py-2 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <span className={`text-xs font-medium uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Chọn danh sách theo dõi
+              Chọn danh mục theo dõi
             </span>
           </div>
 
@@ -148,7 +148,7 @@ export default function WatchListSelector({
                   }`}
                 >
                   <Plus size={16} />
-                  <span>Tạo danh sách mới</span>
+                  <span>Tạo danh mục mới</span>
                 </button>
               ) : (
                 <div className="p-3 space-y-2">
@@ -193,7 +193,7 @@ export default function WatchListSelector({
                     </button>
                   </div>
                   <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Danh sách mới sẽ không chứa mã nào. Bạn có thể thêm mã sau khi tạo.
+                    danh mục mới sẽ không chứa mã nào. Bạn có thể thêm mã sau khi tạo.
                   </p>
                 </div>
               )}
@@ -211,7 +211,7 @@ export default function WatchListSelector({
               </div>
             ) : watchLists.length === 0 ? (
               <div className={`px-3 py-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Không có danh sách theo dõi nào
+                Không có danh mục theo dõi nào
               </div>
             ) : (
               // Sort watch lists by id ascending
@@ -252,7 +252,7 @@ export default function WatchListSelector({
                           ? 'hover:bg-red-900/50 text-gray-500 hover:text-red-400' 
                           : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
                       }`}
-                      title="Xóa danh sách theo dõi"
+                      title="Xóa danh mục theo dõi"
                     >
                       <Trash2 size={14} />
                     </button>
