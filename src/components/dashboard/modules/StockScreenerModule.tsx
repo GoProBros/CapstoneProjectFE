@@ -16,6 +16,7 @@ import { useSignalR } from '@/contexts/SignalRContext';
 import { MarketSymbolDto } from '@/types/market';
 import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
 import ExchangeFilter from './StockScreener/ExchangeFilter';
+import SectorFilter from './StockScreener/SectorFilter';
 import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
 import IndexFilter, { type IndexType } from './StockScreener/IndexFilter';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -71,6 +72,8 @@ export default function StockScreenerModule() {
     selectedExchange,
     selectedSymbolType,
     selectedIndex,
+    selectedSector,
+    isLoadingSector,
     
     // Layout states
     layouts,
@@ -105,6 +108,7 @@ export default function StockScreenerModule() {
     handleExchangeChange,
     handleIndexChange,
     handleSymbolTypeChange,
+    handleSectorChange,
     handleSymbolSelect,
     handleSelectLayout,
     handleDeleteLayout,
@@ -947,6 +951,13 @@ export default function StockScreenerModule() {
                 onExchangeChange={handleExchangeChange}
                 isLoading={isLoadingExchange}
                 selectedExchange={selectedExchange}
+              />
+              
+              {/* Sector Filter Dropdown */}
+              <SectorFilter
+                onSectorChange={handleSectorChange}
+                isLoading={isLoadingSector}
+                selectedSector={selectedSector}
               />
           
               {/* Connection Status Indicator - Icon only */}
