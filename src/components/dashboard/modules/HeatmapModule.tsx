@@ -8,7 +8,9 @@ import { MarketSymbolDto } from '@/types/market';
 import { fetchSymbols } from '@/services/symbolService';
 import { heatmapService } from '@/services/heatmapService';
 import { watchListService } from '@/services/watchListService';
+import sectorService from '@/services/sectorService';
 import { ExchangeCode, SymbolData } from '@/types/symbol';
+import { Sector } from '@/types/sector';
 import * as echarts from 'echarts';
 
 interface MarketStats {
@@ -32,13 +34,15 @@ export default function HeatmapModule() {
   const [customTickers, setCustomTickers] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
-  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
+  const [availableSectors, setAvailableSectors] = useState<Sector[]>([]);
+  const [isLoadingSectors, setIsLoadingSectors] = useState(false);
   
   // Get SignalR connection and market data (like stock screener)
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData } = useSignalR();
   
-  // Store heatmap items computed from market data
-  const [heatmapItems, setHeatmapItems] = useState<HeatmapItem[]>([]);
+  // Use Map for O(1) lookups and updates instead of array
+  const heatmapItemsMapRef = useRef<Map<string, HeatmapItem>>(new Map());
+  const [heatmapItemsVersion, setHeatmapItemsVersion] = useState(0); // Trigger re-render without copying entire map
   const [isLoading, setIsLoading] = useState(true);
   
   // Store symbol metadata (sector info)
@@ -85,25 +89,28 @@ export default function HeatmapModule() {
           console.log('[Heatmap] 📊 Sample item:', heatmapData.items[0]);
         }
         
-        // Convert REST API data to HeatmapItem format
-        const items: HeatmapItem[] = heatmapData.items.map(item => ({
-          ticker: item.ticker,
-          companyName: item.companyName,
-          sector: item.sector || '',
-          sectorName: item.sectorName || 'Khác',
-          currentPrice: item.currentPrice,
-          changePercent: item.changePercent,
-          changeValue: item.changeValue,
-          volume: item.volume,
-          exchange: item.exchange,
-          colorType: item.colorType as any,
-          lastUpdate: item.lastUpdate,
-        }));
+        // Convert REST API data to Map for O(1) access
+        heatmapItemsMapRef.current.clear();
+        heatmapData.items.forEach(item => {
+          heatmapItemsMapRef.current.set(item.ticker, {
+            ticker: item.ticker,
+            companyName: item.companyName,
+            sector: item.sector || '',
+            sectorName: item.sectorName || 'Khác',
+            currentPrice: item.currentPrice,
+            changePercent: item.changePercent,
+            changeValue: item.changeValue,
+            volume: item.volume,
+            exchange: item.exchange,
+            colorType: item.colorType as any,
+            lastUpdate: item.lastUpdate,
+          });
+        });
         
-        setHeatmapItems(items);
+        setHeatmapItemsVersion(v => v + 1); // Trigger re-render
         
         // Subscribe to SignalR for real-time updates
-        const tickers = items.map(item => item.ticker);
+        const tickers = heatmapData.items.map(item => item.ticker);
         if (tickers.length > 0) {
           console.log(`[Heatmap] 📡 Subscribing to ${tickers.length} symbols for real-time updates...`);
           await subscribeToSymbols(tickers);
@@ -183,16 +190,12 @@ export default function HeatmapModule() {
     }
   }, [exchange, isConnected]); // Only depend on exchange and isConnected
 
-  // Throttle SignalR updates to prevent excessive re-renders
-  const updateThrottleRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingUpdatesRef = useRef<Map<string, any>>(new Map());
-  
-  // Merge real-time SignalR updates with existing heatmap items (throttled)
+  // Real-time SignalR updates - UPDATE ONLY CHANGED ITEMS (O(1) per update)
   useEffect(() => {
     console.log(`[Heatmap] 🔄 marketData changed, size: ${marketData.size}`);
     
     // If no initial items loaded yet, skip (wait for REST API first)
-    if (heatmapItems.length === 0) {
+    if (heatmapItemsMapRef.current.size === 0) {
       console.log('[Heatmap] ⏸️ Waiting for initial REST API data...');
       return;
     }
@@ -202,79 +205,49 @@ export default function HeatmapModule() {
       return;
     }
     
-    // Collect updates in pending queue
-    marketData.forEach((value, key) => {
-      pendingUpdatesRef.current.set(key, value);
-    });
-    
-    // Clear existing throttle timer
-    if (updateThrottleRef.current) {
-      clearTimeout(updateThrottleRef.current);
-    }
-    
-    // Batch update after 200ms of no new changes (throttle)
-    updateThrottleRef.current = setTimeout(() => {
-      console.log('[Heatmap] 🔄 Processing batched updates...');
+    // Update individual items directly in Map - NO THROTTLE, INSTANT UPDATE
+    let updatedCount = 0;
+    marketData.forEach((realtimeData, ticker) => {
+      const existingItem = heatmapItemsMapRef.current.get(ticker);
       
-      // Create lookup map for faster access
-      const updatesMap = pendingUpdatesRef.current;
+      if (!existingItem) {
+        return; // Skip if item not in our heatmap
+      }
       
-      if (updatesMap.size === 0) {
+      // Calculate new values
+      const currentPrice = realtimeData.lastPrice || realtimeData.referencePrice || existingItem.currentPrice;
+      const refPrice = realtimeData.referencePrice || existingItem.currentPrice;
+      const changePercent = refPrice !== 0 ? ((currentPrice - refPrice) / refPrice * 100) : 0;
+      
+      // Only update if values actually changed
+      const hasChanged = 
+        Math.abs(currentPrice - existingItem.currentPrice) > 0.01 ||
+        Math.abs(changePercent - existingItem.changePercent) > 0.01 ||
+        (realtimeData.totalVol && realtimeData.totalVol !== existingItem.volume);
+      
+      if (!hasChanged) {
         return;
       }
       
-      // Only update items that actually changed
-      let changedCount = 0;
-      const updatedItems = heatmapItems.map(item => {
-        const realtimeData = updatesMap.get(item.ticker);
-        
-        if (!realtimeData) {
-          return item;
-        }
-        
-        // Calculate changePercent from actual price change
-        const currentPrice = realtimeData.lastPrice || realtimeData.referencePrice || item.currentPrice;
-        const refPrice = realtimeData.referencePrice || item.currentPrice;
-        const changePercent = refPrice !== 0 ? ((currentPrice - refPrice) / refPrice * 100) : 0;
-        
-        // Only update if values actually changed (avoid unnecessary re-renders)
-        const hasChanged = 
-          Math.abs(currentPrice - item.currentPrice) > 0.01 ||
-          Math.abs(changePercent - item.changePercent) > 0.01 ||
-          (realtimeData.totalVol && realtimeData.totalVol !== item.volume);
-        
-        if (!hasChanged) {
-          return item;
-        }
-        
-        changedCount++;
-        return {
-          ...item,
-          currentPrice: currentPrice,
-          changePercent: changePercent,
-          changeValue: realtimeData.change,
-          volume: realtimeData.totalVol || item.volume,
-          lastUpdate: new Date().toISOString(),
-        };
+      // Direct update in Map - O(1) operation
+      heatmapItemsMapRef.current.set(ticker, {
+        ...existingItem,
+        currentPrice: currentPrice,
+        changePercent: changePercent,
+        changeValue: realtimeData.change,
+        volume: realtimeData.totalVol || existingItem.volume,
+        lastUpdate: new Date().toISOString(),
       });
       
-      // Only update state if something actually changed
-      if (changedCount > 0) {
-        setHeatmapItems(updatedItems);
-        console.log(`[Heatmap] ✅ Updated ${changedCount} items with real-time data (batched)`);
-      }
-      
-      // Clear pending updates
-      pendingUpdatesRef.current.clear();
-    }, 200); // 200ms throttle
+      updatedCount++;
+    });
     
-    // Cleanup on unmount
-    return () => {
-      if (updateThrottleRef.current) {
-        clearTimeout(updateThrottleRef.current);
-      }
-    };
-  }, [marketData, heatmapItems]); // Depend on marketData and heatmapItems
+    // Only trigger re-render if something actually changed
+    if (updatedCount > 0) {
+      console.log(`[Heatmap] ⚡ Real-time update: ${updatedCount} items changed (INSTANT)`);
+      setHeatmapItemsVersion(v => v + 1); // Lightweight re-render trigger
+    }
+  }, [marketData]); // Only depend on marketData - will trigger on every SignalR update
 
   // Load watchlist when switching to custom mode
   useEffect(() => {
@@ -305,9 +278,11 @@ export default function HeatmapModule() {
     }
   }, [filterMode]);
 
-  // Calculate market stats from real-time data
+  // Calculate market stats from real-time data (use Map values)
   const marketStats: MarketStats = useMemo(() => {
-    if (heatmapItems.length === 0) {
+    const items = Array.from(heatmapItemsMapRef.current.values());
+    
+    if (items.length === 0) {
       return {
         index: 'VNINDEX',
         indexValue: 0,
@@ -321,15 +296,15 @@ export default function HeatmapModule() {
       };
     }
 
-    const upItems = heatmapItems.filter(item => item.changePercent > 0);
-    const noChangeItems = heatmapItems.filter(item => item.changePercent === 0);
-    const downItems = heatmapItems.filter(item => item.changePercent < 0);
+    const upItems = items.filter(item => item.changePercent > 0);
+    const noChangeItems = items.filter(item => item.changePercent === 0);
+    const downItems = items.filter(item => item.changePercent < 0);
 
     const upValue = upItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9; // Convert to billions
     const noChangeValue = noChangeItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9;
     const downValue = downItems.reduce((sum, item) => sum + (item.volume * item.currentPrice), 0) / 1e9;
 
-    const totalVolume = heatmapItems.reduce((sum, item) => sum + item.volume, 0) / 1e9;
+    const totalVolume = items.reduce((sum, item) => sum + item.volume, 0) / 1e9;
     const totalValue = upValue + noChangeValue + downValue;
 
     // TODO: Get actual index value from backend
@@ -344,42 +319,72 @@ export default function HeatmapModule() {
       totalValue: totalValue,
       foreignNetValue: -1288.2, // Placeholder - should come from backend
     };
-  }, [heatmapItems, exchange]);
+  }, [heatmapItemsVersion, exchange]); // Depend on version counter instead of items array
 
-  // Extract available sectors for dropdown
+  // Load sectors from API (level 2 commonly used for filtering)
   useEffect(() => {
-    if (heatmapItems.length > 0) {
-      const sectors = Array.from(new Set(heatmapItems.map(item => item.sectorName).filter((s): s is string => Boolean(s))));
-      setAvailableSectors(['Tất cả', ...sectors.sort()]);
-    }
-  }, [heatmapItems]);
+    const loadSectors = async () => {
+      try {
+        setIsLoadingSectors(true);
+        console.log('[Heatmap] 📋 Loading sectors from API...');
+        
+        const response = await sectorService.getSectors({
+          level: 2, // Level 2 sectors for filtering
+          status: 1, // Active sectors only
+          pageIndex: 1,
+          pageSize: 100, // Get all sectors
+        });
+        
+        if (response.isSuccess && response.data) {
+          setAvailableSectors(response.data.items);
+          console.log(`[Heatmap] ✅ Loaded ${response.data.items.length} sectors from API`);
+        } else {
+          console.error('[Heatmap] ❌ Failed to load sectors:', response.message);
+          setAvailableSectors([]);
+        }
+      } catch (error) {
+        console.error('[Heatmap] ❌ Error loading sectors:', error);
+        setAvailableSectors([]);
+      } finally {
+        setIsLoadingSectors(false);
+      }
+    };
+    
+    loadSectors();
+  }, []); // Load once on mount
 
   // Transform real-time data to heatmap format (with optimization)
   const heatmapData = useMemo(() => {
-    console.log(`[Heatmap] 🔄 Computing heatmapData from ${heatmapItems.length} items`);
-    if (heatmapItems.length === 0) {
+    const items = Array.from(heatmapItemsMapRef.current.values());
+    
+    console.log(`[Heatmap] 🔄 Computing heatmapData from ${items.length} items (Map-based)`);
+    if (items.length === 0) {
       console.log('[Heatmap] ⚠️ No heatmapItems, returning empty array');
       return [];
     }
 
     // Debug: Log first item to see sector format
-    if (heatmapItems.length > 0) {
+    if (items.length > 0) {
       console.log('[Heatmap] 📋 Sample sector data:', {
-        sector: heatmapItems[0].sector,
-        sectorName: heatmapItems[0].sectorName,
-        ticker: heatmapItems[0].ticker
+        sector: items[0].sector,
+        sectorName: items[0].sectorName,
+        ticker: items[0].ticker
       });
     }
 
     // Filter by mode
-    let filteredItems = heatmapItems;
+    let filteredItems = items;
     
-    if (filterMode === 'sector' && sector && sector !== 'Tất cả') {
-      // Filter by selected sector
-      filteredItems = heatmapItems.filter(item => item.sectorName === sector);
+    if (filterMode === 'sector' && sector) {
+      // Filter by selected sector ID
+      // Find sector to get all symbols including from child level 4 sectors
+      const selectedSector = availableSectors.find(s => s.id === sector);
+      if (selectedSector && selectedSector.symbols.length > 0) {
+        filteredItems = items.filter(item => selectedSector.symbols.includes(item.ticker));
+      }
     } else if (filterMode === 'custom' && customTickers.length > 0) {
       // Filter by custom tickers (watchlist)
-      filteredItems = heatmapItems.filter(item => customTickers.includes(item.ticker));
+      filteredItems = items.filter(item => customTickers.includes(item.ticker));
     }
     // else: show all items
 
@@ -414,7 +419,7 @@ export default function HeatmapModule() {
     }
     
     return result;
-  }, [heatmapItems, sector, filterMode, customTickers]); // Add filterMode and customTickers to dependencies
+  }, [heatmapItemsVersion, sector, filterMode, customTickers, availableSectors]); // Added availableSectors dependency
 
   // Initialize Pie Chart
   useEffect(() => {
@@ -813,11 +818,18 @@ export default function HeatmapModule() {
             <div className="relative ml-2">
               <button
                 onClick={() => setIsSectorDropdownOpen(!isSectorDropdownOpen)}
+                disabled={isLoadingSectors}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
+                } ${isLoadingSectors ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <span>{sector || 'Chọn ngành'}</span>
+                <span>
+                  {isLoadingSectors 
+                    ? 'Đang tải...' 
+                    : sector 
+                      ? availableSectors.find(s => s.id === sector)?.viName || 'Chọn ngành'
+                      : 'Tất cả ngành'}
+                </span>
                 <svg 
                   className={`w-4 h-4 transition-transform ${isSectorDropdownOpen ? 'rotate-180' : ''}`}
                   fill="none" 
@@ -828,26 +840,44 @@ export default function HeatmapModule() {
                 </svg>
               </button>
               
-              {isSectorDropdownOpen && (
+              {isSectorDropdownOpen && !isLoadingSectors && (
                 <div className={`absolute left-0 mt-1 w-64 max-h-96 overflow-y-auto rounded-lg shadow-lg z-50 ${
                   isDark ? 'bg-[#2a2a2a]' : 'bg-white'
                 }`}>
+                  {/* All sectors option */}
+                  <div
+                    onClick={() => {
+                      setSector(undefined);
+                      setIsSectorDropdownOpen(false);
+                    }}
+                    className={`px-4 py-2 cursor-pointer text-sm ${
+                      !sector
+                        ? 'bg-blue-600 text-white'
+                        : isDark
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Tất cả ngành
+                  </div>
+                  
                   {availableSectors.map((sec) => (
                     <div
-                      key={sec}
+                      key={sec.id}
                       onClick={() => {
-                        setSector(sec === 'Tất cả' ? undefined : sec);
+                        setSector(sec.id);
                         setIsSectorDropdownOpen(false);
                       }}
                       className={`px-4 py-2 cursor-pointer text-sm ${
-                        (sector || 'Tất cả') === sec
+                        sector === sec.id
                           ? 'bg-blue-600 text-white'
                           : isDark
-                            ? 'text-white hover:bg-gray-700'
-                            : 'text-gray-900 hover:bg-gray-100'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {sec}
+                      <div>{sec.viName}</div>
+                      <div className="text-xs opacity-70 mt-0.5">{sec.symbols.length} mã</div>
                     </div>
                   ))}
                 </div>
@@ -883,10 +913,10 @@ export default function HeatmapModule() {
       )}
 
       {/* Market Overview */}
-      <div className={`px-4 py-4 ${isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'}`}>
-        <div className="flex items-center gap-10">
+      {/* <div className={`px-4 py-4 ${isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-10"> */}
           {/* Pie Chart with Index */}
-          <div className="relative flex-shrink-0">
+          {/* <div className="relative flex-shrink-0">
             <div ref={pieChartRef} style={{ width: '100px', height: '100px' }} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <p className="text-[10px] font-bold">{marketStats.index}</p>
@@ -894,10 +924,10 @@ export default function HeatmapModule() {
                 {marketStats.indexValue.toFixed(2)}
               </p>
             </div>
-          </div>
+          </div> */}
 
           {/* Statistics Column 1 */}
-          <div className="flex flex-col gap-1.5">
+          {/* <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
@@ -931,10 +961,10 @@ export default function HeatmapModule() {
                 <span>{marketStats.down.value.toLocaleString()} tỷ</span>
               </span>
             </div>
-          </div>
+          </div> */}
 
           {/* Statistics Column 2 */}
-          <div className="flex flex-col gap-1.5">
+          {/* <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-6 text-xs">
               <span>Khối lượng</span>
               <span className="font-medium">{marketStats.volume.toLocaleString()} tỷ</span>
@@ -950,8 +980,8 @@ export default function HeatmapModule() {
               </span>
             </div>
           </div>
-        </div>
-      </div>
+        </div> */}
+      {/* </div> */}
 
       {/* Heatmap */}
       <div className="flex-1 p-3 overflow-hidden relative min-h-[600px]">
@@ -959,7 +989,7 @@ export default function HeatmapModule() {
         <div ref={heatmapChartRef} className={`w-full h-full ${heatmapData.length === 0 ? 'hidden' : ''}`} />
         
         {/* Loading state */}
-        {isLoading && heatmapItems.length === 0 && (
+        {isLoading && heatmapItemsMapRef.current.size === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
