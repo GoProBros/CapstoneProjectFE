@@ -11,6 +11,7 @@ import { watchListService } from '@/services/watchListService';
 import sectorService from '@/services/sectorService';
 import { ExchangeCode, SymbolData } from '@/types/symbol';
 import { Sector } from '@/types/sector';
+import { WatchListSummary } from '@/types/watchList';
 import * as echarts from 'echarts';
 
 interface MarketStats {
@@ -34,8 +35,12 @@ export default function HeatmapModule() {
   const [customTickers, setCustomTickers] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
+  const [isWatchlistDropdownOpen, setIsWatchlistDropdownOpen] = useState(false);
   const [availableSectors, setAvailableSectors] = useState<Sector[]>([]);
   const [isLoadingSectors, setIsLoadingSectors] = useState(false);
+  const [availableWatchlists, setAvailableWatchlists] = useState<WatchListSummary[]>([]);
+  const [selectedWatchlistId, setSelectedWatchlistId] = useState<number | null>(null);
+  const [isLoadingWatchlists, setIsLoadingWatchlists] = useState(false);
   
   // Get SignalR connection and market data (like stock screener)
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData } = useSignalR();
@@ -249,34 +254,56 @@ export default function HeatmapModule() {
     }
   }, [marketData]); // Only depend on marketData - will trigger on every SignalR update
 
-  // Load watchlist when switching to custom mode
+  // Load all watchlists when switching to custom mode
   useEffect(() => {
     if (filterMode === 'custom') {
-      const loadWatchlist = async () => {
+      const loadWatchlists = async () => {
         try {
-          console.log('[Heatmap] 📋 Loading watchlist...');
+          setIsLoadingWatchlists(true);
+          console.log('[Heatmap] 📋 Loading watchlists...');
           const watchlists = await watchListService.getWatchLists();
           
-          if (watchlists && watchlists.length > 0) {
-            // Use the first watchlist (or you can let user select)
-            const firstWatchlist = watchlists[0];
-            const detail = await watchListService.getWatchListById(firstWatchlist.id);
-            
-            setCustomTickers(detail.tickers);
-            console.log(`[Heatmap] ✅ Loaded ${detail.tickers.length} tickers from watchlist: ${detail.name}`);
-          } else {
-            console.log('[Heatmap] ⚠️ No watchlist found');
-            setCustomTickers([]);
+          setAvailableWatchlists(watchlists);
+          console.log(`[Heatmap] ✅ Loaded ${watchlists.length} watchlists`);
+          
+          // Auto-select first watchlist if available
+          if (watchlists.length > 0 && !selectedWatchlistId) {
+            setSelectedWatchlistId(watchlists[0].id);
           }
         } catch (error) {
-          console.error('[Heatmap] ❌ Failed to load watchlist:', error);
+          console.error('[Heatmap] ❌ Failed to load watchlists:', error);
+          setAvailableWatchlists([]);
+        } finally {
+          setIsLoadingWatchlists(false);
+        }
+      };
+      
+      loadWatchlists();
+    }
+  }, [filterMode]);
+
+  // Load selected watchlist details (tickers)
+  useEffect(() => {
+    if (filterMode === 'custom' && selectedWatchlistId) {
+      const loadWatchlistDetail = async () => {
+        try {
+          console.log(`[Heatmap] 📥 Loading watchlist detail for ID: ${selectedWatchlistId}`);
+          const detail = await watchListService.getWatchListById(selectedWatchlistId);
+          
+          setCustomTickers(detail.tickers);
+          console.log(`[Heatmap] ✅ Loaded ${detail.tickers.length} tickers from watchlist: ${detail.name}`);
+        } catch (error) {
+          console.error('[Heatmap] ❌ Failed to load watchlist detail:', error);
           setCustomTickers([]);
         }
       };
       
-      loadWatchlist();
+      loadWatchlistDetail();
+    } else if (filterMode !== 'custom') {
+      setCustomTickers([]);
+      setSelectedWatchlistId(null);
     }
-  }, [filterMode]);
+  }, [filterMode, selectedWatchlistId]);
 
   // Calculate market stats from real-time data (use Map values)
   const marketStats: MarketStats = useMemo(() => {
@@ -885,6 +912,83 @@ export default function HeatmapModule() {
             </div>
           )}
 
+          {/* Watchlist Dropdown (only show in custom mode) */}
+          {filterMode === 'custom' && (
+            <div className="relative ml-2">
+              <button
+                onClick={() => setIsWatchlistDropdownOpen(!isWatchlistDropdownOpen)}
+                disabled={isLoadingWatchlists}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                } ${isLoadingWatchlists ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span>
+                  {isLoadingWatchlists 
+                    ? 'Đang tải...' 
+                    : selectedWatchlistId 
+                      ? availableWatchlists.find(w => w.id === selectedWatchlistId)?.name || 'Chọn danh sách'
+                      : 'Chọn danh sách'}
+                </span>
+                <svg 
+                  className={`w-4 h-4 transition-transform ${isWatchlistDropdownOpen ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {isWatchlistDropdownOpen && !isLoadingWatchlists && (
+                <div className={`absolute left-0 mt-1 w-64 max-h-96 overflow-y-auto rounded-lg shadow-lg z-50 ${
+                  isDark ? 'bg-[#2a2a2a]' : 'bg-white'
+                }`}>
+                  {availableWatchlists.length === 0 ? (
+                    <div className={`px-4 py-3 text-sm text-center ${
+                      isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      <p>Chưa có danh sách nào</p>
+                      <p className="text-xs mt-1">Tạo watchlist mới để bắt đầu</p>
+                    </div>
+                  ) : (
+                    availableWatchlists.map((watchlist) => (
+                      <div
+                        key={watchlist.id}
+                        onClick={() => {
+                          setSelectedWatchlistId(watchlist.id);
+                          setIsWatchlistDropdownOpen(false);
+                        }}
+                        className={`px-4 py-2 cursor-pointer text-sm ${
+                          selectedWatchlistId === watchlist.id
+                            ? 'bg-blue-600 text-white'
+                            : isDark
+                              ? 'text-gray-300 hover:bg-gray-700'
+                              : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{watchlist.name}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            selectedWatchlistId === watchlist.id
+                              ? 'bg-white/20'
+                              : isDark
+                                ? 'bg-gray-700'
+                                : 'bg-gray-200'
+                          }`}>
+                            {watchlist.tickerCount} mã
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Custom mode info */}
           {filterMode === 'custom' && (
             <div className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${
@@ -894,9 +998,11 @@ export default function HeatmapModule() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>
-                {customTickers.length > 0 
-                  ? `Hiển thị ${customTickers.length} mã trong danh sách`
-                  : 'Danh sách trống - thêm mã vào watchlist'}
+                {selectedWatchlistId 
+                  ? customTickers.length > 0 
+                    ? `Hiển thị ${customTickers.length} mã từ "${availableWatchlists.find(w => w.id === selectedWatchlistId)?.name}"`
+                    : 'Danh sách trống'
+                  : 'Chọn một watchlist để hiển thị'}
               </span>
             </div>
           )}
