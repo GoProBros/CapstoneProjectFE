@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSignalR } from '@/contexts/SignalRContext';
 import { init, dispose, CandleType, getSupportedOverlays } from 'klinecharts';
 import type { Chart, KLineData, IndicatorCreate } from 'klinecharts';
 import { TrendingUp, TrendingDown, Maximize2, Settings, Download, ZoomIn, ZoomOut, BarChart3, LineChart as LineChartIcon, CandlestickChart, Clock, Calendar, Activity, Minus, TrendingUpIcon, Circle, Square, Type, ArrowRight, Edit3, Triangle, Trash2, Move, SplitSquareVertical, Pencil, MousePointer2, Crosshair, Search, X } from 'lucide-react';
@@ -24,6 +25,9 @@ interface Indicator {
 export default function VNStockChartModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  
+  // Get SignalR connection and market data for real-time prices
+  const { isConnected: marketDataConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData } = useSignalR();
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -51,6 +55,19 @@ export default function VNStockChartModule() {
   const [symbolSearch, setSymbolSearch] = useState('');
   const [searchTab, setSearchTab] = useState<'ticker' | 'description'>('ticker');
   const symbolInputRef = useRef<HTMLInputElement>(null);
+  
+  // Real-time price state
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [priceChange, setPriceChange] = useState<number | null>(null);
+  const [priceChangePercent, setPriceChangePercent] = useState<number | null>(null);
+  const [ohlcvData, setOhlcvData] = useState<{
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  } | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
 
   // Map time interval to API timeframe
   const getAPITimeframe = (interval: TimeInterval): string => {
@@ -80,6 +97,28 @@ export default function VNStockChartModule() {
     };
 
     console.log('[VNStockChart] handleCandleUpdate:', candle.ticker, candle.timeframe, 'timestamp:', klineData.timestamp);
+    
+    // Update current price and OHLCV data
+    setCurrentPrice(klineData.close);
+    setOhlcvData({
+      open: klineData.open,
+      high: klineData.high,
+      low: klineData.low,
+      close: klineData.close,
+      volume: klineData.volume,
+    });
+    
+    // Calculate price change if we have reference price (open)
+    if (klineData.open > 0) {
+      const change = klineData.close - klineData.open;
+      const changePercent = (change / klineData.open) * 100;
+      setPriceChange(change);
+      setPriceChangePercent(changePercent);
+    }
+    
+    // Update timestamp
+    const now = new Date();
+    setLastUpdateTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`);
 
     // Use the DataLoader's subscribeBar callback if available
     if (realtimeCallbackRef.current) {
@@ -247,6 +286,51 @@ export default function VNStockChartModule() {
     };
     loadSymbols();
   }, []);
+
+  // Subscribe to symbol for real-time price updates from marketData
+  useEffect(() => {
+    if (marketDataConnected && symbol) {
+      console.log(`[VNStockChart] 📡 Subscribing to ${symbol} for real-time price...`);
+      subscribeToSymbols([symbol]);
+      
+      return () => {
+        console.log(`[VNStockChart] 🔕 Unsubscribing from ${symbol}`);
+        unsubscribeFromSymbols([symbol]);
+      };
+    }
+  }, [symbol, marketDataConnected, subscribeToSymbols, unsubscribeFromSymbols]);
+
+  // Update price from marketData (real-time from Redis)
+  useEffect(() => {
+    if (marketData.size > 0) {
+      const realtimeData = marketData.get(symbol);
+      if (realtimeData) {
+        const price = realtimeData.lastPrice || realtimeData.referencePrice || 0;
+        const refPrice = realtimeData.referencePrice || price;
+        const changePercent = refPrice !== 0 ? ((price - refPrice) / refPrice * 100) : 0;
+        const change = price - refPrice;
+        
+        setCurrentPrice(price / 1000); // Divide by 1000
+        setPriceChange(change / 1000);
+        setPriceChangePercent(changePercent);
+        
+        // Update OHLCV if we have the data
+        if (realtimeData.open || realtimeData.high || realtimeData.low) {
+          setOhlcvData({
+            open: (realtimeData.open || price) / 1000,
+            high: (realtimeData.high || price) / 1000,
+            low: (realtimeData.low || price) / 1000,
+            close: price / 1000,
+            volume: realtimeData.totalVol || 0,
+          });
+        }
+        
+        // Update timestamp
+        const now = new Date();
+        setLastUpdateTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`);
+      }
+    }
+  }, [marketData, symbol]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -822,11 +906,30 @@ export default function VNStockChartModule() {
           </div>
           
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-green-500 font-semibold">95.6</span>
-            <span className="flex items-center gap-1 text-green-500">
-              <TrendingUp className="w-4 h-4" />
-              +2.34%
-            </span>
+            {currentPrice !== null ? (
+              <>
+                <span className={`font-semibold text-lg ${
+                  priceChangePercent === null ? 'text-yellow-500' :
+                  priceChangePercent === 0 ? 'text-yellow-500' :
+                  priceChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {currentPrice.toFixed(2)}
+                </span>
+                {priceChangePercent !== null && (
+                  <span className={`flex items-center gap-1 ${
+                    priceChangePercent === 0 ? 'text-yellow-500' :
+                    priceChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                  }`}>
+                    {priceChangePercent > 0 ? <TrendingUp className="w-4 h-4" /> : 
+                     priceChangePercent < 0 ? <TrendingDown className="w-4 h-4" /> : 
+                     <Minus className="w-4 h-4" />}
+                    <span>{priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%</span>
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400 text-sm">Đang tải...</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1012,15 +1115,21 @@ export default function VNStockChartModule() {
         isDark ? 'border-gray-800 bg-[#252531] text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'
       }`}>
         <div className="flex items-center gap-4">
-          <span>O: 95.2</span>
-          <span>H: 96.5</span>
-          <span>L: 94.8</span>
-          <span>C: 95.6</span>
-          <span className="ml-2">V: 2.45M</span>
+          {ohlcvData ? (
+            <>
+              <span>O: {ohlcvData.open.toFixed(2)}</span>
+              <span>H: {ohlcvData.high.toFixed(2)}</span>
+              <span>L: {ohlcvData.low.toFixed(2)}</span>
+              <span>C: {ohlcvData.close.toFixed(2)}</span>
+              <span className="ml-2">V: {ohlcvData.volume >= 1000000 ? `${(ohlcvData.volume / 1000000).toFixed(2)}M` : `${(ohlcvData.volume / 1000).toFixed(2)}K`}</span>
+            </>
+          ) : (
+            <span>Chưa có dữ liệu</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Clock className="w-3 h-3" />
-          <span>Cập nhật: 14:45:32</span>
+          <span>Cập nhật: {lastUpdateTime || '--'}</span>
         </div>
       </div>
       </div>
