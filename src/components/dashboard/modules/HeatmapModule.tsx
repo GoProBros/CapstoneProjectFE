@@ -653,16 +653,16 @@ export default function HeatmapModule() {
           },
           itemStyle: {
             borderColor: isDark ? '#000' : '#1a1a1a',
-            borderWidth: 2,
-            gapWidth: 2,
+            borderWidth: 1,
+            gapWidth: 1,
           },
           levels: [
             { itemStyle: { borderWidth: 0 } },
             {
               itemStyle: {
                 borderColor: isDark ? '#000' : '#1a1a1a',
-                borderWidth: 6,
-                gapWidth: 6,
+                borderWidth: 2,
+                gapWidth: 2,
               },
               upperLabel: {
                 show: true,
@@ -676,8 +676,8 @@ export default function HeatmapModule() {
             {
               itemStyle: {
                 borderColor: isDark ? '#000' : '#1a1a1a',
-                borderWidth: 2,
-                gapWidth: 2,
+                borderWidth: 1,
+                gapWidth: 1,
               },
               label: {
                 show: true,
