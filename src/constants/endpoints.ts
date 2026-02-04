@@ -41,6 +41,11 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number) => `/api/v1/watch-lists/${id}`,
   },
   
+  // OHLCV endpoints
+  OHLCV: {
+    BY_TICKER: (ticker: string) => `/api/Ohlcv/${ticker}`,
+  },
+  
   // Workspace endpoints
   WORKSPACE: {
     MY_WORKSPACES: '/api/v1/workspace/my-workspaces',

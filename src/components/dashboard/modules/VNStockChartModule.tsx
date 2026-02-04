@@ -7,6 +7,7 @@ import { init, dispose, CandleType, getSupportedOverlays } from 'klinecharts';
 import type { Chart, KLineData, IndicatorCreate } from 'klinecharts';
 import { TrendingUp, TrendingDown, Maximize2, Settings, Download, ZoomIn, ZoomOut, BarChart3, LineChart as LineChartIcon, CandlestickChart, Clock, Calendar, Activity, Minus, TrendingUpIcon, Circle, Square, Type, ArrowRight, Edit3, Triangle, Trash2, Move, SplitSquareVertical, Pencil, MousePointer2, Crosshair, Search, X } from 'lucide-react';
 import { getAllTickers, fetchSymbols } from '@/services/symbolService';
+import ohlcvService from '@/services/ohlcvService';
 import type { SymbolData } from '@/types/symbol';
 import { useOhlcvSignalR } from '@/hooks/useOhlcvSignalR';
 
@@ -191,51 +192,23 @@ export default function VNStockChartModule() {
       setIsLoading(true);
       
       // Calculate date range based on timeframe
-      const toDate = new Date();
-      let fromDate = new Date();
+      const { fromDate, toDate } = ohlcvService.calculateDateRange(timeframe);
       
-      // Set date range:
-      // - D1: 5 years
-      // - M1: 6 months
-      // - Other intraday: proportional to M1
-      if (timeframe === 'D1' || timeframe === 'W1' || timeframe === 'MN1') {
-        fromDate.setFullYear(fromDate.getFullYear() - 5); // 5 years for daily
-      } else if (timeframe === 'M1') {
-        fromDate.setMonth(fromDate.getMonth() - 6); // 6 months for M1
-      } else if (timeframe === 'M5') {
-        fromDate.setMonth(fromDate.getMonth() - 3); // 3 months for M5
-      } else if (timeframe === 'M15') {
-        fromDate.setMonth(fromDate.getMonth() - 2); // 2 months for M15
-      } else if (timeframe === 'M30') {
-        fromDate.setMonth(fromDate.getMonth() - 1); // 1 month for M30
-      } else if (timeframe === 'H1') {
-        fromDate.setDate(fromDate.getDate() - 30); // 30 days for H1
-      } else if (timeframe === 'H4') {
-        fromDate.setDate(fromDate.getDate() - 60); // 60 days for H4
-      } else {
-        fromDate.setMonth(fromDate.getMonth() - 6); // Default 6 months
-      }
+      console.log(`Fetching ${timeframe} data for ${ticker} from ${fromDate} to ${toDate}`);
       
-      // Format dates to ISO string
-      const fromDateStr = fromDate.toISOString().split('T')[0];
-      const toDateStr = toDate.toISOString().split('T')[0];
+      // Fetch data using service
+      const result = await ohlcvService.fetchOhlcvData({
+        ticker,
+        timeframe,
+        fromDate,
+        toDate,
+        useCache: true,
+      });
       
-      console.log(`Fetching ${timeframe} data for ${ticker} from ${fromDateStr} to ${toDateStr}`);
-      
-      const response = await fetch(
-        `http://localhost:5146/api/Ohlcv/${ticker}?timeframe=${timeframe}&fromDate=${fromDateStr}&toDate=${toDateStr}&useCache=true`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch OHLCV data: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.isSuccess && result.data && result.data.data) {
+      if (result && result.data) {
         // Transform API data to KLineData format and divide prices by 1000
         // Data in DB is already UTC+7, so subtract 7 hours to display correctly
-        const klineData: KLineData[] = result.data.data.map((item: any) => ({
+        const klineData: KLineData[] = result.data.map((item: any) => ({
           timestamp: item.time - (7 * 60 * 60 * 1000),
           open: item.open / 1000,
           high: item.high / 1000,
@@ -250,7 +223,7 @@ export default function VNStockChartModule() {
         console.log(`Successfully loaded ${klineData.length} ${timeframe} bars for ${ticker}`);
         return klineData;
       } else {
-        console.error('API returned unsuccessful response:', result.message || 'Unknown error');
+        console.error('No data returned from service');
         return [];
       }
     } catch (error) {
