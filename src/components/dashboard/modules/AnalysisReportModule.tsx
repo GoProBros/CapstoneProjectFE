@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ReportViewer } from '@/components/ui';
 import { useTheme } from '@/contexts/ThemeContext';
+import { SearchBox } from '@/components/dashboard/AnalysisReportSearch';
 
 export default function AnalysisReportModule() {
   const { theme } = useTheme();
@@ -11,6 +12,7 @@ export default function AnalysisReportModule() {
     date: string;
     content: string;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Sample data for demonstration
   const reports = [
@@ -43,11 +45,36 @@ export default function AnalysisReportModule() {
 
   const isDark = theme === 'dark';
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    // TODO: Implement API call when available
+    // Example: fetchReports({ searchQuery: query })
+    console.log('Searching for:', query);
+  };
+
+  const filteredReports = reports.filter(report => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      report.code.toLowerCase().includes(query) ||
+      report.content.toLowerCase().includes(query) ||
+      report.date.includes(query)
+    );
+  });
+
   return (
-    <div className={`w-full h-full rounded-lg p-4 border ${
+    <div className={`w-full h-full flex flex-col rounded-lg p-4 border ${
       isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
     }`}>
-      <div className="h-full overflow-auto">
+      {/* Search Box */}
+      <div className="mb-4 flex-shrink-0">
+        <SearchBox 
+          onSearch={handleSearch}
+          placeholder="Tìm kiếm theo mã CK, nội dung hoặc ngày..."
+        />
+      </div>
+      {/* Report Table */}
+      <div className="flex-1 overflow-auto min-h-0">
         <table className="w-full text-sm">
           <thead className={`sticky top-0 ${
             isDark ? 'bg-[#1e1e26] text-gray-300' : 'bg-gray-50 text-gray-700'
@@ -67,7 +94,7 @@ export default function AnalysisReportModule() {
             </tr>
           </thead>
           <tbody className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-            {reports.map((report, index) => (
+            {filteredReports.map((report, index) => (
               <tr 
                 key={index} 
                 className={`transition-colors cursor-pointer ${
