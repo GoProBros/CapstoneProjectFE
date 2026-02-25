@@ -246,9 +246,9 @@ export default function VNStockChartModule() {
       
       if (result && result.data) {
         // Transform API data to KLineData format and divide prices by 1000
-        // Data in DB is already UTC+7, so subtract 7 hours to display correctly
+        // Backend returns UTC timestamps (timestamptz in PostgreSQL)
         const klineData: KLineData[] = result.data.map((item: any) => ({
-          timestamp: item.time - (7 * 60 * 60 * 1000),
+          timestamp: item.time,  // ✅ Use UTC timestamp directly (no conversion needed)
           open: item.open / 1000,
           high: item.high / 1000,
           low: item.low / 1000,

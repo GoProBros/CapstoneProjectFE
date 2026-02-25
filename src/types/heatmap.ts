@@ -37,6 +37,9 @@ export interface HeatmapItem {
   /** Trading volume */
   volume: number;
 
+  /** Total trading value (Volume × Price) */
+  totalValue: number;
+
   /** Market capitalization (optional) */
   marketCap?: number;
 

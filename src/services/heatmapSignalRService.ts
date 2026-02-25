@@ -80,14 +80,35 @@ class HeatmapSignalRService {
       }
     });
 
-    // Listen for heatmap data updates
+    // Listen for heatmap data updates (full snapshot)
     this.connection.on('ReceiveHeatmapData', (data: HeatmapData) => {
-      console.log('[HeatmapSignalR] 🔥 Received heatmap update:', {
+      console.log('[HeatmapSignalR] 📊 Received heatmap snapshot:', {
         itemCount: data.items?.length || 0,
         totalCount: data.totalCount,
         timestamp: new Date().toISOString()
       });
       this.callbacks.forEach((callback) => callback(data));
+    });
+
+    // Listen for realtime heatmap item updates (per symbol)
+    this.connection.on('ReceiveHeatmapItem', (item: any) => {
+      console.log('[HeatmapSignalR] 🔥 Received heatmap item update:', {
+        ticker: item.ticker,
+        changePercent: item.changePercent,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Broadcast item update to all callbacks
+      this.callbacks.forEach((callback) => {
+        // Pass as single-item update wrapped in HeatmapData structure
+        callback({
+          exchange: item.exchange,
+          sector: item.sector,
+          items: [item],
+          timestamp: item.lastUpdate || new Date().toISOString(),
+          totalCount: 1
+        } as HeatmapData);
+      });
     });
   }
 
