@@ -247,3 +247,67 @@ export async function put<T>(
 export async function del<T>(endpoint: string): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, { method: 'DELETE' });
 }
+
+/**
+ * Download file as Blob
+ * For file downloads that return binary data instead of JSON
+ */
+export async function downloadBlob(endpoint: string): Promise<Blob> {
+  try {
+    let accessToken = getAccessToken();
+    
+    // Check if endpoint requires auth and if token needs refresh
+    if (requiresAuth(endpoint) && accessToken) {
+      if (isTokenExpired()) {
+        console.log('[API] Token expired, attempting refresh...');
+        accessToken = await refreshAccessToken();
+      }
+    }
+    
+    // Build headers with Bearer token
+    const headers: Record<string, string> = {};
+    
+    // Add Authorization header if token exists
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers,
+    });
+
+    // Handle 401 Unauthorized - try to refresh token once
+    if (response.status === 401 && accessToken) {
+      console.log('[API] Received 401, attempting token refresh...');
+      accessToken = await refreshAccessToken();
+      
+      if (accessToken) {
+        // Retry the request with new token
+        headers['Authorization'] = `Bearer ${accessToken}`;
+        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method: 'GET',
+          headers,
+        });
+        
+        if (!retryResponse.ok) {
+          throw new Error(`API Error: ${retryResponse.statusText}`);
+        }
+        
+        return await retryResponse.blob();
+      } else {
+        clearAuthData();
+        throw new Error('Authentication required');
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  } catch (error) {
+    console.error('Blob download failed:', error);
+    throw error;
+  }
+}
