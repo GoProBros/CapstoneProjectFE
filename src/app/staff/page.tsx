@@ -75,7 +75,7 @@ export default function StaffPage() {
               <div className="relative group">
                 <button
                   onClick={() => router.push("/dashboard")}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
                   aria-label="Quay lại Dashboard"
                 >
                   <svg
