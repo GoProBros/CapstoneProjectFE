@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
   title: "Kafi Stock",
@@ -19,9 +20,11 @@ export default function RootLayout({
         <script src="https://code.iconify.design/3/3.1.0/iconify.min.js" async></script>
       </head>
       <body className="antialiased" suppressHydrationWarning>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
