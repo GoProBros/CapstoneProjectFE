@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Minus, Bell, Sun, Moon, Power, LogIn, LayoutGrid, SquarePlus, X } from 'lucide-react';
+import { Plus, Minus, Bell, Sun, Moon, Power, LogIn, LayoutGrid, SquarePlus, X, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
@@ -40,6 +40,7 @@ export default function Sidebar({
     const router = useRouter();
     const [hoveredPage, setHoveredPage] = useState<string | null>(null);
     const [pageToDelete, setPageToDelete] = useState<string | null>(null);
+    const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
 
     const handleAddModuleClick = () => {
         console.log('Add module button clicked in Sidebar!');
@@ -272,18 +273,80 @@ export default function Sidebar({
                             </div>
                         </div>
 
-                        {/* Power/Login Icon - Conditional based on authentication */}
+                        {/* Options Menu Icon - Conditional based on authentication */}
                         {isAuthenticated ? (
                             <div className="relative group">
                                 <button 
-                                    onClick={handleLogout}
-                                    className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                    onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
+                                    className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-all duration-300"
+                                    style={{
+                                        transform: isOptionsMenuOpen ? 'rotate(90deg)' : 'rotate(0deg)'
+                                    }}
                                 >
-                                    <Power className="w-5 h-5 text-gray-800" strokeWidth={2} />
+                                    <Menu className="w-5 h-5 text-gray-800" strokeWidth={2} />
                                 </button>
-                                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                    Đăng xuất
-                                </div>
+                                
+                                {/* Options Dropdown Menu */}
+                                {isOptionsMenuOpen && (
+                                    <>
+                                        {/* Backdrop to close menu */}
+                                        <div 
+                                            className="fixed inset-0 z-[9998]" 
+                                            onClick={() => setIsOptionsMenuOpen(false)}
+                                        />
+                                        
+                                        {/* Menu */}
+                                        <div className="absolute left-full ml-4 bottom-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 min-w-[200px] z-[9999]">
+                                            {/* Username - Display only */}
+                                            <div className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                                                {user?.fullName || 'User'}
+                                            </div>
+                                            
+                                            {/* Account Management */}
+                                            <button
+                                                onClick={() => {
+                                                    setIsOptionsMenuOpen(false);
+                                                    // TODO: Navigate to account management
+                                                    console.log('Navigate to account management');
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                            >
+                                                Quản lí tài khoản
+                                            </button>
+                                            
+                                            {/* System Management - Only for "Nhân viên" role */}
+                                            {user?.role === 'Nhân viên' && (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsOptionsMenuOpen(false);
+                                                        // TODO: Navigate to system management
+                                                        console.log('Navigate to system management');
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                                >
+                                                    Quản lí hệ thống
+                                                </button>
+                                            )}
+                                            
+                                            {/* Logout */}
+                                            <button
+                                                onClick={() => {
+                                                    setIsOptionsMenuOpen(false);
+                                                    handleLogout();
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-t border-gray-200 dark:border-gray-700"
+                                            >
+                                                Đăng xuất
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {!isOptionsMenuOpen && (
+                                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                        Tùy chọn
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="relative group">
@@ -310,7 +373,7 @@ export default function Sidebar({
                             Xác nhận xóa
                         </h3>
                         <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-                            Bạn có chắc chắn muốn xóa page "{pages.find(p => p.id === pageToDelete)?.name}"? Tất cả modules trong page này sẽ bị xóa.
+                            Bạn có chắc chắn muốn xóa page &quot;{pages.find(p => p.id === pageToDelete)?.name}&quot; ? Tất cả modules trong page này sẽ bị xóa.
                         </p>
                         <div className="flex gap-3 justify-end">
                             <button
