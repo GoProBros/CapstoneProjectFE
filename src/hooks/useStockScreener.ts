@@ -911,6 +911,12 @@ export function useStockScreener() {
       return;
     }
 
+    // Skip if user is not authenticated — layout API requires auth
+    // Do NOT set isLayoutReady = true here so it retries when user logs in
+    if (!user) {
+      return;
+    }
+
     const initializeLayout = async () => {
       try {
         console.log('[StockScreener] Initializing layout...');
@@ -959,7 +965,7 @@ export function useStockScreener() {
     };
 
     initializeLayout();
-  }, [moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
+  }, [user, moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
 
   // Handle create new layout - clone from system default (id=1)
   const handleCreateNewLayout = async () => {

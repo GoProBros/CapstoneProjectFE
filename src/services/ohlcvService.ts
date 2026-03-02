@@ -68,8 +68,13 @@ export async function fetchOhlcvData(params: FetchOhlcvParams): Promise<OhlcvRes
  * @returns Object with fromDate and toDate as ISO strings
  */
 export function calculateDateRange(timeframe: string): { fromDate: string; toDate: string } {
-  const toDate = new Date();
-  let fromDate = new Date();
+  const today = new Date();
+  
+  // toDate: tomorrow @ 00:00 to include all candles today
+  const toDate = new Date(today);
+  toDate.setDate(toDate.getDate() + 1); // Add 1 day to include all of today's data
+  
+  let fromDate = new Date(today);
   
   // Set date range based on timeframe
   if (timeframe === 'D1' || timeframe === 'W1' || timeframe === 'MN1') {

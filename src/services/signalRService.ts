@@ -18,6 +18,52 @@ import { MarketSymbolDto, ConnectionState } from '@/types/market';
 export type MarketDataCallback = (data: MarketSymbolDto) => void;
 
 /**
+ * Callback type cho việc nhận từng lệnh khớp real-time
+ */
+export interface RecentTradeDto {
+  ticker: string;
+  price: number;
+  volume: number;
+  side: string;
+  time: string;
+}
+export type TradeDataCallback = (trade: RecentTradeDto) => void;
+export type RecentTradesCallback = (trades: RecentTradeDto[]) => void;
+
+/**
+ * Price depth snapshot for the "3 Bước Giá" module.
+ * Received from SignalR group DEPTH:{ticker} via ReceivePriceDepth event.
+ */
+export interface PriceDepthDto {
+  ticker: string;
+  askPrice1: number; askVol1: number;
+  askPrice2: number; askVol2: number;
+  askPrice3: number; askVol3: number;
+  bidPrice1: number; bidVol1: number;
+  bidPrice2: number; bidVol2: number;
+  bidPrice3: number; bidVol3: number;
+  referencePrice: number;
+  ceilingPrice: number;
+  floorPrice: number;
+  change: number;
+  ratioChange: number;
+  totalVol: number;
+  askChange1: number; askChangePct1: number;
+  askChange2: number; askChangePct2: number;
+  askChange3: number; askChangePct3: number;
+  bidChange1: number; bidChangePct1: number;
+  bidChange2: number; bidChangePct2: number;
+  bidChange3: number; bidChangePct3: number;
+  fBuyVol: number;
+  fSellVol: number;
+  fBuyVal: number;
+  fSellVal: number;
+  side: string;
+  tradingSession?: string;
+}
+export type PriceDepthCallback = (depth: PriceDepthDto) => void;
+
+/**
  * Callback type cho việc thay đổi trạng thái connection
  */
 export type ConnectionStateCallback = (state: ConnectionState) => void;
@@ -58,6 +104,15 @@ class SignalRService {
   
   /** Danh sách callbacks nhận dữ liệu market */
   private marketDataCallbacks: Set<MarketDataCallback> = new Set();
+  
+  /** Danh sách callbacks nhận lệnh khớp real-time */
+  private tradeDataCallbacks: Set<TradeDataCallback> = new Set();
+
+  /** Danh sách callbacks nhận lịch sử lệnh khớp (initial load) */
+  private recentTradesCallbacks: Set<RecentTradesCallback> = new Set();
+
+  /** Danh sách callbacks nhận price depth (3 bước giá) */
+  private priceDepthCallbacks: Set<PriceDepthCallback> = new Set();
   
   /** Danh sách callbacks theo dõi trạng thái connection */
   private connectionStateCallbacks: Set<ConnectionStateCallback> = new Set();
@@ -123,58 +178,81 @@ class SignalRService {
    */
   private setupEventHandlers(): void {
     if (!this.connection) return;
-    
-    // Handler: Nhận dữ liệu market từ server
-    // Server gọi: await Clients.Caller.SendAsync("ReceiveMarketData", marketData)
+
+    // Handler: Nhận dữ liệu market từ server (Channel X Snapshot)
+    // Server gọi: await Clients.Group(ticker).SendAsync("ReceiveMarketData", data)
     this.connection.on('ReceiveMarketData', (rawData: any) => {
       // Parse data - Backend gửi PascalCase, cần convert thành camelCase
       let data: MarketSymbolDto;
-      
-      // Helper function: Convert PascalCase to camelCase
+
       const toCamelCase = (str: string): string => {
         return str.charAt(0).toLowerCase() + str.slice(1);
       };
-      
+
       if (Array.isArray(rawData)) {
-        // Convert array [{field: "Ticker", value: "ACB"}, ...] → {ticker: "ACB", ...}
         const parsedData: any = {};
         rawData.forEach((item: any) => {
           if (item.field && item.value !== undefined) {
-            // Convert PascalCase to camelCase: "LastPrice" → "lastPrice"
             const fieldName = toCamelCase(item.field);
-            // Parse number if possible
             const value = item.value;
             parsedData[fieldName] = isNaN(value) ? value : parseFloat(value);
           }
         });
         data = parsedData as MarketSymbolDto;
       } else if (typeof rawData === 'object' && rawData !== null) {
-        // ✅ FIX: Backend gửi plain object với PascalCase keys
-        // Convert tất cả keys từ PascalCase → camelCase
         const parsedData: any = {};
         Object.keys(rawData).forEach((key: string) => {
           const camelKey = toCamelCase(key);
           const value = (rawData as any)[key];
-          // Parse number nếu có thể (giữ nguyên string nếu không phải number)
-          parsedData[camelKey] = (typeof value === 'number') ? value : 
-                                  (typeof value === 'string' && !isNaN(parseFloat(value)) && isFinite(value as any)) ? parseFloat(value) : 
-                                  value;
+          parsedData[camelKey] = (typeof value === 'number') ? value :
+            (typeof value === 'string' && !isNaN(parseFloat(value)) && isFinite(value as any)) ? parseFloat(value) :
+            value;
         });
         data = parsedData as MarketSymbolDto;
       } else {
         console.error('[SignalR] Invalid data format received:', rawData);
-        return; // Skip invalid data
+        return;
       }
-      
-      
-      // Gọi tất cả callbacks đã đăng ký
+
       this.marketDataCallbacks.forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
+        try { callback(data); } catch (error) {
           console.error('[SignalR] Error in market data callback:', error);
         }
       });
+    });
+
+    // Handler: single matched order from X-TRADE channel
+    // Server gọi: await Clients.Group("TRADE:{ticker}").SendAsync("ReceiveTradeData", trade)
+    this.connection.on('ReceiveTradeData', (rawData: any) => {
+      const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
+      const trade: RecentTradeDto = {} as any;
+      if (rawData && typeof rawData === 'object') {
+        Object.keys(rawData).forEach(k => { (trade as any)[toCamelCase(k)] = (rawData as any)[k]; });
+      }
+      this.tradeDataCallbacks.forEach(cb => { try { cb(trade); } catch {} });
+    });
+
+    // Handler: initial batch of recent trades (sent right after SubscribeToTradeUpdates)
+    this.connection.on('ReceiveRecentTrades', (rawData: any[]) => {
+      if (!Array.isArray(rawData)) return;
+      const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
+      const trades: RecentTradeDto[] = rawData.map(item => {
+        const t: any = {};
+        Object.keys(item).forEach(k => { t[toCamelCase(k)] = item[k]; });
+        return t as RecentTradeDto;
+      });
+      this.recentTradesCallbacks.forEach(cb => { try { cb(trades); } catch {} });
+    });
+
+    // Handler: price depth snapshot from DEPTH:{ticker} group
+    // Server gọi: await Clients.Group("DEPTH:{ticker}").SendAsync("ReceivePriceDepth", depth)
+    this.connection.on('ReceivePriceDepth', (rawData: any) => {
+      const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
+      const depth: PriceDepthDto = {} as any;
+      if (rawData && typeof rawData === 'object') {
+        Object.keys(rawData).forEach(k => { (depth as any)[toCamelCase(k)] = (rawData as any)[k]; });
+      }
+      this.priceDepthCallbacks.forEach(cb => { try { cb(depth); } catch {} });
     });
     
     // Event: Kết nối đã được thiết lập
@@ -389,6 +467,78 @@ class SignalRService {
     }
   }
   
+  /**
+   * Invoke a Hub method and return the result.
+   */
+  public async invoke<T = void>(method: string, ...args: any[]): Promise<T> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) {
+      throw new Error('[SignalR] Cannot invoke. Connection not established.');
+    }
+    return await this.connection.invoke<T>(method, ...args);
+  }
+
+  /**
+   * Subscribe to real-time matched orders for a specific ticker.
+   * Server will push initial 20 trades (ReceiveRecentTrades) then each new trade (ReceiveTradeData).
+   */
+  public async subscribeToTradeUpdates(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('SubscribeToTradeUpdates', ticker.toUpperCase());
+  }
+
+  /**
+   * Unsubscribe from real-time matched orders for a specific ticker.
+   */
+  public async unsubscribeFromTradeUpdates(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('UnsubscribeFromTradeUpdates', ticker.toUpperCase());
+  }
+
+  /**
+   * Subscribe to price depth (3 bước giá) for a specific ticker.
+   * Server sends current snapshot immediately (ReceivePriceDepth), then pushes on every change.
+   */
+  public async subscribeToPriceDepth(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('SubscribeToPriceDepth', ticker.toUpperCase());
+  }
+
+  /**
+   * Unsubscribe from price depth updates for a specific ticker.
+   */
+  public async unsubscribeFromPriceDepth(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('UnsubscribeFromPriceDepth', ticker.toUpperCase());
+  }
+
+  /**
+   * Register callback for price depth updates (3 bước giá).
+   * Returns an unsubscribe function.
+   */
+  public onPriceDepthReceived(callback: PriceDepthCallback): () => void {
+    this.priceDepthCallbacks.add(callback);
+    return () => this.priceDepthCallbacks.delete(callback);
+  }
+
+  /**
+   * Register callback for each incoming matched order (realtime).
+   * Returns an unsubscribe function.
+   */
+  public onTradeDataReceived(callback: TradeDataCallback): () => void {
+    this.tradeDataCallbacks.add(callback);
+    return () => this.tradeDataCallbacks.delete(callback);
+  }
+
+  /**
+   * Register callback for initial batch of recent trades.
+   * Called once right after SubscribeToTradeUpdates.
+   * Returns an unsubscribe function.
+   */
+  public onRecentTradesReceived(callback: RecentTradesCallback): () => void {
+    this.recentTradesCallbacks.add(callback);
+    return () => this.recentTradesCallbacks.delete(callback);
+  }
+
   /**
    * Đăng ký callback để nhận dữ liệu market real-time
    * 

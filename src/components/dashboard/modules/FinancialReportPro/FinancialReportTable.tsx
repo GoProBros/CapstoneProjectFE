@@ -5,14 +5,14 @@
  * Optimized AG Grid table with memoization for non-realtime data
  */
 
-import React, { useMemo, memo } from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import './ag-grid-custom.css';
+import React, { useMemo, memo } from "react";
+import { AgGridReact } from "ag-grid-react";
+import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
+import "./ag-grid-custom.css";
 
-import { useTheme } from '@/contexts/ThemeContext';
-import type { FinancialReportTableRow } from '@/types/financialReport';
-import { getColumnDefs, defaultColDef } from './columnDefs';
+import { useTheme } from "@/contexts/ThemeContext";
+import type { FinancialReportTableRow } from "@/types/financialReport";
+import { getColumnDefs, defaultColDef } from "./columnDefs";
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -29,19 +29,19 @@ const LoadingOverlay = memo(() => (
     <div className="text-lg">Đang tải dữ liệu...</div>
   </div>
 ));
-LoadingOverlay.displayName = 'LoadingOverlay';
+LoadingOverlay.displayName = "LoadingOverlay";
 
 const NoRowsOverlay = memo(() => (
   <div className="flex items-center justify-center h-full">
     <div className="text-lg">Không có dữ liệu</div>
   </div>
 ));
-NoRowsOverlay.displayName = 'NoRowsOverlay';
+NoRowsOverlay.displayName = "NoRowsOverlay";
 
-const FinancialReportTable = memo(function FinancialReportTable({ 
-  data, 
-  loading, 
-  totalCount = 0 
+const FinancialReportTable = memo(function FinancialReportTable({
+  data,
+  loading,
+  totalCount = 0,
 }: FinancialReportTableProps) {
   const { theme } = useTheme();
 
@@ -50,7 +50,7 @@ const FinancialReportTable = memo(function FinancialReportTable({
   // Group data by ticker and add header rows
   const groupedData = useMemo(() => {
     if (!data.length) return [];
-    
+
     // Sort by ticker (A-Z) then by year (descending)
     const sorted = [...data].sort((a, b) => {
       if (a.ticker !== b.ticker) {
@@ -61,7 +61,7 @@ const FinancialReportTable = memo(function FinancialReportTable({
 
     // Group by ticker and insert header rows
     const result: any[] = [];
-    let currentTicker = '';
+    let currentTicker = "";
 
     sorted.forEach((row) => {
       if (row.ticker !== currentTicker) {
@@ -81,22 +81,19 @@ const FinancialReportTable = memo(function FinancialReportTable({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Status bar */}
-      {totalCount > 0 && (
-        <div className="px-4 py-2 text-sm text-gray-500">
-          Hiển thị {data.length} / {totalCount} báo cáo
-        </div>
-      )}
-      
+      <div className="px-4 py-2 text-xl text-gray-400 ">
+        Đơn vị: tỷ đồng
+      </div>
+
       {/* AG Grid table */}
       <div
         id="bctcTable"
         className={`flex-1 w-full ${
-          theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'
+          theme === "dark" ? "ag-theme-alpine-dark" : "ag-theme-alpine"
         }`}
-        style={{ 
-          height: 'calc(100vh - 280px)',
-          minHeight: '400px'
+        style={{
+          height: "calc(100vh - 280px)",
+          minHeight: "400px",
         }}
       >
         <AgGridReact
@@ -114,8 +111,8 @@ const FinancialReportTable = memo(function FinancialReportTable({
           getRowStyle={(params) => {
             if (params.data?.isTickerHeader) {
               return {
-                fontWeight: 'bold',
-                backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+                fontWeight: "bold",
+                backgroundColor: theme === "dark" ? "#1f2937" : "#f3f4f6",
               };
             }
             return undefined;

@@ -119,6 +119,27 @@ class HeatmapService {
   }
 
   /**
+   * Format trading value (abbreviate large numbers)
+   * @param value - Trading value
+   * @returns Formatted string (e.g., "12.5B", "345M")
+   */
+  formatValue(value: number): string {
+    if (value >= 1_000_000_000_000) {
+      return `${(value / 1_000_000_000_000).toFixed(1)}T`;
+    }
+    if (value >= 1_000_000_000) {
+      return `${(value / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(0)}K`;
+    }
+    return value.toString();
+  }
+
+  /**
    * Format market cap
    * @param marketCap - Market cap value
    * @returns Formatted string
