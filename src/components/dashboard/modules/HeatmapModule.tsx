@@ -106,6 +106,7 @@ export default function HeatmapModule() {
             changePercent: item.changePercent,
             changeValue: item.changeValue,
             volume: item.volume,
+            totalValue: (item as any).totalValue ?? 0,
             exchange: item.exchange,
             colorType: item.colorType as any,
             lastUpdate: item.lastUpdate,

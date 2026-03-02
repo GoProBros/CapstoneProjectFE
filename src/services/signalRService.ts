@@ -31,6 +31,39 @@ export type TradeDataCallback = (trade: RecentTradeDto) => void;
 export type RecentTradesCallback = (trades: RecentTradeDto[]) => void;
 
 /**
+ * Price depth snapshot for the "3 Bước Giá" module.
+ * Received from SignalR group DEPTH:{ticker} via ReceivePriceDepth event.
+ */
+export interface PriceDepthDto {
+  ticker: string;
+  askPrice1: number; askVol1: number;
+  askPrice2: number; askVol2: number;
+  askPrice3: number; askVol3: number;
+  bidPrice1: number; bidVol1: number;
+  bidPrice2: number; bidVol2: number;
+  bidPrice3: number; bidVol3: number;
+  referencePrice: number;
+  ceilingPrice: number;
+  floorPrice: number;
+  change: number;
+  ratioChange: number;
+  totalVol: number;
+  askChange1: number; askChangePct1: number;
+  askChange2: number; askChangePct2: number;
+  askChange3: number; askChangePct3: number;
+  bidChange1: number; bidChangePct1: number;
+  bidChange2: number; bidChangePct2: number;
+  bidChange3: number; bidChangePct3: number;
+  fBuyVol: number;
+  fSellVol: number;
+  fBuyVal: number;
+  fSellVal: number;
+  side: string;
+  tradingSession?: string;
+}
+export type PriceDepthCallback = (depth: PriceDepthDto) => void;
+
+/**
  * Callback type cho việc thay đổi trạng thái connection
  */
 export type ConnectionStateCallback = (state: ConnectionState) => void;
@@ -77,6 +110,9 @@ class SignalRService {
 
   /** Danh sách callbacks nhận lịch sử lệnh khớp (initial load) */
   private recentTradesCallbacks: Set<RecentTradesCallback> = new Set();
+
+  /** Danh sách callbacks nhận price depth (3 bước giá) */
+  private priceDepthCallbacks: Set<PriceDepthCallback> = new Set();
   
   /** Danh sách callbacks theo dõi trạng thái connection */
   private connectionStateCallbacks: Set<ConnectionStateCallback> = new Set();
@@ -206,6 +242,17 @@ class SignalRService {
         return t as RecentTradeDto;
       });
       this.recentTradesCallbacks.forEach(cb => { try { cb(trades); } catch {} });
+    });
+
+    // Handler: price depth snapshot from DEPTH:{ticker} group
+    // Server gọi: await Clients.Group("DEPTH:{ticker}").SendAsync("ReceivePriceDepth", depth)
+    this.connection.on('ReceivePriceDepth', (rawData: any) => {
+      const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
+      const depth: PriceDepthDto = {} as any;
+      if (rawData && typeof rawData === 'object') {
+        Object.keys(rawData).forEach(k => { (depth as any)[toCamelCase(k)] = (rawData as any)[k]; });
+      }
+      this.priceDepthCallbacks.forEach(cb => { try { cb(depth); } catch {} });
     });
     
     // Event: Kết nối đã được thiết lập
@@ -445,6 +492,32 @@ class SignalRService {
   public async unsubscribeFromTradeUpdates(ticker: string): Promise<void> {
     if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
     await this.connection.invoke('UnsubscribeFromTradeUpdates', ticker.toUpperCase());
+  }
+
+  /**
+   * Subscribe to price depth (3 bước giá) for a specific ticker.
+   * Server sends current snapshot immediately (ReceivePriceDepth), then pushes on every change.
+   */
+  public async subscribeToPriceDepth(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('SubscribeToPriceDepth', ticker.toUpperCase());
+  }
+
+  /**
+   * Unsubscribe from price depth updates for a specific ticker.
+   */
+  public async unsubscribeFromPriceDepth(ticker: string): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    await this.connection.invoke('UnsubscribeFromPriceDepth', ticker.toUpperCase());
+  }
+
+  /**
+   * Register callback for price depth updates (3 bước giá).
+   * Returns an unsubscribe function.
+   */
+  public onPriceDepthReceived(callback: PriceDepthCallback): () => void {
+    this.priceDepthCallbacks.add(callback);
+    return () => this.priceDepthCallbacks.delete(callback);
   }
 
   /**

@@ -105,7 +105,7 @@ export default function VNStockChartModule() {
       high: klineData.high,
       low: klineData.low,
       close: klineData.close,
-      volume: klineData.volume,
+      volume: klineData.volume ?? 0,
     });
     
     // Calculate price change if we have reference price (open)
@@ -315,11 +315,12 @@ export default function VNStockChartModule() {
         setPriceChangePercent(changePercent);
         
         // Update OHLCV if we have the data
-        if (realtimeData.open || realtimeData.high || realtimeData.low) {
+        const rd = realtimeData as any;
+        if (rd.open || rd.high || rd.low) {
           setOhlcvData({
-            open: (realtimeData.open || price) / 1000,
-            high: (realtimeData.high || price) / 1000,
-            low: (realtimeData.low || price) / 1000,
+            open: (rd.open || price) / 1000,
+            high: (rd.high || price) / 1000,
+            low: (rd.low || price) / 1000,
             close: price / 1000,
             volume: realtimeData.totalVol || 0,
           });
