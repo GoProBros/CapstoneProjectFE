@@ -48,19 +48,53 @@ export function useHeatmapSignalR(
   const restIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * Handle heatmap data update
+   * Handle heatmap data update (full snapshot or single item)
    */
   const handleDataUpdate = useCallback((newData: HeatmapData) => {
     console.log('[useHeatmapSignalR] 🔥 Received heatmap update:', {
       itemCount: newData.items?.length || 0,
       timestamp: new Date().toISOString()
     });
+    
     if (isMountedRef.current) {
-      setData(newData);
+      // If single item update (realtime), merge into existing data
+      if (newData.items.length === 1 && data?.items) {
+        const updatedItem = newData.items[0];
+        setData(prevData => {
+          if (!prevData) return newData;
+          
+          // Find and update existing item or add new item
+          const existingIndex = prevData.items.findIndex(
+            item => item.ticker === updatedItem.ticker
+          );
+          
+          if (existingIndex >= 0) {
+            // Update existing item
+            const updatedItems = [...prevData.items];
+            updatedItems[existingIndex] = updatedItem;
+            return {
+              ...prevData,
+              items: updatedItems,
+              timestamp: newData.timestamp
+            };
+          } else {
+            // Add new item
+            return {
+              ...prevData,
+              items: [...prevData.items, updatedItem],
+              timestamp: newData.timestamp
+            };
+          }
+        });
+      } else {
+        // Full snapshot update
+        setData(newData);
+      }
+      
       setIsLoading(false);
       setError(null);
     }
-  }, []);
+  }, [data]);
 
   /**
    * Connect to SignalR and subscribe

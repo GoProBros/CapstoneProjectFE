@@ -105,7 +105,7 @@ export default function VNStockChartModule() {
       high: klineData.high,
       low: klineData.low,
       close: klineData.close,
-      volume: klineData.volume,
+      volume: klineData.volume ?? 0,
     });
     
     // Calculate price change if we have reference price (open)
@@ -246,9 +246,9 @@ export default function VNStockChartModule() {
       
       if (result && result.data) {
         // Transform API data to KLineData format and divide prices by 1000
-        // Data in DB is already UTC+7, so subtract 7 hours to display correctly
+        // Backend returns UTC timestamps (timestamptz in PostgreSQL)
         const klineData: KLineData[] = result.data.map((item: any) => ({
-          timestamp: item.time - (7 * 60 * 60 * 1000),
+          timestamp: item.time,  // ✅ Use UTC timestamp directly (no conversion needed)
           open: item.open / 1000,
           high: item.high / 1000,
           low: item.low / 1000,
@@ -315,11 +315,12 @@ export default function VNStockChartModule() {
         setPriceChangePercent(changePercent);
         
         // Update OHLCV if we have the data
-        if (realtimeData.open || realtimeData.high || realtimeData.low) {
+        const rd = realtimeData as any;
+        if (rd.open || rd.high || rd.low) {
           setOhlcvData({
-            open: (realtimeData.open || price) / 1000,
-            high: (realtimeData.high || price) / 1000,
-            low: (realtimeData.low || price) / 1000,
+            open: (rd.open || price) / 1000,
+            high: (rd.high || price) / 1000,
+            low: (rd.low || price) / 1000,
             close: price / 1000,
             volume: realtimeData.totalVol || 0,
           });

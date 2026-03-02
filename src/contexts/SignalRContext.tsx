@@ -90,7 +90,14 @@ export function SignalRProvider({
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [marketData, setMarketData] = useState<Map<string, MarketSymbolDto>>(new Map());
   const [subscribedSymbols, setSubscribedSymbols] = useState<string[]>([]);
-  
+
+  // Mutable ref that always holds the latest map — used for reads without triggering renders
+  const marketDataRef = useRef<Map<string, MarketSymbolDto>>(new Map());
+
+  // Pending batch: accumulate incoming messages between RAF ticks
+  const pendingUpdatesRef = useRef<Map<string, MarketSymbolDto>>(new Map());
+  const rafIdRef = useRef<number | null>(null);
+
   /**
    * Initialize SignalR service khi component mount
    */
@@ -112,27 +119,28 @@ export function SignalRProvider({
       setConnectionState(state);
     });
     
-    // Subscribe to market data updates
+    // Subscribe to market data updates — batch via RAF to avoid update-depth overflow
     const unsubscribeData = service.onMarketDataReceived((data) => {
-      // Update market data trong state
-      setMarketData(prev => {
-        const newMap = new Map(prev);
-        
-        // ✅ FIX: MERGE partial data vào existing object thay vì ghi đè
-        // Backend chỉ gửi fields thay đổi, không phải full object
-        const existingData = newMap.get(data.ticker);
-        
-        if (existingData) {
-          // Merge: giữ nguyên fields cũ, chỉ update fields mới
-          const mergedData = { ...existingData, ...data };
-          newMap.set(data.ticker, mergedData);
-        } else {
-          // Symbol mới, chưa có data → set trực tiếp
-          newMap.set(data.ticker, data);
-        }
-        
-        return newMap;
-      });
+      // Merge into pending batch (overwrites with latest value for same ticker)
+      const existing = marketDataRef.current.get(data.ticker);
+      pendingUpdatesRef.current.set(data.ticker, existing ? { ...existing, ...data } : data);
+
+      // Schedule a single flush for this animation frame
+      if (rafIdRef.current === null) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
+          if (pendingUpdatesRef.current.size === 0) return;
+
+          // Apply all pending updates at once — one React state update
+          const updates = pendingUpdatesRef.current;
+          pendingUpdatesRef.current = new Map();
+
+          const newMap = new Map(marketDataRef.current);
+          updates.forEach((value, key) => newMap.set(key, value));
+          marketDataRef.current = newMap;
+          setMarketData(newMap);
+        });
+      }
     });
     
     // Auto connect nếu được bật
@@ -146,6 +154,13 @@ export function SignalRProvider({
     return () => {
       unsubscribeState();
       unsubscribeData();
+
+      // Cancel any pending RAF flush
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      pendingUpdatesRef.current = new Map();
       
       // Chỉ disconnect nếu đang connected hoặc đang connecting
       // Tránh stop connection trong khi đang negotiation (gây lỗi)
@@ -227,10 +242,11 @@ export function SignalRProvider({
   
   /**
    * Get data của 1 symbol cụ thể
+   * Reads from ref so this callback never changes reference.
    */
   const getSymbolData = useCallback((ticker: string): MarketSymbolDto | undefined => {
-    return marketData.get(ticker.toUpperCase());
-  }, [marketData]);
+    return marketDataRef.current.get(ticker.toUpperCase());
+  }, []); // stable — no deps needed, reads from ref
   
   // Memoize context value để tránh re-render không cần thiết
   const value: SignalRContextValue = useMemo(() => ({
@@ -251,7 +267,7 @@ export function SignalRProvider({
     disconnect,
     subscribeToSymbols,
     unsubscribeFromSymbols,
-    getSymbolData,
+    // getSymbolData is stable (reads from ref), no need in deps
   ]);
   
   return (
