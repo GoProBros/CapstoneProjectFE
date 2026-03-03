@@ -280,7 +280,16 @@ export default function AnalysisReportCategories() {
             if (status !== '') params.status = Number(status) as CommonStatus;
 
             const result = await analysisReportService.getCategories(params);
-            setCategories(result.items ?? []);
+            const sorted = (result.items ?? []).slice().sort((a, b) => {
+                // Primary: level ASC (1 → 2 → 3)
+                if (a.level !== b.level) return a.level - b.level;
+                // Secondary: code ASC
+                const codeComp = a.code.localeCompare(b.code);
+                if (codeComp !== 0) return codeComp;
+                // Tertiary: createdAt DESC (newest first)
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
+            setCategories(sorted);
             setTotalCount(result.totalCount ?? 0);
         } catch (err) {
             setFetchError(err instanceof Error ? err.message : 'Không thể tải danh sách phân loại');

@@ -40,6 +40,72 @@ function Spinner() {
     );
 }
 
+/** Returns a validated absolute URL (http/https) or undefined for bare/invalid strings */
+function ensureAbsoluteUrl(url: string): string | undefined {
+    if (!url.trim()) return undefined;
+    return /^https?:\/\//i.test(url) ? url : undefined;
+}
+
+// ─── Status Toggle ────────────────────────────────────────────────────────────
+
+interface StatusToggleProps {
+    source: AnalysisReportSource;
+    onToggled: (updated: AnalysisReportSource) => void;
+}
+
+function StatusToggle({ source, onToggled }: StatusToggleProps) {
+    const [loading, setLoading] = useState(false);
+    const isActive = source.status === CommonStatus.Active;
+
+    const handleToggle = async () => {
+        setLoading(true);
+        try {
+            const newStatus = isActive ? CommonStatus.Inactive : CommonStatus.Active;
+            const updated = await analysisReportService.updateSource(source.code, {
+                name: source.name,
+                description: source.description,
+                website: source.website,
+                logoUrl: source.logoUrl,
+                status: newStatus,
+            });
+            onToggled(updated);
+        } catch (err) {
+            console.error('[StatusToggle] Failed to toggle status:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleToggle}
+            disabled={loading}
+            title={isActive ? 'Đang hoạt động — nhấn để tắt' : 'Không hoạt động — nhấn để bật'}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1
+                ${ isActive
+                    ? 'bg-green-500 focus:ring-green-400'
+                    : 'bg-gray-300 dark:bg-gray-600 focus:ring-gray-400'
+                }`}
+        >
+            {loading ? (
+                <span className="absolute inset-0 flex items-center justify-center">
+                    <svg className="w-3 h-3 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                </span>
+            ) : (
+                <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                        isActive ? 'translate-x-[18px]' : 'translate-x-0.5'
+                    }`}
+                />
+            )}
+        </button>
+    );
+}
+
 // ─── Source Form Modal ────────────────────────────────────────────────────────
 
 interface SourceFormModalProps {
@@ -452,8 +518,8 @@ export default function AnalysisReportSources() {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tên nguồn</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Website</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Trạng thái</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày tạo</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Trạng thái</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
@@ -515,27 +581,39 @@ export default function AnalysisReportSources() {
                                         </td>
                                         {/* Website */}
                                         <td className="px-4 py-3 max-w-[160px]">
-                                            {source.website ? (
-                                                <a
-                                                    href={source.website}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm text-blue-500 hover:underline truncate block"
-                                                    title={source.website}
-                                                >
-                                                    {source.website.replace(/^https?:\/\//, '')}
-                                                </a>
-                                            ) : (
+                                            {source.website ? (() => {
+                                                const href = ensureAbsoluteUrl(source.website);
+                                                return href ? (
+                                                    <a
+                                                        href={href}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm text-blue-500 hover:underline truncate block"
+                                                        title={source.website}
+                                                    >
+                                                        {source.website.replace(/^https?:\/\//, '')}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400 truncate block" title="URL không hợp lệ">
+                                                        {source.website}
+                                                    </span>
+                                                );
+                                            })() : (
                                                 <span className="text-sm text-gray-400">—</span>
                                             )}
-                                        </td>
-                                        {/* Status */}
-                                        <td className="px-4 py-3">
-                                            <StatusBadge status={source.status} />
                                         </td>
                                         {/* Created At */}
                                         <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                             {new Date(source.createdAt).toLocaleDateString('vi-VN')}
+                                        </td>
+                                        {/* Status */}
+                                        <td className="px-4 py-3">
+                                            <StatusToggle
+                                                source={source}
+                                                onToggled={updated =>
+                                                    setSources(prev => prev.map(s => s.code === updated.code ? updated : s))
+                                                }
+                                            />
                                         </td>
                                         {/* Actions */}
                                         <td className="px-4 py-3">
