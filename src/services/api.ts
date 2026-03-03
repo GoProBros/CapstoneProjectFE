@@ -140,8 +140,10 @@ export async function apiRequest<T>(
     }
     
     // Build headers with Bearer token
+    // Do NOT set Content-Type for FormData — browser must set it with the multipart boundary
+    const isFormData = options?.body instanceof FormData;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options?.headers as Record<string, string>),
     };
     
