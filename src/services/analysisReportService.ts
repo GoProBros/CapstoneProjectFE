@@ -10,6 +10,7 @@ import type {
   AnalysisReportSource,
   AnalysisReportCategory,
   CreateAnalysisReportRequest,
+  UpdateAnalysisReportRequest,
   CreateAnalysisReportSourceRequest,
   UpdateAnalysisReportSourceRequest,
   CreateAnalysisReportCategoryRequest,
@@ -39,6 +40,7 @@ export const analysisReportService = {
         ticker,
         sectorId,
         searchTerm,
+        status,
         pageIndex = 1,
         pageSize = 20,
       } = params;
@@ -50,6 +52,7 @@ export const analysisReportService = {
       if (ticker) queryParams.append('ticker', ticker);
       if (sectorId) queryParams.append('sectorId', sectorId);
       if (searchTerm) queryParams.append('searchTerm', searchTerm);
+      if (status !== undefined) queryParams.append('status', status.toString());
       queryParams.append('pageIndex', pageIndex.toString());
       queryParams.append('pageSize', pageSize.toString());
 
@@ -63,6 +66,28 @@ export const analysisReportService = {
       throw new Error(response.message || 'Không thể tải danh sách báo cáo phân tích');
     } catch (error) {
       console.error('[AnalysisReportService] Error fetching reports:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get a single analysis report by ID
+   * @param id - Report ID (UUID)
+   * @returns Promise<AnalysisReport> Report details
+   */
+  async getReportById(id: string): Promise<AnalysisReport> {
+    try {
+      const response = await get<AnalysisReport>(
+        API_ENDPOINTS.ANALYSIS_REPORTS.REPORT_BY_ID(id)
+      );
+
+      if (response.isSuccess && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.message || 'Không thể tải báo cáo phân tích');
+    } catch (error) {
+      console.error('[AnalysisReportService] Error fetching report by ID:', error);
       throw error;
     }
   },
@@ -87,6 +112,30 @@ export const analysisReportService = {
       throw new Error(response.message || 'Không thể tạo báo cáo phân tích');
     } catch (error) {
       console.error('[AnalysisReportService] Error creating report:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update an existing analysis report
+   * @param id - Report ID (UUID)
+   * @param request - Update report request (includes status)
+   * @returns Promise<AnalysisReport> Updated analysis report
+   */
+  async updateReport(id: string, request: UpdateAnalysisReportRequest): Promise<AnalysisReport> {
+    try {
+      const response = await put<AnalysisReport>(
+        API_ENDPOINTS.ANALYSIS_REPORTS.REPORT_BY_ID(id),
+        request
+      );
+
+      if (response.isSuccess && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.message || 'Không thể cập nhật báo cáo phân tích');
+    } catch (error) {
+      console.error('[AnalysisReportService] Error updating report:', error);
       throw error;
     }
   },

@@ -38,6 +38,7 @@ export const API_ENDPOINTS = {
   // Analysis Report endpoints
   ANALYSIS_REPORTS: {
     BASE: '/api/v1/analysis-reports',
+    REPORT_BY_ID: (id: string) => `/api/v1/analysis-reports/${id}`,
     SOURCES: '/api/v1/analysis-reports/sources',
     SOURCE_BY_ID: (id: string) => `/api/v1/analysis-reports/sources/${id}`,
     CATEGORIES: '/api/v1/analysis-reports/categories',

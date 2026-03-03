@@ -104,6 +104,20 @@ export interface CreateAnalysisReportRequest {
 }
 
 /**
+ * Update Analysis Report request
+ */
+export interface UpdateAnalysisReportRequest {
+  sourceId: string;
+  categoryId: string;
+  title: string;
+  description?: string;
+  tickers?: string[];
+  sectorId?: string;
+  publishDate?: string;
+  status: CommonStatus;
+}
+
+/**
  * Get Analysis Reports query params
  */
 export interface GetAnalysisReportsParams {
@@ -112,6 +126,7 @@ export interface GetAnalysisReportsParams {
   ticker?: string;
   sectorId?: string;
   searchTerm?: string;
+  status?: CommonStatus;
   pageIndex?: number;
   pageSize?: number;
 }
