@@ -1,131 +1,419 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ReportViewer } from '@/components/ui';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { SearchBox } from '@/components/dashboard/AnalysisReportSearch';
+import analysisReportService from '@/services/analysisReportService';
+import { fileService } from '@/services/fileService';
+import type { AnalysisReport, AnalysisReportSource } from '@/types/analysisReport';
+import { FileCategory } from '@/types/file';
+
+const PAGE_SIZE = 10;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function Spinner({ className = 'w-4 h-4' }: { className?: string }) {
+    return (
+        <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+    );
+}
+
+// ─── Module ───────────────────────────────────────────────────────────────────
 
 export default function AnalysisReportModule() {
-  const { theme } = useTheme();
-  const [selectedReport, setSelectedReport] = useState<{
-    code: string;
-    date: string;
-    content: string;
-  } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
-  // Sample data for demonstration
-  const reports = [
-    { code: 'VNM', date: '29/11/2025', content: 'Báo cáo phân tích kết quả kinh doanh Q3/2025 cho thấy tăng trưởng ổn định' },
-    { code: 'VIC', date: '28/11/2025', content: 'Phân tích xu hướng thị trường bất động sản và định hướng chiến lược' },
-    { code: 'HPG', date: '27/11/2025', content: 'Đánh giá tác động của giá nguyên liệu đến biên lợi nhuận' },
-    { code: 'VHM', date: '26/11/2025', content: 'Cập nhật tiến độ các dự án và kế hoạch bàn giao trong quý 4' },
-    { code: 'FPT', date: '25/11/2025', content: 'Phân tích mảng công nghệ và triển vọng AI trong năm 2026' },
-    { code: 'MSN', date: '24/11/2025', content: 'Báo cáo tổng quan về hoạt động kinh doanh đa ngành' },
-    { code: 'TCB', date: '23/11/2025', content: 'Phân tích chất lượng tài sản và khả năng sinh lời' },
-    { code: 'VPB', date: '22/11/2025', content: 'Đánh giá kết quả tăng trưởng tín dụng và huy động vốn' },
-    { code: 'GAS', date: '21/11/2025', content: 'Báo cáo phân tích tác động của giá dầu thế giới đến hoạt động kinh doanh' },
-    { code: 'MWG', date: '20/11/2025', content: 'Đánh giá chiến lược mở rộng chuỗi bán lẻ và kế hoạch chuyển đổi số' },
-    { code: 'BID', date: '19/11/2025', content: 'Phân tích hiệu quả hoạt động và chất lượng danh mục cho vay' },
-    { code: 'CTG', date: '18/11/2025', content: 'Báo cáo tổng quan về tăng trưởng tín dụng và an toàn vốn' },
-    { code: 'PLX', date: '17/11/2025', content: 'Phân tích biến động giá xăng dầu và chiến lược kinh doanh quý 4' },
-    { code: 'VRE', date: '16/11/2025', content: 'Đánh giá danh mục BĐS cho thuê và kế hoạch phát triển mới' },
-    { code: 'SAB', date: '15/11/2025', content: 'Báo cáo phân tích thị phần và xu hướng tiêu dùng bia' },
-    { code: 'POW', date: '14/11/2025', content: 'Cập nhật tiến độ các dự án điện và kế hoạch đầu tư năng lượng tái tạo' },
-    { code: 'GMD', date: '13/11/2025', content: 'Phân tích kết quả kinh doanh may mặc và đơn hàng xuất khẩu' },
-    { code: 'HDB', date: '12/11/2025', content: 'Đánh giá chất lượng tài sản và hiệu quả hoạt động ngân hàng số' },
-    { code: 'MBB', date: '11/11/2025', content: 'Báo cáo tổng quan về tăng trưởng tín dụng bán lẻ và SME' },
-    { code: 'VJC', date: '10/11/2025', content: 'Phân tích hiệu quả khai thác đường bay và kế hoạch mở rộng đội bay' },
-    { code: 'SSI', date: '09/11/2025', content: 'Đánh giá hoạt động môi giới và tự doanh trên thị trường chứng khoán' },
-    { code: 'VND', date: '08/11/2025', content: 'Báo cáo phân tích kết quả kinh doanh khu công nghiệp và BĐS' },
-    { code: 'DGC', date: '07/11/2025', content: 'Cập nhật tiến độ các dự án khí và dầu khí' },
-    { code: 'PNJ', date: '06/11/2025', content: 'Phân tích thị trường vàng và kế hoạch mở rộng chuỗi bán lẻ' },
-    { code: 'STB', date: '05/11/2025', content: 'Đánh giá chất lượng tài sản và chiến lược tăng trưởng bền vững' },
-  ];
+    const [reports, setReports] = useState<AnalysisReport[]>([]);
+    const [allSources, setAllSources] = useState<AnalysisReportSource[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [pageIndex, setPageIndex] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
 
-  const isDark = theme === 'dark';
+    // Filters
+    const [searchInput, setSearchInput] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sourceFilter, setSourceFilter] = useState('');
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    // TODO: Implement API call when available
-    // Example: fetchReports({ searchQuery: query })
-    console.log('Searching for:', query);
-  };
+    const [selectedReport, setSelectedReport] = useState<AnalysisReport | null>(null);
+    const [selectedSource, setSelectedSource] = useState<AnalysisReportSource | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
+    const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+    const [loadingPdf, setLoadingPdf] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
-  const filteredReports = reports.filter(report => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    // ─── Data fetching ────────────────────────────────────────────────────────
+
+    const fetchPage = useCallback(async (page: number, append: boolean, term = '', source = '') => {
+        if (!append) setLoading(true);
+        else setLoadingMore(true);
+        try {
+            const result = await analysisReportService.getReports({
+                pageIndex: page,
+                pageSize: PAGE_SIZE,
+                searchTerm: term || undefined,
+                sourceId: source || undefined,
+            });
+            const items = result.items ?? [];
+            setReports(prev => append ? [...prev, ...items] : items);
+            setHasMore(result.hasNextPage ?? false);
+            setPageIndex(page);
+        } catch (err) {
+            console.error('[AnalysisReportModule] Failed to fetch reports:', err);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, []);
+
+    // Re-fetch from page 1 whenever filters change
+    useEffect(() => {
+        fetchPage(1, false, searchTerm, sourceFilter);
+    }, [fetchPage, searchTerm, sourceFilter]);
+
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => setSearchTerm(searchInput), 300);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
+    // Fetch sources for filter dropdown
+    useEffect(() => {
+        analysisReportService.getSources({ pageIndex: 1, pageSize: 100 })
+            .then(res => setAllSources(res.items ?? []))
+            .catch(err => console.error('[AnalysisReportModule] Failed to load sources:', err));
+    }, []);
+
+    // Clean up blob URL on unmount
+    useEffect(() => {
+        return () => {
+            if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ─── Handlers ─────────────────────────────────────────────────────────────
+
+    const handleSelectReport = async (report: AnalysisReport) => {
+        if (pdfBlobUrl) {
+            URL.revokeObjectURL(pdfBlobUrl);
+            setPdfBlobUrl(null);
+        }
+        setSelectedReport(null);
+        setSelectedSource(null);
+        setLoadingDetail(true);
+        try {
+            const detail = await analysisReportService.getReportById(report.id);
+            setSelectedReport(detail);
+            setSelectedSource(allSources.find(s => s.code === detail.sourceId) ?? null);
+            if (detail.fileSize && detail.fileSize > 0) {
+                setLoadingPdf(true);
+                try {
+                    const blob = await fileService.downloadFile({
+                        category: FileCategory.AnalysisReport,
+                        entityId: detail.id,
+                    });
+                    setPdfBlobUrl(URL.createObjectURL(blob));
+                } catch (err) {
+                    console.error('[AnalysisReportModule] Failed to load PDF:', err);
+                } finally {
+                    setLoadingPdf(false);
+                }
+            }
+        } catch (err) {
+            console.error('[AnalysisReportModule] Failed to fetch report detail:', err);
+        } finally {
+            setLoadingDetail(false);
+        }
+    };
+
+    const handleBack = () => {
+        if (pdfBlobUrl) {
+            URL.revokeObjectURL(pdfBlobUrl);
+            setPdfBlobUrl(null);
+        }
+        setSelectedReport(null);
+        setSelectedSource(null);
+    };
+
+    const handleDownload = async (report: AnalysisReport) => {
+        setDownloading(true);
+        try {
+            await fileService.downloadFileToDevice(
+                { category: FileCategory.AnalysisReport, entityId: report.id },
+                report.originalFileName ?? 'report',
+            );
+        } catch (err) {
+            console.error('[AnalysisReportModule] Failed to download file:', err);
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    // ─── Theme helpers ────────────────────────────────────────────────────────
+
+    const borderCls = isDark ? 'border-gray-700' : 'border-gray-200';
+    const textMutedCls = isDark ? 'text-gray-400' : 'text-gray-500';
+    const bgCls = isDark ? 'bg-[#282832]' : 'bg-white';
+    const hoverRowCls = isDark ? 'hover:bg-[#2a2a35]' : 'hover:bg-gray-50';
+    const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+    const textSecondary = isDark ? 'text-gray-300' : 'text-gray-700';
+
+    // ─── Detail View ──────────────────────────────────────────────────────────
+
+    if (loadingDetail) {
+        return (
+            <div className={`w-full h-full flex items-center justify-center rounded-lg border ${bgCls} ${borderCls}`}>
+                <Spinner className="w-6 h-6 text-purple-500" />
+            </div>
+        );
+    }
+
+    if (selectedReport) {
+        const hasFile = (selectedReport.fileSize ?? 0) > 0;
+        const sourceLabel = selectedSource
+            ? `${selectedSource.code} - ${selectedSource.name}`
+            : selectedReport.sourceId;
+        return (
+            <div className={`w-full h-full flex flex-col rounded-lg border ${bgCls} ${borderCls} overflow-hidden`}>
+                {/* Detail header */}
+                <div className={`flex items-center gap-2 px-4 py-3 border-b ${borderCls} flex-shrink-0`}>
+                    <button
+                        type="button"
+                        onClick={handleBack}
+                        className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+                        title="Quay lại"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+                    <span className={`text-sm font-medium truncate ${textPrimary}`}>{selectedReport.title}</span>
+                </div>
+
+                {/* Scrollable detail body */}
+                <div className="flex-1 overflow-auto">
+                    <div className="p-4 space-y-4">
+                        {/* Meta grid */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Nguồn</p>
+                                <p className={`text-sm ${textSecondary}`}>{sourceLabel}</p>
+                            </div>
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Phân loại</p>
+                                <p className={`text-sm ${textSecondary}`}>{selectedReport.categoryId}</p>
+                            </div>
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Ngày xuất bản</p>
+                                <p className={`text-sm ${textSecondary}`}>
+                                    {selectedReport.publishDate
+                                        ? new Date(selectedReport.publishDate).toLocaleDateString('vi-VN')
+                                        : '—'}
+                                </p>
+                            </div>
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Ngày cập nhật</p>
+                                <p className={`text-sm ${textSecondary}`}>
+                                    {selectedReport.updatedAt
+                                        ? new Date(selectedReport.updatedAt).toLocaleDateString('vi-VN')
+                                        : '—'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        {selectedReport.description && (
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Mô tả</p>
+                                <p className={`text-sm leading-relaxed ${textSecondary}`}>{selectedReport.description}</p>
+                            </div>
+                        )}
+
+                        {/* Tickers */}
+                        {selectedReport.tickers && selectedReport.tickers.length > 0 && (
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Mã chứng khoán</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {selectedReport.tickers.map(t => (
+                                        <span key={t} className={`px-2 py-0.5 rounded text-xs font-mono font-medium ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                                            {t}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* File download */}
+                        {hasFile && (
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Tài liệu đính kèm</p>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDownload(selectedReport)}
+                                    disabled={downloading}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderCls} transition-colors text-sm disabled:opacity-50 w-full text-left ${
+                                        isDark ? 'text-purple-400 hover:bg-gray-700/50' : 'text-purple-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="flex-1 truncate font-medium">
+                                        {selectedReport.originalFileName ?? 'Tải tài liệu'}
+                                    </span>
+                                    {downloading ? (
+                                        <Spinner />
+                                    ) : (
+                                        <svg className={`w-4 h-4 shrink-0 ${textMutedCls}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* PDF Reader */}
+                        <div>
+                            <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Xem tài liệu</p>
+                            <div
+                                className={`w-full rounded-lg border ${borderCls} overflow-hidden`}
+                                style={{ height: '480px' }}
+                            >
+                                {loadingPdf ? (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Spinner className="w-6 h-6 text-purple-500" />
+                                    </div>
+                                ) : pdfBlobUrl ? (
+                                    <iframe
+                                        src={pdfBlobUrl}
+                                        className="w-full h-full"
+                                        title="Báo cáo PDF"
+                                    />
+                                ) : (
+                                    <div className={`w-full h-full flex flex-col items-center justify-center gap-2 ${textMutedCls}`}>
+                                        <svg className="w-10 h-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p className="text-sm">Chưa có tài liệu đính kèm</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── List View ────────────────────────────────────────────────────────────
+
     return (
-      report.code.toLowerCase().includes(query) ||
-      report.content.toLowerCase().includes(query) ||
-      report.date.includes(query)
-    );
-  });
-
-  return (
-    <div className={`w-full h-full flex flex-col rounded-lg p-4 border ${
-      isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
-    }`}>
-      {/* Search Box */}
-      <div className="mb-4 flex-shrink-0">
-        <SearchBox 
-          onSearch={handleSearch}
-          placeholder="Tìm kiếm theo mã CK, nội dung hoặc ngày..."
-        />
-      </div>
-      {/* Report Table */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-full text-sm">
-          <thead className={`sticky top-0 ${
-            isDark ? 'bg-[#1e1e26] text-gray-300' : 'bg-gray-50 text-gray-700'
-          }`}>
-            <tr>
-              {['Mã CK', 'Ngày', 'Nội dung'].map((header, idx) => (
-                <th 
-                  key={header}
-                  className={`px-4 py-3 text-left font-medium border-b ${
-                    isDark ? 'border-gray-700' : 'border-gray-200'
-                  }`}
-                  colSpan={idx === 2 ? 2 : undefined}
+        <div className={`w-full h-full flex flex-col rounded-lg border ${bgCls} ${borderCls}`}>
+            {/* Search & Filter toolbar */}
+            <div className={`flex flex-wrap gap-2 px-3 py-2.5 border-b ${borderCls} flex-shrink-0`}>
+                {/* Search */}
+                <div className="relative flex-1 min-w-[140px]">
+                    <svg className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none ${textMutedCls}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                    </svg>
+                    <input
+                        type="text"
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
+                        placeholder="Tìm báo cáo..."
+                        className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} placeholder:${textMutedCls} focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                    />
+                </div>
+                {/* Source filter */}
+                <select
+                    value={sourceFilter}
+                    onChange={e => { setSourceFilter(e.target.value); }}
+                    className={`px-2 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-purple-500`}
                 >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-            {filteredReports.map((report, index) => (
-              <tr 
-                key={index} 
-                className={`transition-colors cursor-pointer ${
-                  isDark ? 'hover:bg-[#2a2a35]' : 'hover:bg-gray-50'
-                }`}
-                onClick={() => setSelectedReport(report)}
-              >
-                <td className={`px-4 py-3 border-b font-medium ${
-                  isDark ? 'border-gray-800 text-cyan-400' : 'border-gray-200 text-cyan-600'
-                }`}>{report.code}</td>
-                <td className={`px-4 py-3 border-b whitespace-nowrap ${
-                  isDark ? 'border-gray-800' : 'border-gray-200'
-                }`}>{report.date}</td>
-                <td className={`px-4 py-3 border-b ${
-                  isDark ? 'border-gray-800' : 'border-gray-200'
-                }`} colSpan={2}>{report.content}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    <option value="">Tất cả nguồn</option>
+                    {allSources.map(s => (
+                        <option key={s.code} value={s.code}>{s.name}</option>
+                    ))}
+                </select>
+            </div>
 
-      {/* Report Viewer Modal */}
-      {selectedReport && (
-        <ReportViewer
-          reportTitle={selectedReport.content}
-          reportUrl={`/reports/${selectedReport.code}_${selectedReport.date.replace(/\//g, '-')}.pdf`}
-          stockCode={selectedReport.code}
-          onClose={() => setSelectedReport(null)}
-        />
-      )}
-    </div>
-  );
+            {/* Table + load more (all scrollable together) */}
+            <div className="flex-1 overflow-auto min-h-0">
+                {loading ? (
+                    <div className="flex items-center justify-center h-32">
+                        <Spinner className="w-6 h-6 text-purple-500" />
+                    </div>
+                ) : (
+                    <>
+                        <table className="w-full text-sm">
+                            <thead className={`sticky top-0 ${isDark ? 'bg-[#1e1e26] text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
+                                <tr>
+                                    {['Nguồn', 'Ngày xuất bản', 'Tiêu đề', 'Mô tả'].map(h => (
+                                        <th key={h} className={`px-4 py-3 text-left text-xs font-medium border-b ${borderCls}`}>
+                                            {h}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className={textMutedCls}>
+                                {reports.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-sm">
+                                            {searchTerm || sourceFilter ? 'Không tìm thấy báo cáo phù hợp' : 'Không có báo cáo nào'}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    reports.map(r => (
+                                        <tr
+                                            key={r.id}
+                                            className={`cursor-pointer transition-colors ${hoverRowCls}`}
+                                            onClick={() => handleSelectReport(r)}
+                                        >
+                                            <td className={`px-4 py-3 border-b ${borderCls} whitespace-nowrap font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                                                {r.sourceId}
+                                            </td>
+                                            <td className={`px-4 py-3 border-b ${borderCls} whitespace-nowrap`}>
+                                                {r.publishDate
+                                                    ? new Date(r.publishDate).toLocaleDateString('vi-VN')
+                                                    : '—'}
+                                            </td>
+                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[200px]`}>
+                                                <p className="truncate">{r.title}</p>
+                                            </td>
+                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[200px]`}>
+                                                <p className="truncate">{r.description ?? '—'}</p>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+
+                        {/* Load more — sits right after table rows inside the scroll area */}
+                        {hasMore && (
+                            <div className={`px-4 py-3 border-t ${borderCls}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchPage(pageIndex + 1, true, searchTerm, sourceFilter)}
+                                    disabled={loadingMore}
+                                    className={`w-full py-2 text-xs rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                                        isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {loadingMore && <Spinner />}
+                                    {loadingMore ? 'Đang tải...' : 'Tải thêm...'}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
 }
+
+

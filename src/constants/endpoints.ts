@@ -35,6 +35,22 @@ export const API_ENDPOINTS = {
     FINANCIAL_REPORTS: `/api/v1/financial-reports`,
   },
   
+  // Analysis Report endpoints
+  ANALYSIS_REPORTS: {
+    BASE: '/api/v1/analysis-reports',
+    REPORT_BY_ID: (id: string) => `/api/v1/analysis-reports/${id}`,
+    SOURCES: '/api/v1/analysis-reports/sources',
+    SOURCE_BY_ID: (id: string) => `/api/v1/analysis-reports/sources/${id}`,
+    CATEGORIES: '/api/v1/analysis-reports/categories',
+  },
+  
+  // File endpoints
+  FILES: {
+    UPLOAD: '/api/v1/files/upload',
+    DOWNLOAD: '/api/v1/files/download',
+    DELETE: '/api/v1/files',
+  },
+  
   // Watch List endpoints
   WATCH_LIST: {
     BASE: '/api/v1/watch-lists',
