@@ -1,5 +1,7 @@
 ﻿'use client';
 
+// ─ REDESIGNED: compact layout, fixed row heights, cleaner footer ─────────────
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,149 +11,153 @@ import type { PriceDepthDto } from '@/services/signalRService';
 import { searchSymbols } from '@/services/symbolService';
 import type { SymbolSearchResultDto } from '@/types/symbol';
 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function fmtPrice(raw: number): string {
+  if (!raw) return '—';
+  return (raw / 1000).toFixed(2);
+}
+
+function fmtVol(v: number): string {
+  if (v === undefined || v === null) return '—';
+  if (v === 0) return '0';
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+  return v.toLocaleString('vi-VN');
+}
+
 function getPriceColor(price: number, ref: number, ceiling: number, floor: number): string {
-  if (price <= 0) return 'text-gray-400';
+  if (price <= 0)                      return 'text-gray-500';
   if (ceiling > 0 && price >= ceiling) return 'text-[#d97bff]';
-  if (floor > 0 && price <= floor) return 'text-[#00c8f8]';
+  if (floor   > 0 && price <= floor)   return 'text-[#00c8f8]';
   if (price > ref) return 'text-[#22c55e]';
   if (price < ref) return 'text-[#ef4444]';
   return 'text-[#f5c518]';
 }
 
-function formatVol(v: number): string {
-  if (v <= 0) return '';
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${Math.round(v / 100) / 10}K`;
-  return String(v);
-}
+// ─── component ───────────────────────────────────────────────────────────────
 
 export default function SessionInfoModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { isConnected } = useSignalR();
 
-  const [ticker, setTicker] = useState('FPT');
-  const [inputValue, setInputValue] = useState('FPT');
+  const [ticker, setTicker]               = useState('FPT');
+  const [inputValue, setInputValue]       = useState('FPT');
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [depth, setDepth] = useState<PriceDepthDto | null>(null);
+  const [showDropdown, setShowDropdown]   = useState(false);
+  const [depth, setDepth]                 = useState<PriceDepthDto | null>(null);
 
-  const searchRef = useRef<HTMLDivElement>(null);
-  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef   = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isConnected || !ticker) return;
-    const service = SignalRService.getInstance();
-    const unsub = service.onPriceDepthReceived((d) => {
+    const svc = SignalRService.getInstance();
+    const unsub = svc.onPriceDepthReceived((d) => {
       if (d.ticker?.toUpperCase() === ticker.toUpperCase()) setDepth(d);
     });
-    service.subscribeToPriceDepth(ticker).catch(() => {});
-    return () => {
-      unsub();
-      service.unsubscribeFromPriceDepth(ticker).catch(() => {});
-      setDepth(null);
-    };
+    svc.subscribeToPriceDepth(ticker).catch(() => {});
+    return () => { unsub(); svc.unsubscribeFromPriceDepth(ticker).catch(() => {}); setDepth(null); };
   }, [isConnected, ticker]);
 
   const handleSearchChange = useCallback((value: string) => {
     setInputValue(value);
     setShowDropdown(true);
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) { setSearchResults([]); return; }
-    searchDebounce.current = setTimeout(async () => {
+    debounceRef.current = setTimeout(async () => {
       try {
-        const result = await searchSymbols({ query: value.trim(), isTickerOnly: false, pageIndex: 1, pageSize: 8 });
-        setSearchResults(result.items || []);
+        const res = await searchSymbols({ query: value.trim(), isTickerOnly: false, pageIndex: 1, pageSize: 7 });
+        setSearchResults(res.items || []);
       } catch { setSearchResults([]); }
     }, 300);
   }, []);
 
   const selectSymbol = useCallback((t: string) => {
-    setTicker(t.toUpperCase());
-    setInputValue(t.toUpperCase());
-    setShowDropdown(false);
-    setSearchResults([]);
+    setTicker(t.toUpperCase()); setInputValue(t.toUpperCase());
+    setShowDropdown(false); setSearchResults([]);
   }, []);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const h = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowDropdown(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const ref = depth?.referencePrice ?? 0;
-  const ceiling = depth?.ceilingPrice ?? 0;
-  const floor = depth?.floorPrice ?? 0;
+  // ── derived ──────────────────────────────────────────────────────────────
+  const ref     = depth?.referencePrice ?? 0;
+  const ceiling = depth?.ceilingPrice   ?? 0;
+  const floor   = depth?.floorPrice     ?? 0;
 
-  const priceLevels = depth ? [
-    { price: depth.askPrice3 / 1000, vol: depth.askVol3, type: 'sell' as const, change: depth.askChange3 / 1000, changePct: depth.askChangePct3 },
-    { price: depth.askPrice2 / 1000, vol: depth.askVol2, type: 'sell' as const, change: depth.askChange2 / 1000, changePct: depth.askChangePct2 },
-    { price: depth.askPrice1 / 1000, vol: depth.askVol1, type: 'sell' as const, change: depth.askChange1 / 1000, changePct: depth.askChangePct1 },
-    { price: depth.bidPrice1 / 1000, vol: depth.bidVol1, type: 'buy' as const, change: depth.bidChange1 / 1000, changePct: depth.bidChangePct1 },
-    { price: depth.bidPrice2 / 1000, vol: depth.bidVol2, type: 'buy' as const, change: depth.bidChange2 / 1000, changePct: depth.bidChangePct2 },
-    { price: depth.bidPrice3 / 1000, vol: depth.bidVol3, type: 'buy' as const, change: depth.bidChange3 / 1000, changePct: depth.bidChangePct3 },
+  const levels = depth ? [
+    { price: depth.askPrice3, vol: depth.askVol3, pct: depth.askChangePct3, isBid: false },
+    { price: depth.askPrice2, vol: depth.askVol2, pct: depth.askChangePct2, isBid: false },
+    { price: depth.askPrice1, vol: depth.askVol1, pct: depth.askChangePct1, isBid: false },
+    { price: depth.bidPrice1, vol: depth.bidVol1, pct: depth.bidChangePct1, isBid: true  },
+    { price: depth.bidPrice2, vol: depth.bidVol2, pct: depth.bidChangePct2, isBid: true  },
+    { price: depth.bidPrice3, vol: depth.bidVol3, pct: depth.bidChangePct3, isBid: true  },
   ] : [];
 
-  const maxVol = priceLevels.length > 0 ? Math.max(...priceLevels.map(l => l.vol), 1) : 1;
-  const totalBid = (depth?.bidVol1 ?? 0) + (depth?.bidVol2 ?? 0) + (depth?.bidVol3 ?? 0);
-  const totalAsk = (depth?.askVol1 ?? 0) + (depth?.askVol2 ?? 0) + (depth?.askVol3 ?? 0);
-  const totalDepth = totalBid + totalAsk;
-  const bullRatio = totalDepth > 0 ? Math.round((totalBid / totalDepth) * 100) : 50;
-  const bearRatio = 100 - bullRatio;
+  const totalVol     = depth?.totalVol     ?? 0;
+  const totalBuyVol  = depth?.totalBuyVol  ?? 0;
+  const totalSellVol = depth?.totalSellVol ?? 0;
+  const tradeTotal   = totalBuyVol + totalSellVol;
+  const buyPct       = tradeTotal > 0 ? Math.round((totalBuyVol  / tradeTotal) * 100) : 50;
+  const sellPct      = tradeTotal > 0 ? Math.round((totalSellVol / tradeTotal) * 100) : 50;
+  const fBuyPct      = depth?.fBuyPct.toFixed(1)  ?? '0.0';
+  const fSellPct     = depth?.fSellPct.toFixed(1) ?? '0.0';
 
-  const totalVol = depth?.totalVol ?? 0;
-  const fBuyVolRaw = depth?.fBuyVol ?? 0;
-  const fSellVolRaw = depth?.fSellVol ?? 0;
-  const fBuyPct = totalVol > 0 ? ((fBuyVolRaw / totalVol) * 100).toFixed(1) : '0.0';
-  const fSellPct = totalVol > 0 ? ((fSellVolRaw / totalVol) * 100).toFixed(1) : '0.0';
-
-  const textMuted = isDark ? 'text-gray-400' : 'text-gray-500';
-  const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
+  // ── theme tokens ─────────────────────────────────────────────────────────
+  const bg     = isDark ? 'bg-[#181b28]'  : 'bg-white';
+  const bgCard = isDark ? 'bg-[#1e2130]'  : 'bg-gray-50';
+  const border = isDark ? 'border-white/8': 'border-gray-200';
+  const muted  = isDark ? 'text-gray-400' : 'text-gray-500';
+  const textPri = isDark ? 'text-gray-100': 'text-gray-800';
 
   return (
-    <div className={`h-full w-full text-base flex flex-col rounded-lg overflow-hidden ${isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`h-full w-full flex flex-col ${bg} overflow-hidden`}>
 
-      {/* Header badge */}
-      <div className="flex-none h-[32px]">
-        <div className="w-full relative flex justify-center">
-          <div className="w-[180px] mx-auto relative">
-            <svg className="text-gray-700 absolute inset-0 origin-top-left" width="360" height="48" viewBox="0 0 360 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'scale(0.5)' }}>
-              <path d="M357.237 2.82376e-05C398.658 2.82376e-05 -39.9387 -3.52971e-05 2.95743 2.82376e-05C45.8536 9.17724e-05 66.301 48 115.04 48H251.002C304.338 48 315.815 2.82376e-05 357.237 2.82376e-05Z" fill="currentColor" />
-            </svg>
-            <div className="text-black rounded-full relative text-sm text-center px-2 w-24 mx-auto font-semibold" style={{ backgroundColor: '#4ADE80' }}>
-              3 Bu&#x1EDB;c Gi&#xE1;
-            </div>
-          </div>
+      {/* ── Badge title ────────────────────────────────────────────────── */}
+      <div className="flex-none flex items-center justify-center pt-1.5 pb-1">
+        <div className="relative flex items-center justify-center">
+          <svg width="136" height="22" viewBox="0 0 136 22" className="block">
+            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-black tracking-wide">
+            3 Bước Giá
+          </span>
         </div>
       </div>
 
-      {/* Symbol search */}
-      <div className="flex-none px-2 pt-1 pb-1" ref={searchRef}>
+      {/* ── Search ─────────────────────────────────────────────────────── */}
+      <div className="flex-none px-2 pb-1" ref={searchRef}>
         <div className="relative">
-          <div className={`flex items-center gap-1 rounded border ${borderColor} ${isDark ? 'bg-[#1a1d2e]' : 'bg-gray-100'} px-2 py-1`}>
-            <Search size={12} className={textMuted} />
+          <div className={`flex items-center gap-1.5 rounded-md border ${border} ${bgCard} px-2 py-[5px]`}>
+            <Search size={12} className={muted} />
             <input
               value={inputValue}
               onChange={e => handleSearchChange(e.target.value)}
               onFocus={() => inputValue && setShowDropdown(true)}
-              onKeyDown={e => { if (e.key === 'Enter') selectSymbol(inputValue); }}
-              placeholder="Nhap ma CK..."
-              className={`flex-1 bg-transparent text-xs outline-none ${isDark ? 'text-white' : 'text-gray-900'} placeholder:text-gray-500`}
+              onKeyDown={e => e.key === 'Enter' && selectSymbol(inputValue)}
+              placeholder="Nhập mã CK…"
+              className={`flex-1 bg-transparent text-[12px] font-semibold outline-none ${textPri} placeholder:font-normal placeholder:text-gray-500`}
             />
             {inputValue && (
               <button onClick={() => { setInputValue(''); setSearchResults([]); setShowDropdown(false); }}>
-                <X size={11} className={textMuted} />
+                <X size={11} className={muted} />
               </button>
             )}
           </div>
           {showDropdown && searchResults.length > 0 && (
-            <div className={`absolute z-50 left-0 right-0 top-full mt-1 rounded border ${borderColor} ${isDark ? 'bg-[#252938]' : 'bg-white'} shadow-lg max-h-[200px] overflow-y-auto`}>
+            <div className={`absolute z-50 left-0 right-0 top-full mt-0.5 rounded-md border ${border} ${isDark ? 'bg-[#252938]' : 'bg-white'} shadow-xl overflow-hidden`}>
               {searchResults.map(s => (
-                <button key={s.ticker} onMouseDown={() => selectSymbol(s.ticker)} className="w-full text-left px-3 py-2 text-xs flex gap-2 hover:bg-white/10">
-                  <span className="font-bold text-[#22c55e] w-14">{s.ticker}</span>
-                  <span className={`${textMuted} truncate`}>{s.viCompanyName}</span>
+                <button key={s.ticker} onMouseDown={() => selectSymbol(s.ticker)}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] flex gap-2 items-center transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`}>
+                  <span className="font-bold text-[#22c55e] w-12 shrink-0">{s.ticker}</span>
+                  <span className={`${muted} truncate`}>{s.viCompanyName}</span>
                 </button>
               ))}
             </div>
@@ -159,101 +165,102 @@ export default function SessionInfoModule() {
         </div>
       </div>
 
-      {/* Bull/Bear Ratio Bar */}
-      <div className="relative px-2 mb-1">
-        <div className="relative flex w-full h-7 rounded-full overflow-hidden group cursor-pointer">
-          <div className="absolute inset-0 bg-gray-700 rounded-full" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 bg-black/20 rounded-full p-1">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white drop-shadow-lg">
-              <polyline points="17 1 21 5 17 9"></polyline>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-              <polyline points="7 23 3 19 7 15"></polyline>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-            </svg>
+      {/* ── Buy/Sell bar ───────────────────────────────────────────────── */}
+      <div className="flex-none px-2 pb-1.5 group relative">
+        <div className="h-[22px] flex rounded-full overflow-hidden cursor-default">
+          <div className="flex items-center justify-center text-[10px] font-bold text-black transition-all duration-500"
+            style={{ width: `${buyPct}%`, minWidth: buyPct > 0 ? 16 : 0, background: 'linear-gradient(90deg,#166534,#22c55e)' }}>
+            {buyPct >= 20 && `${buyPct}%`}
           </div>
-          <div className="relative text-center py-1 z-10 flex items-center justify-center" style={{ width: `${bullRatio}%`, backgroundColor: '#34C85E', minWidth: bullRatio > 0 ? 20 : 0 }}>
-            {bullRatio >= 15 && <span className="text-[10px] font-bold text-gray-900">{bullRatio}%</span>}
+          <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all duration-500"
+            style={{ width: `${sellPct}%`, minWidth: sellPct > 0 ? 16 : 0, background: 'linear-gradient(90deg,#dc2626,#7f1d1d)' }}>
+            {sellPct >= 20 && `${sellPct}%`}
           </div>
-          <div className="relative bg-red-500 text-center py-1 z-10 flex items-center justify-center" style={{ width: `${bearRatio}%`, minWidth: bearRatio > 0 ? 20 : 0 }}>
-            {bearRatio >= 15 && <span className="text-[10px] font-bold text-gray-900">{bearRatio}%</span>}
-          </div>
+        </div>
+        {/* Hover tooltip */}
+        <div className={`pointer-events-none absolute left-2 right-2 bottom-full mb-1 z-50
+          opacity-0 group-hover:opacity-100 transition-opacity duration-150
+          flex justify-between rounded-md px-3 py-1.5 text-[11px] shadow-lg border
+          ${isDark ? 'bg-[#252938] border-white/10' : 'bg-white border-gray-200'}`}>
+          <span className="text-[#22c55e] font-semibold">Mua {fmtVol(totalBuyVol)}</span>
+          <span className={muted}>{buyPct}% / {sellPct}%</span>
+          <span className="text-[#ef4444] font-semibold">Bán {fmtVol(totalSellVol)}</span>
         </div>
       </div>
 
-      {/* Reference price row */}
-      {ref > 0 && (
-        <div className="flex px-2 pb-0.5">
-          <div className="w-full flex bg-[#1a1d2e] rounded-md px-2 py-0.5 text-[11px]">
-            <span className="flex-none w-12 text-[#f5c518] font-semibold">{(ref / 1000).toFixed(2)}</span>
-            <span className="flex-1 text-gray-500 text-center">Tham chieu</span>
-            <span className={`flex-none w-20 text-right font-semibold text-[10px] ${(depth?.change ?? 0) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-              {depth ? `${depth.change >= 0 ? '+' : ''}${(depth.change / 1000).toFixed(2)} (${depth.ratioChange >= 0 ? '+' : ''}${depth.ratioChange.toFixed(2)}%)` : ''}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Price Levels Table */}
-      <div className="overflow-auto custom-scrollbar flex-1 px-2 mt-1">
-        {priceLevels.length === 0 ? (
-          <div className={`py-6 text-center text-[11px] ${textMuted}`}>
-            {isConnected ? `Dang cho du lieu ${ticker}...` : 'Dang ket noi SignalR...'}
-          </div>
-        ) : (
-          <div className="rounded-lg bg-[#282832] overflow-hidden">
-            <div className="grid grid-cols-[48px_1fr_52px_56px] text-[10px] text-gray-500 px-2 py-1 border-b border-white/10">
-              <span>Gia</span>
-              <span className="text-center">KL Cho</span>
-              <span className="text-right">+/-</span>
-              <span className="text-right">%</span>
-            </div>
-            {priceLevels.map((level, index) => {
-              if (level.vol <= 0 && level.price <= 0) return null;
-              const widthPercent = maxVol > 0 ? (level.vol / maxVol) * 100 : 0;
-              const isBuy = level.type === 'buy';
-              const colorCls = level.price > 0 ? getPriceColor(level.price * 1000, ref, ceiling, floor) : 'text-gray-500';
-              return (
-                <div key={index} className="relative overflow-hidden px-2" style={{ height: '26px' }}>
-                  <div className={`absolute top-0 bottom-0 left-12 h-full ${isBuy ? 'bg-green-600/20' : 'bg-red-600/20'}`} style={{ width: `${widthPercent}%` }} />
-                  <div className="relative z-10 h-full grid grid-cols-[48px_1fr_52px_56px] items-center text-[12px]">
-                    <span className={`font-semibold ${colorCls}`}>{level.price > 0 ? level.price.toFixed(2) : ''}</span>
-                    <span className={`text-center font-medium ${isBuy ? 'text-green-300' : 'text-red-300'}`}>{level.vol > 0 ? level.vol.toLocaleString() : ''}</span>
-                    <span className={`text-right text-[11px] font-semibold ${colorCls}`}>
-                      {level.change !== 0 ? `${level.change >= 0 ? '+' : ''}${level.change.toFixed(2)}` : ''}
-                    </span>
-                    <span className={`text-right text-[11px] font-bold ${colorCls}`}>
-                      {level.changePct !== 0 ? `${level.changePct >= 0 ? '+' : ''}${level.changePct.toFixed(2)}%` : ''}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* ── Column headers ─────────────────────────────────────────────── */}
+      <div className={`flex-none grid grid-cols-[52px_1fr_48px_46px] px-2 pb-[3px] text-[10px] font-medium uppercase tracking-wide ${muted}`}>
+        <span>Giá</span>
+        <span className="text-right pr-1">KL Chờ</span>
+        <span className="text-right">+/-</span>
+        <span className="text-right">%</span>
       </div>
 
-      {/* Foreign Investor Section */}
-      <div className="flex-none px-2 py-2">
-        <div className="rounded-full bg-gray-700 flex justify-between items-center px-3 py-1">
-          <div className="text-[11px] font-semibold whitespace-nowrap">
-            <span className="text-gray-400">NN Mua </span>
-            <span className="text-green-400">{fBuyPct}%</span>
+      {/* ── Price rows ─────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 px-1.5">
+        {levels.length === 0 ? (
+          <div className={`flex-1 flex items-center justify-center text-[11px] ${muted}`}>
+            {isConnected ? `Chờ dữ liệu ${ticker}…` : 'Đang kết nối…'}
           </div>
-          <div className="text-[10px] font-bold text-gray-900 px-2 py-0.5 rounded-full bg-[#4ADE80]">
-            {formatVol(totalVol)}
+        ) : levels.map((lv, idx) => {
+          if (!lv.price && !lv.vol) return null;
+          const sep = idx === 3;
+          const pc  = getPriceColor(lv.price, ref, ceiling, floor);
+          const cc  = lv.pct >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]';
+          return (
+            <React.Fragment key={idx}>
+              {sep && <div className={`flex-none h-px mx-0.5 mt-px mb-px ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />}
+              <div className="flex-1 grid grid-cols-[52px_1fr_48px_46px] items-center px-0.5"
+                style={{ minHeight: 0, maxHeight: 44 }}>
+                <span className={`text-[12.5px] font-bold tabular-nums ${pc}`}>
+                  {fmtPrice(lv.price)}
+                </span>
+                <span className={`text-[11px] text-right pr-1 tabular-nums ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                  {fmtVol(lv.vol)}
+                </span>
+                <span className={`text-[10.5px] text-right tabular-nums ${cc}`}>
+                  {lv.pct ? `${lv.pct > 0 ? '+' : ''}${(lv.pct * ref / 100 / 1000).toFixed(2)}` : ''}
+                </span>
+                <span className={`text-[10.5px] font-semibold text-right tabular-nums ${cc}`}>
+                  {lv.pct ? `${lv.pct.toFixed(2)}%` : ''}
+                </span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <div className={`flex-none border-t ${border} px-2 pt-1.5 pb-1.5 space-y-1.5`}>
+
+        {/* Tổng mua / KL / Tổng bán */}
+        <div className="grid grid-cols-3 text-center">
+          <div className="flex flex-col items-start">
+            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng mua</span>
+            <span className="text-[12px] font-bold tabular-nums text-[#22c55e]">{fmtVol(totalBuyVol)}</span>
           </div>
-          <div className="text-[11px] font-semibold whitespace-nowrap">
-            <span className="text-red-400">{fSellPct}%</span>
-            <span className="text-gray-400"> NN Ban</span>
+          <div className="flex flex-col items-center">
+            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng KL</span>
+            <span className={`text-[12px] font-bold tabular-nums ${textPri}`}>{fmtVol(totalVol)}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng bán</span>
+            <span className="text-[12px] font-bold tabular-nums text-[#ef4444]">{fmtVol(totalSellVol)}</span>
           </div>
         </div>
-        {(depth?.fBuyVol ?? 0) + (depth?.fSellVol ?? 0) > 0 && (
-          <div className="flex justify-between px-1 mt-1 text-[10px] text-gray-500">
-            <span>Mua: <span className="text-green-400">{formatVol(fBuyVolRaw)}</span></span>
-            <span className="text-gray-600">KL cap nhat</span>
-            <span>Ban: <span className="text-red-400">{formatVol(fSellVolRaw)}</span></span>
-          </div>
-        )}
+
+        {/* NN Mua / NN Bán pill */}
+        <div className={`flex items-center justify-between ${bgCard} rounded-full px-3 py-[5px] border ${border}`}>
+          <span className="text-[11px]">
+            <span className={muted}>NN Mua </span>
+            <span className="text-[#22c55e] font-bold">{fBuyPct}%</span>
+          </span>
+          <span className={`text-[10px] font-medium ${muted}`}>Ngoại</span>
+          <span className="text-[11px]">
+            <span className="text-[#ef4444] font-bold">{fSellPct}%</span>
+            <span className={muted}> NN Bán</span>
+          </span>
+        </div>
       </div>
     </div>
   );
