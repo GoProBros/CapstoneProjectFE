@@ -22,6 +22,8 @@ export * from './layout';
 export * from './watchList';
 export * from './workspace';
 export * from './sector';
+export * from './file';
+export * from './analysisReport';
 
 export interface PaginationParams {
   page: number;
