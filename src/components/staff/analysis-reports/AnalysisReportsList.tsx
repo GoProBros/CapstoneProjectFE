@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import analysisReportService from '@/services/analysisReportService';
 import UploadFileModal from '@/components/ui/UploadFileModal';
+import { getSectors } from '@/services/sectorService';
+import { fileService } from '@/services/fileService';
 import type {
     AnalysisReport,
     AnalysisReportSource,
@@ -11,6 +13,7 @@ import type {
     UpdateAnalysisReportRequest,
     GetAnalysisReportsParams,
 } from '@/types/analysisReport';
+import type { Sector } from '@/types';
 import { CommonStatus } from '@/types';
 import { FileCategory } from '@/types/file';
 
@@ -110,6 +113,7 @@ interface ReportFormModalProps {
     report?: AnalysisReport;
     allSources: AnalysisReportSource[];
     allCategories: AnalysisReportCategory[];
+    allSectors: Sector[];
     onClose: () => void;
     /** Called after a successful EDIT save */
     onSaved: () => void;
@@ -117,12 +121,13 @@ interface ReportFormModalProps {
     onCreated: (report: AnalysisReport) => void;
 }
 
-function ReportFormModal({ mode, report, allSources, allCategories, onClose, onSaved, onCreated }: ReportFormModalProps) {
+function ReportFormModal({ mode, report, allSources, allCategories, allSectors, onClose, onSaved, onCreated }: ReportFormModalProps) {
     const isEdit = mode === 'edit';
 
     const [form, setForm] = useState({
         sourceId: report?.sourceId ?? '',
         categoryId: report?.categoryId ?? '',
+        sectorId: report?.sectorId ?? '',
         title: report?.title ?? '',
         description: report?.description ?? '',
         tickers: formatTickers(report?.tickers),
@@ -133,6 +138,8 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
     });
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const mouseDownOnBackdrop = useRef(false);
 
     const set = (field: string, value: string | number) =>
         setForm(prev => ({ ...prev, [field]: value }));
@@ -150,6 +157,7 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
                 const req: UpdateAnalysisReportRequest = {
                     sourceId: form.sourceId,
                     categoryId: form.categoryId,
+                    sectorId: form.sectorId || undefined,
                     title: form.title.trim(),
                     description: form.description.trim() || undefined,
                     tickers: tickerArr.length > 0 ? tickerArr : undefined,
@@ -163,6 +171,7 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
                 const req: CreateAnalysisReportRequest = {
                     sourceId: form.sourceId,
                     categoryId: form.categoryId,
+                    sectorId: form.sectorId || undefined,
                     title: form.title.trim(),
                     description: form.description.trim() || undefined,
                     tickers: tickerArr.length > 0 ? tickerArr : undefined,
@@ -181,10 +190,14 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+        <div
+            ref={backdropRef}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onMouseDown={e => { mouseDownOnBackdrop.current = e.target === backdropRef.current; }}
+            onMouseUp={e => { if (mouseDownOnBackdrop.current && e.target === backdropRef.current) onClose(); mouseDownOnBackdrop.current = false; }}
+        >
             <div
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
-                onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
@@ -236,6 +249,21 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
                             <option value="">-- Chọn phân loại --</option>
                             {allCategories.map(c => (
                                 <option key={c.code} value={c.code}>{c.name} (Cấp {c.level})</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Sector */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngành</label>
+                        <select
+                            value={form.sectorId}
+                            onChange={e => set('sectorId', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="">-- Chọn ngành (không bắt buộc) --</option>
+                            {allSectors.map(s => (
+                                <option key={s.id} value={s.id}>{s.viName}</option>
                             ))}
                         </select>
                     </div>
@@ -333,12 +361,177 @@ function ReportFormModal({ mode, report, allSources, allCategories, onClose, onS
     );
 }
 
+// ─── Report Detail Modal ──────────────────────────────────────────────────────
+
+interface ReportDetailModalProps {
+    report: AnalysisReport;
+    sourceName: string;
+    categoryName: string;
+    sectorName?: string;
+    onClose: () => void;
+}
+
+function ReportDetailModal({ report, sourceName, categoryName, sectorName, onClose }: ReportDetailModalProps) {
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const mouseDownOnBackdrop = useRef(false);
+    const [downloading, setDownloading] = useState(false);
+
+    const handleDownload = async () => {
+        setDownloading(true);
+        try {
+            await fileService.downloadFileToDevice(
+                { category: FileCategory.AnalysisReport, entityId: report.id },
+                report.originalFileName ?? 'report',
+            );
+        } catch (err) {
+            console.error('[ReportDetailModal] Failed to download file:', err);
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    // Use fileSize as the reliable indicator — filePath/originalFileName may be empty strings from API
+    const hasFile = (report.fileSize ?? 0) > 0;
+
+    return (
+        <div
+            ref={backdropRef}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onMouseDown={e => { mouseDownOnBackdrop.current = e.target === backdropRef.current; }}
+            onMouseUp={e => { if (mouseDownOnBackdrop.current && e.target === backdropRef.current) onClose(); mouseDownOnBackdrop.current = false; }}
+        >
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">Chi tiết báo cáo</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-4 space-y-4">
+                    {/* Title */}
+                    <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Tiêu đề</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{report.title}</p>
+                    </div>
+
+                    {/* Description */}
+                    {report.description && (
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Mô tả</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{report.description}</p>
+                        </div>
+                    )}
+
+                    {/* Meta grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Nguồn</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{sourceName}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Phân loại</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{categoryName}</p>
+                        </div>
+                        {sectorName && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Ngành</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">{sectorName}</p>
+                            </div>
+                        )}
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Ngày xuất bản</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {report.publishDate ? new Date(report.publishDate).toLocaleDateString('vi-VN') : '—'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Trạng thái</p>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                report.status === CommonStatus.Active
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                            }`}>
+                                {report.status === CommonStatus.Active ? 'Đang hoạt động' : 'Không hoạt động'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* File info */}
+                    <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Tài liệu đính kèm</p>
+                        {hasFile ? (
+                            <button
+                                type="button"
+                                onClick={handleDownload}
+                                disabled={downloading}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-sm text-purple-600 dark:text-purple-400 disabled:opacity-50 w-full text-left"
+                            >
+                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                                <span className="flex-1 truncate font-medium">
+                                    {report.originalFileName || 'Tải tài liệu'}
+                                </span>
+                                {downloading ? (
+                                    <Spinner />
+                                ) : (
+                                    <svg className="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                )}
+                            </button>
+                        ) : (
+                            <p className="text-sm text-gray-400 dark:text-gray-500 italic">Chưa có tài liệu đính kèm</p>
+                        )}
+                    </div>
+
+                    {/* Tickers */}
+                    {report.tickers && report.tickers.length > 0 && (
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Mã chứng khoán</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {report.tickers.map(t => (
+                                    <span key={t} className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                        {t}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+
+
+                    {/* Timestamps */}
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Ngày tạo</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(report.createdAt).toLocaleString('vi-VN')}</p>
+                        </div>
+                        {report.updatedAt && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cập nhật lần cuối</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(report.updatedAt).toLocaleString('vi-VN')}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AnalysisReportsList() {
     const [reports, setReports] = useState<AnalysisReport[]>([]);
     const [allSources, setAllSources] = useState<AnalysisReportSource[]>([]);
     const [allCategories, setAllCategories] = useState<AnalysisReportCategory[]>([]);
+    const [allSectors, setAllSectors] = useState<Sector[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [pageIndex, setPageIndex] = useState(1);
 
@@ -353,6 +546,8 @@ export default function AnalysisReportsList() {
 
     const [modalMode, setModalMode] = useState<ModalMode>(null);
     const [editingReport, setEditingReport] = useState<AnalysisReport | undefined>();
+    const [viewingReport, setViewingReport] = useState<AnalysisReport | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
     // Report awaiting file upload after creation
     const [pendingUploadReport, setPendingUploadReport] = useState<AnalysisReport | null>(null);
     const [publishingAfterUpload, setPublishingAfterUpload] = useState(false);
@@ -391,11 +586,12 @@ export default function AnalysisReportsList() {
         }
     }, []);
 
-    // Fetch all sources/categories once (for dropdown options)
+    // Fetch all sources/categories/sectors once (for dropdown options)
     const fetchDropdownData = useCallback(async () => {
-        const [sourcesResult, categoriesResult] = await Promise.allSettled([
+        const [sourcesResult, categoriesResult, sectorsResult] = await Promise.allSettled([
             analysisReportService.getSources({ pageIndex: 1, pageSize: 100 }),
             analysisReportService.getCategories({ pageIndex: 1, pageSize: 100 }),
+            getSectors({ pageIndex: 1, pageSize: 100 }),
         ]);
         if (sourcesResult.status === 'fulfilled') {
             setAllSources(sourcesResult.value.items ?? []);
@@ -407,6 +603,11 @@ export default function AnalysisReportsList() {
         } else {
             console.error('[AnalysisReportsList] Failed to load categories for filter:', categoriesResult.reason);
         }
+        if (sectorsResult.status === 'fulfilled' && sectorsResult.value.isSuccess) {
+            setAllSectors(sectorsResult.value.data?.items ?? []);
+        } else {
+            console.error('[AnalysisReportsList] Failed to load sectors:', sectorsResult.status === 'rejected' ? sectorsResult.reason : 'API error');
+        }
     }, []);
 
     useEffect(() => {
@@ -417,10 +618,14 @@ export default function AnalysisReportsList() {
         fetchDropdownData();
     }, [fetchDropdownData]);
 
-    const handleSearch = () => {
-        setSearchTerm(searchInput);
-        setPageIndex(1);
-    };
+    // Auto-search with debounce when searchInput changes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setSearchTerm(searchInput);
+            setPageIndex(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
 
     const handleSourceFilterChange = (val: string) => {
         setSourceIdFilter(val);
@@ -510,28 +715,18 @@ export default function AnalysisReportsList() {
 
             {/* Search & Filters */}
             <div className="flex flex-wrap gap-3">
-                {/* Search input + button */}
-                <div className="flex gap-2 flex-1 min-w-[220px]">
-                    <div className="relative flex-1">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                        </svg>
-                        <input
-                            type="text"
-                            value={searchInput}
-                            onChange={e => setSearchInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                            placeholder="Tìm theo tiêu đề..."
-                            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
-                        />
-                    </div>
-                    <button
-                        type="button"
-                        onClick={handleSearch}
-                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
-                    >
-                        Tìm
-                    </button>
+                {/* Search */}
+                <div className="relative flex-1 min-w-[220px]">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                    </svg>
+                    <input
+                        type="text"
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
+                        placeholder="Tìm theo tiêu đề..."
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
+                    />
                 </div>
 
                 {/* Source filter */}
@@ -682,6 +877,28 @@ export default function AnalysisReportsList() {
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     type="button"
+                                                    onClick={async () => {
+                                                        setLoadingDetail(true);
+                                                        try {
+                                                            const detail = await analysisReportService.getReportById(report.id);
+                                                            setViewingReport(detail);
+                                                        } catch (err) {
+                                                            console.error('[AnalysisReportsList] Failed to load detail:', err);
+                                                        } finally {
+                                                            setLoadingDetail(false);
+                                                        }
+                                                    }}
+                                                    disabled={loadingDetail}
+                                                    title="Xem chi tiết"
+                                                    className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     onClick={() => setPendingUploadReport(report)}
                                                     title="Upload tài liệu"
                                                     className="p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
@@ -744,9 +961,21 @@ export default function AnalysisReportsList() {
                     report={modalMode === 'edit' ? editingReport : undefined}
                     allSources={allSources}
                     allCategories={allCategories}
+                    allSectors={allSectors}
                     onClose={closeModal}
                     onSaved={() => fetchReports(pageIndex, searchTerm, sourceIdFilter, categoryIdFilter)}
                     onCreated={handleReportCreated}
+                />
+            )}
+
+            {/* Detail modal */}
+            {viewingReport && (
+                <ReportDetailModal
+                    report={viewingReport}
+                    sourceName={getSourceName(viewingReport.sourceId)}
+                    categoryName={getCategoryName(viewingReport.categoryId)}
+                    sectorName={viewingReport.sectorId ? (allSectors.find(s => s.id === viewingReport.sectorId)?.viName ?? viewingReport.sectorId) : undefined}
+                    onClose={() => setViewingReport(null)}
                 />
             )}
 
