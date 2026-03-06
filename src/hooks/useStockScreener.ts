@@ -85,6 +85,17 @@ export function useStockScreener() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleId, currentPageId]); // getModuleById and gridApi accessed directly, not as dependencies
   
+  // Reset layout ready state when user logs in/out so the layout is re-fetched
+  const prevUserRef = useRef<typeof user>(user);
+  useEffect(() => {
+    const prevUser = prevUserRef.current;
+    prevUserRef.current = user;
+    // Transition from unauthenticated → authenticated: reload layout
+    if (!prevUser && user) {
+      setIsLayoutReady(false);
+    }
+  }, [user]);
+
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
@@ -901,9 +912,13 @@ export function useStockScreener() {
       return;
     }
 
-    // Skip if user is not authenticated — layout API requires auth
-    // Do NOT set isLayoutReady = true here so it retries when user logs in
+    // If user is not authenticated, skip user-specific layout loading but still mark as ready
+    // so the loading overlay does not block the module for unauthenticated users
     if (!user) {
+      setCurrentLayoutId(null);
+      setCurrentLayoutName('Layout mặc định');
+      setCurrentLayoutIsSystemDefault(false);
+      setIsLayoutReady(true);
       return;
     }
 
