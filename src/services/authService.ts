@@ -2,7 +2,7 @@
  * Authentication Service - API calls for authentication
  */
 
-import { post } from '@/services/api';
+import { post, get } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
 import type { ApiResponse } from '@/types';
 import type {
@@ -89,6 +89,23 @@ export async function logout(data: LogoutRequest): Promise<void> {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('expiresAt');
     localStorage.removeItem('user');
+    throw error;
+  }
+}
+
+/**
+ * Get current authenticated user info
+ */
+export async function getMe(): Promise<import('@/types/auth').User> {
+  try {
+    const result = await get<import('@/types/auth').User>(API_ENDPOINTS.AUTH.ME);
+    if (result.isSuccess && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || 'Failed to get user info');
+    }
+  } catch (error) {
+    console.error('[AuthService] GetMe error:', error);
     throw error;
   }
 }
