@@ -29,6 +29,12 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
   // Refs
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Keep mutable refs so performSearch is stable (no deps) and avoids double-call
+  const isTickerOnlyRef = useRef<boolean>(isTickerOnly);
+  const searchInputRef = useRef<string>(searchInput);
+
+  useEffect(() => { isTickerOnlyRef.current = isTickerOnly; }, [isTickerOnly]);
+  useEffect(() => { searchInputRef.current = searchInput; }, [searchInput]);
   
   const PAGE_SIZE = 20;
   
@@ -47,7 +53,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
     try {
       const response = await searchSymbols({
         query: query.trim(),
-        isTickerOnly,
+        isTickerOnly: isTickerOnlyRef.current, // Read from ref — stable, no stale closure
         pageIndex: page,
         pageSize: PAGE_SIZE,
       });
@@ -71,7 +77,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
     } finally {
       setIsSearching(false);
     }
-  }, [isTickerOnly]);
+  }, []); // Stable — reads isTickerOnly via ref, no deps needed
   
   /**
    * Debounced search on input change
@@ -100,13 +106,21 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
   }, [searchInput, performSearch]);
   
   /**
-   * Re-search when isTickerOnly changes
+   * Re-search immediately when isTickerOnly toggle changes.
+   * Does NOT depend on searchInput — uses the ref to avoid firing on every keystroke.
+   * Cancels any in-flight debounce so Effect 1 and Effect 2 never both fire.
    */
   useEffect(() => {
-    if (searchInput.trim()) {
-      performSearch(searchInput, 1, false);
+    if (searchInputRef.current.trim()) {
+      // Cancel the pending debounce from Effect 1 (same user action, different trigger)
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      performSearch(searchInputRef.current, 1, false);
     }
-  }, [isTickerOnly, performSearch, searchInput]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTickerOnly]); // Only isTickerOnly — performSearch is now stable
   
   /**
    * Close dropdown when clicking outside
