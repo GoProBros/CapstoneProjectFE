@@ -35,6 +35,30 @@ interface PageData {
   workspaceId?: number; // API workspace ID
 }
 
+/** Max height units allowed per module type to prevent viewport overflow on standard screens */
+const MODULE_MAX_HEIGHT: Record<string, number> = {
+  heatmap: 22,
+};
+
+/**
+ * Normalize layout items — caps heights that exceed per-module limits.
+ * Applied when loading from localStorage or API to migrate old saved values.
+ */
+function normalizeLayout(
+  modules: Module[],
+  layout: LayoutItem[]
+): LayoutItem[] {
+  return layout.map((item) => {
+    const module = modules.find((m) => m.id === item.i);
+    if (!module) return item;
+    const maxH = MODULE_MAX_HEIGHT[module.type];
+    if (maxH !== undefined && item.h > maxH) {
+      return { ...item, h: maxH };
+    }
+    return item;
+  });
+}
+
 // Default page configuration
 const DEFAULT_PAGE: PageData = {
   id: "default",
@@ -179,9 +203,14 @@ export default function DashboardLayout({
         
         if (savedPages) {
           try {
-            const parsedPages = JSON.parse(savedPages);
-            setPages(parsedPages);
-            console.log('[Dashboard] Loaded workspaces from localStorage:', parsedPages.length);
+            const parsedPages: PageData[] = JSON.parse(savedPages);
+            // Migrate: cap module heights that exceed defined maximums
+            const migratedPages = parsedPages.map((page) => ({
+              ...page,
+              layout: normalizeLayout(page.modules, page.layout),
+            }));
+            setPages(migratedPages);
+            console.log('[Dashboard] Loaded workspaces from localStorage:', migratedPages.length);
           } catch (error) {
             console.error('[Dashboard] Error parsing localStorage:', error);
             setPages([DEFAULT_PAGE]);
@@ -232,7 +261,7 @@ export default function DashboardLayout({
                   name: ws.workspaceName,
                   initial: ws.workspaceName.charAt(0).toUpperCase(),
                   modules,
-                  layout,
+                  layout: normalizeLayout(modules, layout),
                   workspaceId: ws.id,
                 };
               } catch (parseError) {
@@ -630,7 +659,7 @@ export default function DashboardLayout({
     // Heatmap - full width, large height
     else if (moduleType === "heatmap") {
       width = 96; // 96 columns = 100% width (full width)
-      height = 35; // 35 units = 700px (large height for heatmap visualization)
+      height = 22; // 22 units = 440px (fits comfortably on standard 16:9 screens)
     }
 
     // Analysis Report - medium width, tall

@@ -62,6 +62,12 @@ export default function HeatmapModule() {
   
   // Cache previous heatmapData to avoid unnecessary recalculations
   const prevHeatmapDataRef = useRef<any[]>([]);
+  // Tracks cumulative zoom step sum so we can fully restore when scrolling back to origin.
+  // Positive = zoomed in, 0 = original view.
+  const zoomSumRef = useRef(0);
+  // Stores the last applied ECharts option (including current filtered data).
+  // Used to reset zoom/pan without losing the active filter state.
+  const lastChartOptionRef = useRef<any>(null);
 
   const exchanges = ['Tất cả', 'HSX', 'HNX', 'UPCOM'];
 
@@ -157,25 +163,38 @@ export default function HeatmapModule() {
           await unsubscribeFromSymbols(subscribedSymbolsRef.current);
           subscribedSymbolsRef.current = [];
         }
+
+        // Clear existing heatmap data so stale items from the old exchange don't linger
+        heatmapItemsMapRef.current.clear();
         
-        // Fetch new symbols
-        const symbols = await fetchSymbols({
-          Exchange: exchange === 'Tất cả' ? undefined : (exchange as ExchangeCode),
-          PageIndex: 1,
-          PageSize: 5000,
+        // Fetch heatmap data (price + sector) for the new exchange — same path as initial load
+        const heatmapData = await heatmapService.getHeatmapData({
+          exchange: exchange === 'Tất cả' ? undefined : exchange,
         });
-        
-        console.log(`[Heatmap] ✅ Loaded ${symbols.length} symbols for ${exchange}`);
-        
-        // Store symbol metadata
-        symbolMetadataRef.current.clear();
-        symbols.forEach(symbol => {
-          symbolMetadataRef.current.set(symbol.ticker, symbol);
+
+        console.log(`[Heatmap] ✅ Loaded ${heatmapData.items.length} items for ${exchange}`);
+
+        heatmapData.items.forEach(item => {
+          heatmapItemsMapRef.current.set(item.ticker, {
+            ticker: item.ticker,
+            companyName: item.companyName,
+            sector: item.sector || '',
+            sectorName: item.sectorName || 'Khác',
+            currentPrice: item.currentPrice,
+            changePercent: item.changePercent,
+            changeValue: item.changeValue,
+            volume: item.volume,
+            totalValue: (item as any).totalValue ?? 0,
+            exchange: item.exchange,
+            colorType: item.colorType as any,
+            lastUpdate: item.lastUpdate,
+          });
         });
+
+        setHeatmapItemsVersion(v => v + 1);
         
-        const tickers = symbols.map(s => s.ticker);
-        
-        // Subscribe to new symbols
+        // Subscribe to SignalR for real-time updates
+        const tickers = heatmapData.items.map(item => item.ticker);
         if (tickers.length > 0) {
           console.log(`[Heatmap] 📡 Subscribing to ${tickers.length} new symbols...`);
           await subscribeToSymbols(tickers);
@@ -254,6 +273,57 @@ export default function HeatmapModule() {
       setHeatmapItemsVersion(v => v + 1); // Lightweight re-render trigger
     }
   }, [marketData]); // Only depend on marketData - will trigger on every SignalR update
+
+  // When a specific sector is selected, load ALL stocks in that sector regardless of exchange.
+  // Without this, stocks on other exchanges (HNX/UPCOM) are missing from the heatmap because
+  // the initial load only fetches data for the currently selected exchange.
+  useEffect(() => {
+    if (filterMode !== 'sector' || !sector || !isConnected) return;
+
+    const loadSectorData = async () => {
+      try {
+        console.log(`[Heatmap] 🏭 Loading all-exchange data for sector: ${sector}`);
+        // Fetch without exchange filter so we get stocks from all exchanges
+        const sectorData = await heatmapService.getHeatmapData({ sector });
+
+        const newTickers: string[] = [];
+        sectorData.items.forEach(item => {
+          // Upsert — update price if already exists, add if new
+          heatmapItemsMapRef.current.set(item.ticker, {
+            ticker: item.ticker,
+            companyName: item.companyName,
+            sector: item.sector || '',
+            sectorName: item.sectorName || 'Khác',
+            currentPrice: item.currentPrice,
+            changePercent: item.changePercent,
+            changeValue: item.changeValue,
+            volume: item.volume,
+            totalValue: (item as any).totalValue ?? 0,
+            exchange: item.exchange,
+            colorType: item.colorType as any,
+            lastUpdate: item.lastUpdate,
+          });
+          if (!subscribedSymbolsRef.current.includes(item.ticker)) {
+            newTickers.push(item.ticker);
+          }
+        });
+
+        // Subscribe to SignalR for newly discovered tickers
+        if (newTickers.length > 0) {
+          console.log(`[Heatmap] 📡 Subscribing to ${newTickers.length} cross-exchange sector tickers`);
+          await subscribeToSymbols(newTickers);
+          subscribedSymbolsRef.current = [...subscribedSymbolsRef.current, ...newTickers];
+        }
+
+        console.log(`[Heatmap] ✅ Sector data loaded: ${sectorData.items.length} stocks`);
+        setHeatmapItemsVersion(v => v + 1);
+      } catch (error) {
+        console.error('[Heatmap] ❌ Failed to load sector data:', error);
+      }
+    };
+
+    loadSectorData();
+  }, [filterMode, sector, isConnected]); // Re-run when sector selection changes
 
   // Load all watchlists when switching to custom mode
   useEffect(() => {
@@ -422,10 +492,22 @@ export default function HeatmapModule() {
         // Use sectorName from API first, fallback to mapping if not available
         const sectorName = item.sectorName || 'Khác';
         
+        // Use sqrt of trading value to compress the dynamic range.
+        // Without compression, large-cap sectors (BĐS, Ngân hàng) would dominate
+        // and small sectors would become invisible.
+        const rawValue = item.totalValue > 0
+          ? item.totalValue
+          : item.volume * item.currentPrice;
+        const compressedValue = Math.sqrt(Math.max(rawValue, 1));
+
         return {
           name: item.ticker,
-          value: item.volume * item.currentPrice / 1e6, // Convert to millions for better visualization
+          value: compressedValue,
           change: item.changePercent,
+          changeValue: item.changeValue,
+          price: item.currentPrice,
+          volume: item.volume,
+          totalValue: item.totalValue,
           sector: sectorId,
           sectorName: sectorName,
         };
@@ -448,6 +530,18 @@ export default function HeatmapModule() {
     
     return result;
   }, [heatmapItemsVersion, sector, filterMode, customTickers, availableSectors]); // Added availableSectors dependency
+
+  // Count of stocks per sector based on currently loaded heatmap data.
+  // Used in the sector dropdown so the shown count matches the chart exactly.
+  const sectorCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const items = Array.from(heatmapItemsMapRef.current.values());
+    items.forEach(item => {
+      const id = item.sector || 'Khác';
+      map.set(id, (map.get(id) ?? 0) + 1);
+    });
+    return map;
+  }, [heatmapItemsVersion]);
 
   // Initialize Pie Chart
   useEffect(() => {
@@ -496,13 +590,59 @@ export default function HeatmapModule() {
     chartInstanceRef.current = chart;
     
     console.log('[Heatmap] ✅ Chart initialized');
-    
-    // Force resize after init to ensure proper sizing
-    setTimeout(() => {
+
+    // Reduce zoom sensitivity: intercept wheel events and slow down deltaY
+    // by a factor before ECharts processes them (default feels too fast).
+    // Only intercept trusted (real user) events — isTrusted=false means it's our
+    // own re-dispatched event, so we let it pass through to ECharts normally.
+    const wheelTarget = heatmapChartRef.current;
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.isTrusted) return; // Already dampened — let ECharts handle it
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      // step > 0 = zoom in, step < 0 = zoom out
+      const step = -e.deltaY * 0.1;
+      const newSum = zoomSumRef.current + step;
+
+      if (newSum <= 0) {
+        // Zoomed back out to (or past) original — re-apply the current filtered option
+        // to reset scale + pan without losing the active sector/exchange filter.
+        // (dispatchAction 'restore' would reset to the *initial* unfiltered state.)
+        if (zoomSumRef.current > 0 && lastChartOptionRef.current) {
+          chartInstanceRef.current?.setOption(lastChartOptionRef.current, {
+            notMerge: true,
+            lazyUpdate: false,
+          });
+        }
+        zoomSumRef.current = 0;
+        return; // Do NOT forward to ECharts
+      }
+
+      zoomSumRef.current = newSum;
+      const dampened = new WheelEvent('wheel', {
+        deltaX: e.deltaX,
+        deltaY: -e.deltaY * 0.1,  // Negate to fix reversed direction; 0.1 = reduce sensitivity
+        deltaZ: e.deltaZ,
+        deltaMode: e.deltaMode,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        bubbles: true,
+        cancelable: true,
+      });
+      (e.target as Element).dispatchEvent(dampened);
+    };
+    wheelTarget.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+
+    // Use ResizeObserver to track container size changes (covers grid resize, module resize, etc.)
+    const resizeObserver = new ResizeObserver(() => {
       chart.resize();
-      console.log('[Heatmap] 📐 Initial resize triggered');
-    }, 100);
-    
+    });
+    resizeObserver.observe(heatmapChartRef.current);
+
+    // Also listen to window resize as fallback
     const handleResize = () => {
       chart.resize();
     };
@@ -510,6 +650,8 @@ export default function HeatmapModule() {
 
     return () => {
       console.log('[Heatmap] 🧹 Disposing chart');
+      wheelTarget.removeEventListener('wheel', handleWheel, { capture: true });
+      resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       if (chartInstanceRef.current) {
         chartInstanceRef.current.dispose();
@@ -568,6 +710,10 @@ export default function HeatmapModule() {
             name: stock.name,
             value: stock.value,
             change: stock.change,
+            changeValue: stock.changeValue,
+            price: stock.price,
+            volume: stock.volume,
+            totalValue: stock.totalValue,
             itemStyle: { color },
           };
         })
@@ -589,9 +735,26 @@ export default function HeatmapModule() {
             const stock = params.data;
             const changeColor = stock.change >= 0 ? '#22c55e' : '#ef4444';
             const changePrefix = stock.change > 0 ? '+' : '';
-            return `<strong>${stock.name}</strong><br/>` +
-                   `Thay đổi: <span style="color: ${changeColor}">${changePrefix}${stock.change.toFixed(2)}%</span><br/>` +
-                   `Giá trị: ${stock.value.toFixed(2)}M`;
+            const formatPrice = (v: number) => v > 0 ? v.toLocaleString('vi-VN') : '—';
+            const formatVolume = (v: number) => {
+              if (!v || v === 0) return '—';
+              if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+              if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+              return v.toLocaleString('vi-VN');
+            };
+            const formatValue = (v: number) => {
+              if (!v || v === 0) return '—';
+              if (v >= 1e9) return (v / 1e9).toFixed(2) + ' tỷ';
+              if (v >= 1e6) return (v / 1e6).toFixed(2) + ' triệu';
+              return v.toLocaleString('vi-VN');
+            };
+            return `<div style="min-width:160px;font-size:13px;line-height:1.7">`
+              + `<div style="font-weight:700;font-size:15px;margin-bottom:4px">${stock.name}</div>`
+              + `<div>Giá: <b>${formatPrice(stock.price)}</b></div>`
+              + `<div>Thay đổi: <b><span style="color:${changeColor}">${changePrefix}${stock.changeValue?.toLocaleString('vi-VN') ?? '—'} (${changePrefix}${stock.change?.toFixed(2) ?? '—'}%)</span></b></div>`
+              + `<div>KL giao dịch: <b>${formatVolume(stock.volume)}</b></div>`
+              + `<div>GT giao dịch: <b>${formatValue(stock.totalValue)}</b></div>`
+              + `</div>`;
           }
           const stockCount = params.data.children?.length || 0;
           return `<strong>${params.name}</strong><br/>${stockCount} mã cổ phiếu`;
@@ -600,28 +763,20 @@ export default function HeatmapModule() {
       series: [
         {
           type: 'treemap',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           width: '100%',
           height: '100%',
-          roam: true, // Allow both zoom and pan to explore details
-          scaleLimit: { min: 0.5, max: 5 },
-          nodeClick: 'zoomToNode',
+          roam: true, // Allow both zoom (scale) and pan — pan resets automatically when zoomed out to origin
+          scaleLimit: { min: 0.1, max: 5 }, // Lower bound handled by wheel handler (restore at origin)
+          nodeClick: false, // Disable built-in zoomToNode so drag works; zoom handled by wheel handler
           zoomToNodeRatio: 0.32 * 0.32,
           animation: false, // Disable animations for better performance
           animationDuration: 0,
           breadcrumb: {
-            show: true,
-            height: 32,
-            bottom: 0,
-            left: 'center',
-            itemStyle: {
-              color: isDark ? '#374151' : '#e5e7eb',
-              borderColor: isDark ? '#4b5563' : '#d1d5db',
-              borderWidth: 1,
-              textStyle: {
-                color: isDark ? '#fff' : '#000',
-                fontSize: 14,
-              },
-            },
+            show: false, // Hidden to use full chart height; navigate via nodeClick drill-down
           },
           label: {
             show: true,
@@ -658,7 +813,7 @@ export default function HeatmapModule() {
             gapWidth: 1,
           },
           levels: [
-            { itemStyle: { borderWidth: 0 } },
+            { itemStyle: { borderWidth: 0 }, upperLabel: { show: false }, label: { show: false } },
             {
               itemStyle: {
                 borderColor: isDark ? '#000' : '#1a1a1a',
@@ -703,6 +858,11 @@ export default function HeatmapModule() {
       ],
     };
 
+    // Save current option so the wheel handler can re-apply it (with current filters)
+    // when the user zooms back out to the original level — avoids calling restore()
+    // which would reset to the *initial* (empty/unfiltered) chart state.
+    lastChartOptionRef.current = option;
+
     // Incremental update - only update data, don't recreate chart
     // Use silent mode to prevent animations on every update (reduces lag)
     chart.setOption(option, {
@@ -710,11 +870,6 @@ export default function HeatmapModule() {
       lazyUpdate: true, // Defer update until next animation frame
       silent: false, // Keep animations but optimize
     });
-
-    // Force resize after setting option to ensure proper display
-    setTimeout(() => {
-      chart.resize();
-    }, 100);
 
     console.log('[Heatmap] ✅ Chart data updated incrementally (optimized)');
   }, [heatmapData, isDark]); // Update when data or theme changes
@@ -905,7 +1060,7 @@ export default function HeatmapModule() {
                       }`}
                     >
                       <div>{sec.viName}</div>
-                      <div className="text-xs opacity-70 mt-0.5">{sec.symbols.length} mã</div>
+                      <div className="text-xs opacity-70 mt-0.5">{sectorCountMap.get(sec.id) ?? 0} mã</div>
                     </div>
                   ))}
                 </div>
@@ -1091,9 +1246,9 @@ export default function HeatmapModule() {
       {/* </div> */}
 
       {/* Heatmap */}
-      <div className="flex-1 p-3 overflow-hidden relative min-h-[600px]">
+      <div className="flex-1 overflow-hidden relative min-h-0">
         {/* Always render chart div to ensure ref is available */}
-        <div ref={heatmapChartRef} className={`w-full h-full ${heatmapData.length === 0 ? 'hidden' : ''}`} />
+        <div ref={heatmapChartRef} className={`absolute inset-2 ${heatmapData.length === 0 ? 'hidden' : ''}`} />
         
         {/* Loading state */}
         {isLoading && heatmapItemsMapRef.current.size === 0 && (
