@@ -85,6 +85,17 @@ export function useStockScreener() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleId, currentPageId]); // getModuleById and gridApi accessed directly, not as dependencies
   
+  // Reset layout ready state when user logs in/out so the layout is re-fetched
+  const prevUserRef = useRef<typeof user>(user);
+  useEffect(() => {
+    const prevUser = prevUserRef.current;
+    prevUserRef.current = user;
+    // Transition from unauthenticated → authenticated: reload layout
+    if (!prevUser && user) {
+      setIsLayoutReady(false);
+    }
+  }, [user]);
+
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
@@ -182,8 +193,10 @@ export function useStockScreener() {
       setCurrentWatchListName('Danh mục của tôi');
       currentWatchListTickers.current.clear();
       
-      // Clear sector selection
+      // Clear other filter selections
       setSelectedSector(null);
+      setSelectedSymbolType(null);
+      setSelectedIndex(null);
       
       // 3. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
@@ -255,55 +268,41 @@ export function useStockScreener() {
       setCurrentWatchListName('Danh mục của tôi');
       currentWatchListTickers.current.clear();
       
-      // TODO: Replace with actual API call when available
-      // Example implementation:
+      // Clear other filter selections
+      setSelectedExchange(null);
+      setSelectedSector(null);
+      setSelectedSymbolType(null);
+
+      // 1. Clear grid data
+      if (gridApi) {
+        const allRows: any[] = [];
+        gridApi.forEachNode((node: any) => {
+          if (node.data) allRows.push(node.data);
+        });
+        if (allRows.length > 0) {
+          gridApi.applyTransaction({ remove: allRows });
+        }
+      }
+
+      // 2. Unsubscribe all current symbols
+      const currentTickers = Array.from(marketData.keys());
+      if (currentTickers.length > 0) {
+        await unsubscribeFromSymbols(currentTickers);
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      // 3. Reset default load flag
+      hasLoadedDefaultSymbols.current = false;
+
+      // TODO: Subscribe to index symbols when API is available
       // const tickers = await fetchSymbolsByIndex(indexType);
-      
-      // Temporary notification
+      // if (tickers.length > 0) await subscribeToSymbols(tickers);
+
       setToast({
         isOpen: true,
         message: `Tính năng tải ${indexType} đang được phát triển. API chưa sẵn sàng.`,
         type: 'info'
       });
-      
-      /* TODO: Uncomment when API is ready
-      // 1. Get current subscribed tickers
-      const currentTickers = Array.from(marketData.keys());
-      
-      // 2. Unsubscribe all current symbols
-      if (currentTickers.length > 0) {
-        await unsubscribeFromSymbols(currentTickers);
-        
-        // 3. Clear grid data
-        if (gridApi) {
-          gridApi.setGridOption('rowData', []);
-        }
-      }
-      
-      // 4. Reset flag
-      hasLoadedDefaultSymbols.current = false;
-      
-      // 5. Fetch symbols by index
-      const tickers = await fetchSymbolsByIndex(indexType);
-      
-      if (tickers.length === 0) {
-        setToast({
-          isOpen: true,
-          message: `Không tìm thấy mã nào trong chỉ số ${indexType}`,
-          type: 'warning'
-        });
-        return;
-      }
-      
-      // 6. Subscribe to new symbols
-      await subscribeToSymbols(tickers);
-      
-      setToast({
-        isOpen: true,
-        message: `Đã tải ${tickers.length} mã từ chỉ số ${indexType}`,
-        type: 'success'
-      });
-      */
     } catch (error) {
       console.error(`[StockScreener] Error changing to index ${indexType}:`, error);
       setToast({
@@ -435,8 +434,10 @@ export function useStockScreener() {
       setCurrentWatchListName('Danh mục của tôi');
       currentWatchListTickers.current.clear();
       
-      // Clear sector selection
+      // Clear other filter selections
       setSelectedSector(null);
+      setSelectedExchange(null);
+      setSelectedIndex(null);
       
       // 3. Get current subscribed tickers
       const currentTickers = Array.from(marketData.keys());
@@ -911,9 +912,13 @@ export function useStockScreener() {
       return;
     }
 
-    // Skip if user is not authenticated — layout API requires auth
-    // Do NOT set isLayoutReady = true here so it retries when user logs in
+    // If user is not authenticated, skip user-specific layout loading but still mark as ready
+    // so the loading overlay does not block the module for unauthenticated users
     if (!user) {
+      setCurrentLayoutId(null);
+      setCurrentLayoutName('Layout mặc định');
+      setCurrentLayoutIsSystemDefault(false);
+      setIsLayoutReady(true);
       return;
     }
 
@@ -1209,9 +1214,6 @@ export function useStockScreener() {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
       
-      // 7. Reset flag để cho phép reload default symbols nếu cần
-      hasLoadedDefaultSymbols.current = false;
-      
       // 8. Get watch list detail to fetch tickers
       console.log('[StockScreener] Fetching watch-list detail...');
       const watchListDetail: WatchListDetail = await watchListService.getWatchListById(watchList.id);
@@ -1348,8 +1350,14 @@ export function useStockScreener() {
     }
 
     try {
-      // 1. Check if ticker is already subscribed
-      if (marketData.has(ticker.toUpperCase())) {
+      // 1. Check if ticker is already in the current view
+      // In watchlist mode: check against watchlist tickers (not marketData which may be stale)
+      // In exchange/sector/type mode: check against marketData
+      const isAlreadyTracked = currentWatchListId !== null
+        ? currentWatchListTickers.current.has(ticker.toUpperCase())
+        : marketData.has(ticker.toUpperCase());
+
+      if (isAlreadyTracked) {
         setToast({
           isOpen: true,
           message: `Mã ${ticker} đã có trong danh sách`,
@@ -1358,16 +1366,22 @@ export function useStockScreener() {
         return;
       }
 
-      // 2. Subscribe to the ticker
+      // 2. If a watch list is selected, update tracking ref BEFORE subscribing
+      // so the watchlist filter is active the moment real-time data starts arriving
+      if (currentWatchListId !== null) {
+        currentWatchListTickers.current.add(ticker.toUpperCase());
+      }
+
+      // 3. Subscribe to the ticker
       await subscribeToSymbols([ticker]);
 
-      // 3. If a watch list is selected, add ticker to it
+      // 4. If a watch list is selected, persist the change to the backend
       if (currentWatchListId !== null) {
         try {
           // Get current watch list detail
           const watchListDetail = await watchListService.getWatchListById(currentWatchListId);
           
-          // Add ticker to tickers array
+          // Add ticker to tickers array (normalize to uppercase)
           const updatedTickers = [...watchListDetail.tickers, ticker.toUpperCase()];
           
           // Update watch list
@@ -1377,14 +1391,13 @@ export function useStockScreener() {
             updatedTickers
           );
           
-          // Update tracking set
-          currentWatchListTickers.current.add(ticker.toUpperCase());
-          
-          // Refresh watch lists to update ticker count
+          // Refresh watch lists to update ticker count in dropdown
           await fetchWatchLists();
         } catch (watchListError) {
+          // Rollback tracking ref if backend update failed
+          currentWatchListTickers.current.delete(ticker.toUpperCase());
           console.error(`[StockScreener] Error updating watch-list:`, watchListError);
-          // Don't show error to user - subscription was successful
+          // Don't show error - subscription was successful
         }
       }
 

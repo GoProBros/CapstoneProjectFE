@@ -222,19 +222,24 @@ export function SignalRProvider({
   const unsubscribeFromSymbols = useCallback(async (symbols: string[]) => {
     try {
       await SignalRService.getInstance().unsubscribeFromSymbols(symbols);
-      
+
+      const symbolsToRemoveSet = new Set(symbols.map(s => s.toUpperCase()));
+
+      // CRITICAL: Update marketDataRef immediately so the RAF handler cannot
+      // resurrect removed symbols when the next real-time batch arrives.
+      const newRefMap = new Map(marketDataRef.current);
+      symbolsToRemoveSet.forEach(s => newRefMap.delete(s));
+      marketDataRef.current = newRefMap;
+
+      // Also purge any pending batched updates for these symbols so they don't
+      // get flushed in the next animation frame after the ref is already clean.
+      symbolsToRemoveSet.forEach(s => pendingUpdatesRef.current.delete(s));
+
       // Update subscribed symbols list
-      setSubscribedSymbols(prev => {
-        const symbolsToRemove = new Set(symbols.map(s => s.toUpperCase()));
-        return prev.filter(s => !symbolsToRemove.has(s));
-      });
-      
-      // Xóa market data của các symbols đã unsubscribe
-      setMarketData(prev => {
-        const newMap = new Map(prev);
-        symbols.forEach(symbol => newMap.delete(symbol.toUpperCase()));
-        return newMap;
-      });
+      setSubscribedSymbols(prev => prev.filter(s => !symbolsToRemoveSet.has(s)));
+
+      // Update React state with the same cleaned-up map (avoid creating a second copy)
+      setMarketData(newRefMap);
     } catch (error) {
       throw error;
     }

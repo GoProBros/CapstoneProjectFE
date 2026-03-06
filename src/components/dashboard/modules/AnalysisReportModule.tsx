@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { HEADER_GREEN } from '@/constants/colors';
 import analysisReportService from '@/services/analysisReportService';
 import { fileService } from '@/services/fileService';
 import type { AnalysisReport, AnalysisReportSource } from '@/types/analysisReport';
@@ -312,7 +313,22 @@ export default function AnalysisReportModule() {
     // ─── List View ────────────────────────────────────────────────────────────
 
     return (
-        <div className={`w-full h-full flex flex-col rounded-lg border ${bgCls} ${borderCls}`}>
+        <div className={`w-full h-full flex flex-col rounded-lg overflow-hidden border ${bgCls} ${borderCls}`}>
+            {/* Module Header - Trapezoid Design (drag zone) */}
+            <div className="module-header flex items-center justify-center px-4 pt-0 pb-2 relative flex-shrink-0">
+                <div
+                    className="drag-handle relative px-8 py-1.5 flex items-center gap-2 cursor-move select-none"
+                    style={{
+                        backgroundColor: HEADER_GREEN,
+                        clipPath: 'polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%)',
+                        minWidth: '240px',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <span className="text-borderDark font-semibold text-md">Báo cáo phân tích</span>
+                </div>
+            </div>
+
             {/* Search & Filter toolbar */}
             <div className={`flex flex-wrap gap-2 px-3 py-2.5 border-b ${borderCls} flex-shrink-0`}>
                 {/* Search */}

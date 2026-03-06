@@ -188,7 +188,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.bidPrice3) return 'text-red-600 text-xs';
+            if (!params.data?.referencePrice || params.data?.bidPrice3 == null) return 'text-red-600 text-xs';
             const diff = params.data.bidPrice3 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 text-xs';
             if (diff < 0) return 'text-red-500 text-xs';
@@ -214,7 +214,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.bidPrice2) return 'text-red-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.data?.bidPrice2 == null) return 'text-red-600 font-semibold text-xs';
             const diff = params.data.bidPrice2 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -240,7 +240,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.bidPrice1) return 'text-red-600 font-bold text-xs';
+            if (!params.data?.referencePrice || params.data?.bidPrice1 == null) return 'text-red-600 font-bold text-xs';
             const diff = params.data.bidPrice1 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-bold text-xs';
             if (diff < 0) return 'text-red-500 font-bold text-xs';
@@ -273,7 +273,7 @@ export default function StockScreenerModule() {
           width: 110, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.lastPrice) return 'font-semibold text-xs';
+            if (!params.data?.referencePrice || params.data?.lastPrice == null) return 'font-semibold text-xs';
             const diff = params.data.lastPrice - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -293,7 +293,7 @@ export default function StockScreenerModule() {
           cellClass: (params) => {
             // Khi change = 0, hiển thị theo màu của lastPrice so với referencePrice
             if (params.value === 0) {
-              if (!params.data?.referencePrice || !params.data?.lastPrice) return 'text-xs';
+              if (!params.data?.referencePrice || params.data?.lastPrice == null) return 'text-xs';
               const diff = params.data.lastPrice - params.data.referencePrice;
               if (diff > 0) return 'text-green-500 font-semibold text-xs';
               if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -309,14 +309,14 @@ export default function StockScreenerModule() {
           headerName: '+/- (%)', 
           width: 90, 
           valueFormatter: (params) => {
-            if (!params.value) return '0%';
+            if (params.value == null) return '0%';
             // Backend đã trả về %, chỉ cần format
             const pct = params.value.toFixed(2);
             return params.value > 0 ? `+${pct}%` : `${pct}%`;
           },
           cellClass: (params) => {
-            if (!params.value) return 'text-xs';
-            return params.value > 0 ? 'text-green-500 font-bold text-xs' : params.value < 0 ? 'text-red-500 font-bold text-xs' : 'text-xs';
+            if (params.value == null) return 'text-xs';
+            return params.value > 0 ? 'text-green-500 font-bold text-xs' : params.value < 0 ? 'text-red-500 font-bold text-xs' : 'text-yellow-500 font-bold text-xs';
           },
         },
       ]
@@ -345,7 +345,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.askPrice1) return 'text-green-600 font-bold text-xs';
+            if (!params.data?.referencePrice || params.data?.askPrice1 == null) return 'text-green-600 font-bold text-xs';
             const diff = params.data.askPrice1 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-bold text-xs';
             if (diff < 0) return 'text-red-500 font-bold text-xs';
@@ -371,7 +371,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.askPrice2) return 'text-green-600 font-semibold text-xs';
+            if (!params.data?.referencePrice || params.data?.askPrice2 == null) return 'text-green-600 font-semibold text-xs';
             const diff = params.data.askPrice2 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 font-semibold text-xs';
             if (diff < 0) return 'text-red-500 font-semibold text-xs';
@@ -397,7 +397,7 @@ export default function StockScreenerModule() {
           width: 100, 
           valueFormatter: (params) => params.value?.toLocaleString() || '0',
           cellClass: (params) => {
-            if (!params.data?.referencePrice || !params.data?.askPrice3) return 'text-green-600 text-xs';
+            if (!params.data?.referencePrice || params.data?.askPrice3 == null) return 'text-green-600 text-xs';
             const diff = params.data.askPrice3 - params.data.referencePrice;
             if (diff > 0) return 'text-green-500 text-xs';
             if (diff < 0) return 'text-red-500 text-xs';
