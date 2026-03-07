@@ -50,6 +50,23 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
 }
 
 /**
+ * Login with Google credential (id_token from GoogleLogin component)
+ */
+export async function loginWithGoogle(credential: string): Promise<AuthResponse> {
+  try {
+    const result = await post<AuthResponse>(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { idToken: credential });
+    if (result.isSuccess && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || 'Đăng nhập Google thất bại');
+    }
+  } catch (error) {
+    console.error('[AuthService] Google login error:', error);
+    throw error;
+  }
+}
+
+/**
  * Refresh access token
  */
 export async function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
