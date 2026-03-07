@@ -49,9 +49,9 @@ function normalizeLayout(
   layout: LayoutItem[]
 ): LayoutItem[] {
   return layout.map((item) => {
-    const module = modules.find((m) => m.id === item.i);
-    if (!module) return item;
-    const maxH = MODULE_MAX_HEIGHT[module.type];
+    const mod = modules.find((m) => m.id === item.i);
+    if (!mod) return item;
+    const maxH = MODULE_MAX_HEIGHT[mod.type];
     if (maxH !== undefined && item.h > maxH) {
       return { ...item, h: maxH };
     }
@@ -606,22 +606,29 @@ export default function DashboardLayout({
         moduleType
       )
     ) {
-      width = 96; // 96 columns = 100% width (full screen)
-      height = 25; // 25 units = 500px (full screen height)
+      width = 72; // 72 columns = 75% width
+      height = 18; // 18 units = 360px (full screen height)
     }
 
     // Financial reports - medium width, tall
     else if (
-      ["financial-report", "financial-report-pro"].includes(moduleType)
+      ["financial-report"].includes(moduleType)
     ) {
-      width = 48; // 48 columns = 50% width
-      height = 30; // 30 units = 600px (tall for tables)
+      width = 24; // 24 columns = 25% width
+      height = 14; // 14 units = 280px (tall for tables)
+    }
+
+    else if (
+      ["financial-report-pro"].includes(moduleType)
+    ) {
+      width = 96; // 96 columns = 100% width
+      height = 24; // 24 units = 480px (tall for tables)
     }
 
     // News module - medium width, tall for scrolling
     else if (moduleType === "news") {
-      width = 40; // 40 columns = ~42% width
-      height = 30; // 30 units = 600px
+      width = 24; // 24 columns = 25% width
+      height = 10; // 10 units = 200px
     }
 
     // Session Info & TA Advisor - compact square modules
@@ -629,31 +636,31 @@ export default function DashboardLayout({
       ["session-info", "ta-advisor", "fa-advisor"].includes(moduleType)
     ) {
       width = 24; // 24 columns = 25% width
-      height = 20; // 20 units = 400px (square-ish)
+      height = 12; // 12 units = 240px (square-ish)
     }
 
     // Order Matching - compact, medium height
     else if (moduleType === "order-matching") {
-      width = 28; // 28 columns = ~29% width
+      width = 24; // 24 columns = 25% width
       height = 22; // 22 units = 440px
     }
 
     // Canslim - compact square
     else if (moduleType === "canslim") {
       width = 24; // 24 columns = 25% width
-      height = 18; // 18 units = 360px
+      height = 12; // 12 units = 240px
     }
 
     // Stock Screener - wide, tall for tables
     else if (moduleType === "stock-screener") {
       width = 96; // 96 columns = 100% width
-      height = 30; // 30 units = 600px
+      height = 18; // 18 units = 360px
     }
 
     // Trading Map - large square
     else if (moduleType === "trading-map") {
       width = 48; // 48 columns = 50% width
-      height = 24; // 24 units = 480px (square)
+      height = 22; // 22 units = 440px (square)
     }
 
     // Heatmap - full width, large height
@@ -664,8 +671,8 @@ export default function DashboardLayout({
 
     // Analysis Report - medium width, tall
     else if (moduleType === "analysis-report") {
-      width = 48; // 48 columns = 50% width
-      height = 28; // 28 units = 560px
+      width = 26; // 48 columns = 50% width
+      height = 12; // 28 units = 560px
     }
 
     const newLayoutItem: LayoutItem = {
