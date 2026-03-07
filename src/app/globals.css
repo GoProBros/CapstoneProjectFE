@@ -10,6 +10,13 @@
   --background: #0e0d15;
   --foreground: #ededed;
   --base-font-size: 0.875rem; /* Default base font size */
+  --color-primary: #00C805;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .light {
