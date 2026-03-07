@@ -53,6 +53,15 @@ html {
   overflow-x: hidden;
 }
 
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* AG Grid Flash Animation với màu theo giá */
 .ag-theme-alpine .ag-cell-data-changed,
 .ag-theme-alpine-dark .ag-cell-data-changed {

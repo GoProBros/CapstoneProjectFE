@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,6 +149,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [saveAuthData, scheduleTokenRefresh, router]);
 
   /**
+   * Login with Google
+   */
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    try {
+      const authData = await authService.loginWithGoogle(credential);
+      saveAuthData(authData);
+      scheduleTokenRefresh(authData.expiresAt);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('[Auth] Google login failed:', error);
+      throw error;
+    }
+  }, [saveAuthData, scheduleTokenRefresh, router]);
+
+  /**
    * Logout
    */
   const logout = useCallback(async () => {
@@ -231,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     logout,
     refreshAccessToken,
+    loginWithGoogle,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
