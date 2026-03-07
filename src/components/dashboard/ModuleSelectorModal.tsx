@@ -42,11 +42,6 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
 
   const modules = [
     { 
-      id: 'overview-chart', 
-      title: 'Biểu đồ tổng quan',
-      preview: '/assets/Dashboard/ModulePreviews/overview-chart.png'
-    },
-    { 
       id: 'vn-stock-chart', 
       title: 'Biểu đồ chứng khoán việt nam',
       preview: '/assets/Dashboard/ModulePreviews/vn-stock-chart.png'
@@ -98,13 +93,8 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
     },
     { 
       id: 'stock-screener', 
-      title: 'Bộ lọc cổ phiếu',
+      title: 'Bảng điện chứng khoán',
       preview: '/assets/Dashboard/ModulePreviews/stock-screener.png'
-    },
-    { 
-      id: 'trading-map', 
-      title: 'Trading Map',
-      preview: '/assets/Dashboard/ModulePreviews/trading-map.png'
     },
     { 
       id: 'heatmap', 

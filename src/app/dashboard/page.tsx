@@ -11,7 +11,6 @@ import { useState, useEffect, useRef } from "react";
 import { ModuleContext } from "@/contexts/ModuleContext";
 
 const moduleComponents: Record<string, React.ComponentType> = {
-  'overview-chart': Modules.OverviewChartModule,
   'vn-stock-chart': Modules.VNStockChartModule,
   'global-stock-chart': Modules.GlobalStockChartModule,
   'financial-report': Modules.FinancialReportModule,
@@ -23,7 +22,6 @@ const moduleComponents: Record<string, React.ComponentType> = {
   'ta-advisor': Modules.TAAdvisorModule,
   'canslim': Modules.CanslimModule,
   'stock-screener': Modules.StockScreenerModule,
-  'trading-map': Modules.TradingMapModule,
   'heatmap': Modules.HeatmapModule,
   'analysis-report': Modules.AnalysisReportModule,
 };
