@@ -34,9 +34,15 @@ export default function VNStockChartModule() {
   const realtimeCallbackRef = useRef<((data: KLineData) => void) | null>(null);
   const pendingUpdatesRef = useRef<KLineData[]>([]);
   
-  const [chartType, setChartType] = useState<ChartType>('candle_solid');
-  const [timeInterval, setTimeInterval] = useState<TimeInterval>('1d');
-  const [symbol, setSymbol] = useState('FPT');
+  const [chartType, setChartType] = useState<ChartType>(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('vnschart-chartType') as ChartType : null) ?? 'candle_solid'
+  );
+  const [timeInterval, setTimeInterval] = useState<TimeInterval>(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('vnschart-timeInterval') as TimeInterval : null) ?? '1d'
+  );
+  const [symbol, setSymbol] = useState(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('vnschart-symbol') : null) ?? 'FPT'
+  );
   const [isLoading, setIsLoading] = useState(false);
   const indicators = [
     { name: 'MA' },
@@ -46,16 +52,34 @@ export default function VNStockChartModule() {
     { name: 'RSI' },
     { name: 'BOLL' },
   ];
-  const [activeIndicators, setActiveIndicators] = useState<Set<string>>(new Set());
-  const [showVolume, setShowVolume] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
+  const [activeIndicators, setActiveIndicators] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const saved = localStorage.getItem('vnschart-indicators');
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+  const [showVolume, setShowVolume] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('vnschart-showVolume') === 'true'
+  );
+  const [showGrid, setShowGrid] = useState(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('vnschart-showGrid') !== 'false' : true
+  );
   const [drawingMode, setDrawingMode] = useState<string | null>(null);
   const [allSymbols, setAllSymbols] = useState<SymbolData[]>([]);
   const [showSymbolModal, setShowSymbolModal] = useState(false);
   const [symbolSearch, setSymbolSearch] = useState('');
   const [searchTab, setSearchTab] = useState<'ticker' | 'description'>('ticker');
   const symbolInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Persist user preferences across page refreshes
+  useEffect(() => { localStorage.setItem('vnschart-symbol', symbol); }, [symbol]);
+  useEffect(() => { localStorage.setItem('vnschart-timeInterval', timeInterval); }, [timeInterval]);
+  useEffect(() => { localStorage.setItem('vnschart-chartType', chartType); }, [chartType]);
+  useEffect(() => { localStorage.setItem('vnschart-indicators', JSON.stringify([...activeIndicators])); }, [activeIndicators]);
+  useEffect(() => { localStorage.setItem('vnschart-showVolume', String(showVolume)); }, [showVolume]);
+  useEffect(() => { localStorage.setItem('vnschart-showGrid', String(showGrid)); }, [showGrid]);
+
   // Real-time price state
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceChange, setPriceChange] = useState<number | null>(null);

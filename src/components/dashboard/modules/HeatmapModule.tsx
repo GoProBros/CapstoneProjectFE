@@ -9,6 +9,7 @@ import { fetchSymbols } from '@/services/symbolService';
 import { heatmapService } from '@/services/heatmapService';
 import { watchListService } from '@/services/watchListService';
 import sectorService from '@/services/sectorService';
+import SignalRService from '@/services/signalRService';
 import { ExchangeCode, SymbolData } from '@/types/symbol';
 import { Sector } from '@/types/sector';
 import { WatchListSummary } from '@/types/watchList';
@@ -29,17 +30,33 @@ interface MarketStats {
 export default function HeatmapModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [exchange, setExchange] = useState('HSX');
-  const [sector, setSector] = useState<string | undefined>(undefined);
-  const [filterMode, setFilterMode] = useState<'all' | 'sector' | 'custom'>('all');
-  const [customTickers, setCustomTickers] = useState<string[]>([]);
+  const [exchange, setExchange] = useState(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-exchange') : null) ?? 'HSX'
+  );
+  const [sector, setSector] = useState<string | undefined>(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-sector') ?? undefined : undefined)
+  );
+  const [filterMode, setFilterMode] = useState<'all' | 'sector' | 'custom'>(() =>
+    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-filterMode') as 'all' | 'sector' | 'custom' : null) ?? 'all'
+  );
+  const [customTickers, setCustomTickers] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('heatmap-customTickers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
   const [isWatchlistDropdownOpen, setIsWatchlistDropdownOpen] = useState(false);
   const [availableSectors, setAvailableSectors] = useState<Sector[]>([]);
   const [isLoadingSectors, setIsLoadingSectors] = useState(false);
   const [availableWatchlists, setAvailableWatchlists] = useState<WatchListSummary[]>([]);
-  const [selectedWatchlistId, setSelectedWatchlistId] = useState<number | null>(null);
+  const [selectedWatchlistId, setSelectedWatchlistId] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const saved = localStorage.getItem('heatmap-watchlistId');
+    return saved !== null ? parseInt(saved, 10) : null;
+  });
   const [isLoadingWatchlists, setIsLoadingWatchlists] = useState(false);
   
   // Get SignalR connection and market data (like stock screener)
@@ -70,6 +87,19 @@ export default function HeatmapModule() {
   const lastChartOptionRef = useRef<any>(null);
 
   const exchanges = ['Tất cả', 'HSX', 'HNX', 'UPCOM'];
+
+  // Persist filter state across page refreshes
+  useEffect(() => { localStorage.setItem('heatmap-exchange', exchange); }, [exchange]);
+  useEffect(() => {
+    if (sector) localStorage.setItem('heatmap-sector', sector);
+    else localStorage.removeItem('heatmap-sector');
+  }, [sector]);
+  useEffect(() => { localStorage.setItem('heatmap-filterMode', filterMode); }, [filterMode]);
+  useEffect(() => { localStorage.setItem('heatmap-customTickers', JSON.stringify(customTickers)); }, [customTickers]);
+  useEffect(() => {
+    if (selectedWatchlistId !== null) localStorage.setItem('heatmap-watchlistId', String(selectedWatchlistId));
+    else localStorage.removeItem('heatmap-watchlistId');
+  }, [selectedWatchlistId]);
 
   // Track if symbols have been loaded
   const hasLoadedSymbols = useRef(false);
@@ -215,64 +245,59 @@ export default function HeatmapModule() {
     }
   }, [exchange, isConnected]); // Only depend on exchange and isConnected
 
-  // Real-time SignalR updates - UPDATE ONLY CHANGED ITEMS (O(1) per update)
+  // Real-time SignalR updates — subscribe DIRECTLY to per-ticker callbacks.
+  // Bypasses the SignalRContext RAF batch entirely: each incoming message triggers
+  // an O(1) Map lookup + update for that one ticker, then schedules a single RAF
+  // to flush a chart re-render. This removes the previous O(n) forEach loop that
+  // iterated all 500+ tickers on every update.
   useEffect(() => {
-    console.log(`[Heatmap] 🔄 marketData changed, size: ${marketData.size}`);
-    
-    // If no initial items loaded yet, skip (wait for REST API first)
-    if (heatmapItemsMapRef.current.size === 0) {
-      console.log('[Heatmap] ⏸️ Waiting for initial REST API data...');
-      return;
-    }
-    
-    if (marketData.size === 0) {
-      console.log('[Heatmap] ⚠️ No SignalR data yet');
-      return;
-    }
-    
-    // Update individual items directly in Map - NO THROTTLE, INSTANT UPDATE
-    let updatedCount = 0;
-    marketData.forEach((realtimeData, ticker) => {
+    const heatmapRafRef = { current: null as number | null };
+
+    const unsubscribe = SignalRService.getInstance().onMarketDataReceived((realtimeData) => {
+      const ticker = realtimeData.ticker?.toUpperCase();
+      if (!ticker) return;
+
       const existingItem = heatmapItemsMapRef.current.get(ticker);
-      
-      if (!existingItem) {
-        return; // Skip if item not in our heatmap
-      }
-      
-      // Calculate new values
+      if (!existingItem) return; // Not tracked in this heatmap view
+
       const currentPrice = realtimeData.lastPrice || realtimeData.referencePrice || existingItem.currentPrice;
       const refPrice = realtimeData.referencePrice || existingItem.currentPrice;
       const changePercent = refPrice !== 0 ? ((currentPrice - refPrice) / refPrice * 100) : 0;
-      
-      // Only update if values actually changed
-      const hasChanged = 
+
+      const hasChanged =
         Math.abs(currentPrice - existingItem.currentPrice) > 0.01 ||
         Math.abs(changePercent - existingItem.changePercent) > 0.01 ||
-        (realtimeData.totalVol && realtimeData.totalVol !== existingItem.volume);
-      
-      if (!hasChanged) {
-        return;
-      }
-      
-      // Direct update in Map - O(1) operation
+        (realtimeData.totalVol != null && realtimeData.totalVol !== existingItem.volume);
+
+      if (!hasChanged) return;
+
       heatmapItemsMapRef.current.set(ticker, {
         ...existingItem,
-        currentPrice: currentPrice,
-        changePercent: changePercent,
-        changeValue: realtimeData.change,
+        currentPrice,
+        changePercent,
+        changeValue: realtimeData.change ?? existingItem.changeValue,
         volume: realtimeData.totalVol || existingItem.volume,
+        totalValue: realtimeData.totalVal || existingItem.totalValue,
         lastUpdate: new Date().toISOString(),
       });
-      
-      updatedCount++;
+
+      // Batch chart re-renders — schedule at most one per animation frame
+      if (heatmapRafRef.current === null) {
+        heatmapRafRef.current = requestAnimationFrame(() => {
+          heatmapRafRef.current = null;
+          setHeatmapItemsVersion(v => v + 1);
+        });
+      }
     });
-    
-    // Only trigger re-render if something actually changed
-    if (updatedCount > 0) {
-      console.log(`[Heatmap] ⚡ Real-time update: ${updatedCount} items changed (INSTANT)`);
-      setHeatmapItemsVersion(v => v + 1); // Lightweight re-render trigger
-    }
-  }, [marketData]); // Only depend on marketData - will trigger on every SignalR update
+
+    return () => {
+      unsubscribe();
+      if (heatmapRafRef.current !== null) {
+        cancelAnimationFrame(heatmapRafRef.current);
+        heatmapRafRef.current = null;
+      }
+    };
+  }, []); // Mount once — no dependency on the batched marketData Map
 
   // When a specific sector is selected, load ALL stocks in that sector regardless of exchange.
   // Without this, stocks on other exchanges (HNX/UPCOM) are missing from the heatmap because
@@ -492,13 +517,20 @@ export default function HeatmapModule() {
         // Use sectorName from API first, fallback to mapping if not available
         const sectorName = item.sectorName || 'Khác';
         
-        // Use sqrt of trading value to compress the dynamic range.
-        // Without compression, large-cap sectors (BĐS, Ngân hàng) would dominate
-        // and small sectors would become invisible.
-        const rawValue = item.totalValue > 0
-          ? item.totalValue
-          : item.volume * item.currentPrice;
-        const compressedValue = Math.sqrt(Math.max(rawValue, 1));
+        // Sizing strategy:
+        // - custom (watchlist): equal size for every stock so all watched items are
+        //   clearly visible regardless of market cap differences.
+        // - all / sector modes: sqrt-compress trading value to reduce dynamic range
+        //   without completely hiding small-cap stocks.
+        let compressedValue: number;
+        if (filterMode === 'custom') {
+          compressedValue = 1; // equal weight — user picked these stocks to monitor
+        } else {
+          const rawValue = item.totalValue > 0
+            ? item.totalValue
+            : item.volume * item.currentPrice;
+          compressedValue = Math.sqrt(Math.max(rawValue, 1));
+        }
 
         return {
           name: item.ticker,
@@ -738,8 +770,8 @@ export default function HeatmapModule() {
             const formatPrice = (v: number) => v > 0 ? v.toLocaleString('vi-VN') : '—';
             const formatVolume = (v: number) => {
               if (!v || v === 0) return '—';
-              if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
-              if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+              if (v >= 1e6) return (v / 1e6).toFixed(2) + ' triệu';
+              if (v >= 1e3) return (v / 1e3).toFixed(1) + ' nghìn';
               return v.toLocaleString('vi-VN');
             };
             const formatValue = (v: number) => {
@@ -867,7 +899,7 @@ export default function HeatmapModule() {
     // Use silent mode to prevent animations on every update (reduces lag)
     chart.setOption(option, {
       notMerge: false, // Merge with existing option instead of replacing
-      lazyUpdate: true, // Defer update until next animation frame
+      lazyUpdate: false, // Render immediately — RAF batching is handled by our own heatmapRafRef
       silent: false, // Keep animations but optimize
     });
 

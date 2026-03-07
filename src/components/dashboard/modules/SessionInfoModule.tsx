@@ -21,8 +21,8 @@ function fmtPrice(raw: number): string {
 function fmtVol(v: number): string {
   if (v === undefined || v === null) return '—';
   if (v === 0) return '0';
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)} triệu`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)} nghìn`;
   return v.toLocaleString('vi-VN');
 }
 
