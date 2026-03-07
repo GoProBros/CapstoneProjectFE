@@ -76,16 +76,16 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
       title: 'Khớp lệnh',
       preview: '/assets/Dashboard/ModulePreviews/order-matching.png'
     },
-    { 
-      id: 'fa-advisor', 
-      title: 'Tư trụ F A',
-      preview: '/assets/Dashboard/ModulePreviews/fa-advisor.png'
-    },
-    { 
-      id: 'ta-advisor', 
-      title: 'Tư trụ T A',
-      preview: '/assets/Dashboard/ModulePreviews/ta-advisor.png'
-    },
+    // { 
+    //   id: 'fa-advisor', 
+    //   title: 'Tư trụ F A',
+    //   preview: '/assets/Dashboard/ModulePreviews/fa-advisor.png'
+    // },
+    // { 
+    //   id: 'ta-advisor', 
+    //   title: 'Tư trụ T A',
+    //   preview: '/assets/Dashboard/ModulePreviews/ta-advisor.png'
+    // },
     { 
       id: 'canslim', 
       title: 'Canslim',
