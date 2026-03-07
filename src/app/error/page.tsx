@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 
-export default function ForbiddenPage() {
+export default function ErrorPage() {
     const router = useRouter();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
