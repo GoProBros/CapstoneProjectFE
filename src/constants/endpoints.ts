@@ -10,6 +10,9 @@ export const API_ENDPOINTS = {
     LOGIN: '/api/v1/auth/login',
     REFRESH_TOKEN: '/api/v1/auth/refresh-token',
     LOGOUT: '/api/v1/auth/logout',
+    ME: '/api/v1/auth/me',
+    FORGOT_PASSWORD: '/api/v1/auth/forgot-password',
+    RESET_PASSWORD: '/api/v1/auth/reset-password',
   },
   
   // Module Layout endpoints
@@ -69,6 +72,19 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number) => `/api/v1/workspace/${id}`,
   },
   
+  // Subscription endpoints
+  SUBSCRIPTIONS: {
+    BASE: '/api/v1/subscriptions',
+    ME: '/api/v1/subscriptions/me',
+  },
+
+  // Payment endpoints
+  PAYMENTS: {
+    CREATE_LINK: '/api/v1/payments/create-link',
+    STATUS: (orderCode: number) => `/api/v1/payments/status/${orderCode}`,
+    CANCEL: (orderCode: number) => `/api/v1/payments/cancel/${orderCode}`,
+  },
+
   // SignalR Hub
   HUBS: {
     MARKET_DATA: '/hubs/marketdata',

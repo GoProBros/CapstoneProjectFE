@@ -2,7 +2,7 @@
  * Authentication Service - API calls for authentication
  */
 
-import { post } from '@/services/api';
+import { post, get } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
 import type { ApiResponse } from '@/types';
 import type {
@@ -89,6 +89,53 @@ export async function logout(data: LogoutRequest): Promise<void> {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('expiresAt');
     localStorage.removeItem('user');
+    throw error;
+  }
+}
+
+/**
+ * Get current authenticated user info
+ */
+export async function getMe(): Promise<import('@/types/auth').User> {
+  try {
+    const result = await get<import('@/types/auth').User>(API_ENDPOINTS.AUTH.ME);
+    if (result.isSuccess && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || 'Failed to get user info');
+    }
+  } catch (error) {
+    console.error('[AuthService] GetMe error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send a password reset OTP email
+ */
+export async function forgotPassword(email: string): Promise<void> {
+  try {
+    const result = await post<null>(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
+    if (!result.isSuccess) {
+      throw new Error(result.message || 'Gửi email thất bại');
+    }
+  } catch (error) {
+    console.error('[AuthService] ForgotPassword error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reset password using OTP sent by forgotPassword
+ */
+export async function resetPassword(email: string, resetToken: string, newPassword: string): Promise<void> {
+  try {
+    const result = await post<null>(API_ENDPOINTS.AUTH.RESET_PASSWORD, { email, resetToken, newPassword });
+    if (!result.isSuccess) {
+      throw new Error(result.message || 'Đặt lại mật khẩu thất bại');
+    }
+  } catch (error) {
+    console.error('[AuthService] ResetPassword error:', error);
     throw error;
   }
 }

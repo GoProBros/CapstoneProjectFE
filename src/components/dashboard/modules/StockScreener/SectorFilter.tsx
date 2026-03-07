@@ -26,12 +26,16 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
   const [level2Sectors, setLevel2Sectors] = useState<Sector[]>([]);
   const [loadingSectors, setLoadingSectors] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const hasFetchedRef = useRef(false);
   
   // Get sectors from zustand store
   const { sectors, setSectors } = useSectorStore();
 
-  // Load level 2 sectors on mount
+  // Load level 2 sectors on mount only
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
     const loadSectors = async () => {
       setLoadingSectors(true);
       try {
@@ -61,7 +65,8 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
     };
 
     loadSectors();
-  }, [sectors, setSectors]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
