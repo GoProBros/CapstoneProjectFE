@@ -56,20 +56,15 @@ export function ProfileInfoTab({ user, avatarBlobUrl, loadingAvatar, onAvatarUpd
 
     const infoFields: { label: string; value: string }[] = displayUser
         ? [
-              { label: 'ID', value: displayUser.id },
               { label: 'Email', value: displayUser.email },
               { label: 'Họ và tên', value: (displayUser as User).fullName },
               { label: 'Số điện thoại', value: (displayUser as User).phoneNumber || '—' },
               { label: 'Vai trò', value: displayUser.role },
-              {
-                  label: 'Xác thực email',
-                  value: (displayUser as User).isEmailVerified ? 'Đã xác thực ✓' : 'Chưa xác thực',
-              },
           ]
         : [];
 
     return (
-        <div className="p-6 space-y-8 max-w-3xl">
+        <div className="p-6 space-y-8">
 
             {/* Avatar upload */}
             <section>
@@ -116,45 +111,46 @@ export function ProfileInfoTab({ user, avatarBlobUrl, loadingAvatar, onAvatarUpd
 
             <div className={`border-t ${borderCls}`} />
 
-            {/* Account info grid */}
-            <section>
-                <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Thông tin tài khoản</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {infoFields.map(({ label, value }) => (
-                        <div key={label}>
-                            <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${textMuted}`}>{label}</p>
-                            <div className={`px-3 py-2 rounded-lg text-sm ${textPrimary} ${fieldBg} border ${borderCls} break-all`}>
-                                {value}
+            {/* Two-column layout: account info + transaction history */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left column: Account info */}
+                <section>
+                    <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Thông tin tài khoản</h2>
+                    <div className="grid grid-cols-1 gap-4">
+                        {infoFields.map(({ label, value }) => (
+                            <div key={label}>
+                                <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${textMuted}`}>{label}</p>
+                                <div className={`px-3 py-2 rounded-lg text-sm ${textPrimary} ${fieldBg} border ${borderCls} break-all`}>
+                                    {value}
+                                </div>
                             </div>
+                        ))}
+                    </div>
+
+                    {/* Reset Password */}
+                    <div className="mt-6">
+                        <ResetPasswordSection email={email} />
+                    </div>
+                </section>
+
+                {/* Right column: Transaction history */}
+                <section>
+                    <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Lịch sử giao dịch</h2>
+                    <div className={`rounded-xl border ${borderCls} p-8 flex flex-col items-center justify-center gap-3`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                            <svg className={`w-6 h-6 ${textMuted}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
                         </div>
-                    ))}
-                </div>
-
-                {/* Reset Password */}
-                <div className="mt-6">
-                    <ResetPasswordSection email={email} />
-                </div>
-            </section>
-
-            <div className={`border-t ${borderCls}`} />
-
-            {/* Transaction history — coming soon */}
-            <section>
-                <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Lịch sử giao dịch</h2>
-                <div className={`rounded-xl border ${borderCls} p-8 flex flex-col items-center justify-center gap-3`}>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <svg className={`w-6 h-6 ${textMuted}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
+                        <div className="text-center">
+                            <p className={`font-medium text-sm ${textPrimary}`}>Coming Soon</p>
+                            <p className={`text-xs mt-1 ${textSecondary}`}>
+                                Lịch sử giao dịch đang được phát triển. Sẽ hiển thị 10 giao dịch gần nhất với tùy chọn tải thêm.
+                            </p>
+                        </div>
                     </div>
-                    <div className="text-center">
-                        <p className={`font-medium text-sm ${textPrimary}`}>Coming Soon</p>
-                        <p className={`text-xs mt-1 ${textSecondary}`}>
-                            Lịch sử giao dịch đang được phát triển. Sẽ hiển thị 10 giao dịch gần nhất với tùy chọn tải thêm.
-                        </p>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     );
 }
