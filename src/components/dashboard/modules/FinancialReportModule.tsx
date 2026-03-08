@@ -527,26 +527,23 @@ export default function FinancialReportModule() {
     <div className={`dashboard-module w-full h-full rounded-2xl border-2 flex flex-col overflow-hidden text-sm ${
       isDark ? 'bg-moduleBackground border-gray-700/40 text-white' : 'bg-white border-gray-200 text-gray-900'
     }`}>
-      {/* Header with BCTC logo and tabs */}
-      <div className="flex justify-between flex-none">
-        {/* Left: BCTC Logo */}
-        <div className="relative flex-none" style={{ width: '124px', minHeight: '100px', borderRadius: '23px 0px 0px' }}>
-          <div className="absolute inset-0 origin-top-left" style={{ width: '124px', height: '100px', transform: 'scale(0.5)' }}>
-            <svg className="absolute inset-0 text-gray-800" xmlns="http://www.w3.org/2000/svg" fill="none" width="248" height="200" viewBox="0 0 248 200">
-              <path d="M0,181.009C0,100.39,106.116,125.641,138.148,93.1624C170.179,60.6838,139.172,0,228.424,0L0.00000470335,0L0,181.009Z" fill="currentColor" />
+      {/* Badge title + tabs */}
+      <div className="flex-none flex flex-col">
+        {/* Badge */}
+        <div className="flex items-center justify-center pt-1.5 pb-1">
+          <div className="relative flex items-center justify-center">
+            <svg width="260" height="30" viewBox="0 0 260 30" className="block">
+              <path d="M258 0C288 0 -28 0 3 0C34 0 49 30 84 30H180C215 30 226 0 258 0Z" fill="#4ADE80"/>
             </svg>
-          </div>
-          <div className="relative h-full flex justify-center items-center">
-            <div className="mr-10 mb-8 text-2xl rotate-[-32deg] font-semibold text-accentGreen" title="Báo cáo tài chính">
-              <div className="animate-bounce">BCTC</div>
-            </div>
+            <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold text-black tracking-wide">
+              Báo cáo tài chính
+            </span>
           </div>
         </div>
 
-        {/* Right: Tab buttons */}
-        <div className="text-sm h-full flex items-center pr-6 -ml-6 -mt-3 overflow-hidden">
-          <div className="flex items-center max-w-full">
-            <div className="flex gap-2 whitespace-nowrap overflow-x-auto scrollbar-hide">
+        {/* Tab buttons */}
+        <div className="flex items-center justify-center gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-2 whitespace-nowrap">
               <button 
                 onClick={() => setReportType('income')}
                 className={`rounded-md px-3 py-1 border border-transparent ${
@@ -578,7 +575,6 @@ export default function FinancialReportModule() {
                 Bảng dòng tiền
               </button>
             </div>
-          </div>
         </div>
       </div>
 
