@@ -9,10 +9,12 @@ import { Spinner } from './Spinner';
 import { SubscriptionDetailModal } from './SubscriptionDetailModal';
 import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
 import { useProfileTheme } from './useProfileTheme';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 export function ProfileSubscriptionTab() {
     const { isAuthenticated } = useAuth();
     const { borderCls, textPrimary, textSecondary, textMuted, hoverBg, fieldBg, bgSub } = useProfileTheme();
+    const setMySubscriptionStore = useSubscriptionStore(s => s.setMySubscription);
 
     const [subscriptions, setSubscriptions] = useState<SubscriptionDto[]>([]);
     const [mySubscription, setMySubscription] = useState<UserSubscriptionDto | null>(null);
@@ -33,7 +35,10 @@ export function ProfileSubscriptionTab() {
             .finally(() => setLoadingSubscriptions(false));
 
         getMySubscription()
-            .then(data => setMySubscription(data))
+            .then(data => {
+                setMySubscription(data);
+                setMySubscriptionStore(data);
+            })
             .catch(err => console.error('[ProfileSubscriptionTab] getMySubscription error:', err))
             .finally(() => setLoadingMySubscription(false));
     }, [isAuthenticated]);
@@ -55,14 +60,11 @@ export function ProfileSubscriptionTab() {
                             {(
                                 [
                                     ['Gói', mySubscription.subscriptionName || '—'],
-                                    ['Cấp độ', levelOrderLabel(mySubscription.levelOrder)],
                                     ['Workspace tối đa', mySubscription.maxWorkspaces != null ? mySubscription.maxWorkspaces.toString() : '—'],
                                     ['Giá', mySubscription.price != null ? formatPrice(mySubscription.price) : '—'],
                                     ['Thời hạn', mySubscription.durationInDays != null ? `${mySubscription.durationInDays} ngày` : '—'],
                                     ['Ngày bắt đầu', mySubscription.startDate ? new Date(mySubscription.startDate).toLocaleDateString('vi-VN') : '—'],
                                     ['Ngày kết thúc', mySubscription.endDate ? new Date(mySubscription.endDate).toLocaleDateString('vi-VN') : '—'],
-                                    ['Trạng thái', mySubscription.status || '—'],
-                                    ['Còn hiệu lực', mySubscription.isActive ? 'Có ✓' : 'Không'],
                                 ] as [string, string][]
                             ).map(([label, value]) => (
                                 <div key={label}>

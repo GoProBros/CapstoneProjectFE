@@ -80,9 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[Auth] Failed to refresh token:', error);
       clearAuthData();
-      router.push('/login');
     }
-  }, [saveAuthData, clearAuthData, router]);
+  }, [saveAuthData, clearAuthData]);
 
   /**
    * Schedule token refresh before expiration
