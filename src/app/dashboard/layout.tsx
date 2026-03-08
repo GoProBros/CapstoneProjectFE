@@ -719,8 +719,7 @@ export default function DashboardLayout({
       }
     }
 
-    setNotification(`Đã thêm "${moduleTitle}" thành công!`);
-    handleCloseModal();
+    setNotification(`Đã thêm ${moduleTitle}`);
 
     setTimeout(() => {
       setNotification(null);
@@ -910,9 +909,9 @@ export default function DashboardLayout({
                 {/* Success Notification */}
                 {notification && (
                   <div className="fixed top-4 right-4 z-[10000] animate-in slide-in-from-top">
-                    <div className="bg-buttonGreen text-black px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                    <div className="bg-gray-900/90 backdrop-blur-sm border border-gray-600 text-gray-100 px-5 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5">
                       <svg
-                        className="w-5 h-5"
+                        className="w-4 h-4 text-green-400 flex-shrink-0"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -924,7 +923,7 @@ export default function DashboardLayout({
                           d="M5 13l4 4L19 7"
                         />
                       </svg>
-                      <span className="font-medium">{notification}</span>
+                      <span className="text-sm font-medium">{notification}</span>
                     </div>
                   </div>
                 )}

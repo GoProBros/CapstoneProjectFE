@@ -110,6 +110,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
 
   const handleAddModule = (moduleId: string, moduleTitle: string) => {
     addModule(moduleId, moduleTitle);
+    // Keep modal open so user can add multiple modules
   };
 
   return (
