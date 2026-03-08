@@ -203,7 +203,7 @@ export default function Sidebar({
                         </div>
 
                         {/* Sun/Moon Icon - Theme Toggle */}
-                        <div className="relative group">
+                        {/* <div className="relative group">
                             <button 
                                 onClick={toggleTheme}
                                 className="w-10 h-10 flex items-center justify-center hover:bg-gray-700/50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
@@ -217,10 +217,10 @@ export default function Sidebar({
                             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                                 {theme === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Font Size Control - Plus/Minus with Range Slider */}
-                        <div className="relative inline-flex group">
+                        {/* <div className="relative inline-flex group">
                             <div className="relative w-8 flex flex-col items-center">
                                 <div className="absolute z-10 inset-0 flex flex-col justify-between items-center py-1">
                                     <button 
@@ -260,7 +260,7 @@ export default function Sidebar({
                             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                                 Phông chữ
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Green Bell Icon with notification dot */}
                         <div className="relative group">
