@@ -4,12 +4,53 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
-import { formatPrice, levelOrderLabel } from './helpers';
+import { formatPrice } from './helpers';
 import { Spinner } from './Spinner';
 import { SubscriptionDetailModal } from './SubscriptionDetailModal';
 import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
 import { useProfileTheme } from './useProfileTheme';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+
+function TransactionHistoryModal({ onClose }: { onClose: () => void }) {
+    const { bgCard, borderCls, textPrimary, textSecondary, textMuted, hoverBg, isDark } = useProfileTheme();
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={onClose}
+        >
+            <div
+                className={`w-full max-w-md rounded-2xl border ${bgCard} ${borderCls} p-6 space-y-4`}
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between">
+                    <h3 className={`text-lg font-bold ${textPrimary}`}>Lịch sử giao dịch</h3>
+                    <button onClick={onClose} className={`p-1.5 rounded-lg ${hoverBg} ${textSecondary}`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div className="flex flex-col items-center gap-3 py-8">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <svg className={`w-7 h-7 ${textMuted}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <p className={`font-medium text-sm ${textPrimary}`}>Coming Soon</p>
+                    <p className={`text-xs text-center ${textSecondary}`}>
+                        Lịch sử giao dịch đang được phát triển. Sẽ hiển thị 10 giao dịch gần nhất.
+                    </p>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="w-full py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors"
+                >
+                    Đóng
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export function ProfileSubscriptionTab() {
     const { isAuthenticated } = useAuth();
@@ -22,6 +63,7 @@ export function ProfileSubscriptionTab() {
     const [loadingMySubscription, setLoadingMySubscription] = useState(false);
     const [detailSub, setDetailSub] = useState<SubscriptionDto | null>(null);
     const [paymentSub, setPaymentSub] = useState<SubscriptionDto | null>(null);
+    const [showTransactionHistory, setShowTransactionHistory] = useState(false);
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -45,25 +87,36 @@ export function ProfileSubscriptionTab() {
 
     return (
         <>
-            <div className="p-6 space-y-8">
+            <div className="space-y-6">
 
-                {/* Section 1: Current subscription */}
-                <section>
-                    <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Gói thành viên hiện tại</h2>
+                {/* Section header: title + transaction history button inline */}
+                <div className="flex items-center justify-between">
+                    <h2 className={`text-base font-semibold ${textPrimary}`}>Quản lý gói thành viên</h2>
+                    <button
+                        onClick={() => setShowTransactionHistory(true)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Lịch sử giao dịch
+                    </button>
+                </div>
+
+                {/* Current subscription — 3 columns */}
+                <div>
+                    <h3 className={`text-sm font-medium mb-3 ${textSecondary}`}>Gói hiện tại</h3>
                     {loadingMySubscription ? (
                         <div className="flex items-center gap-2 py-4">
                             <Spinner className="w-5 h-5 text-green-500" />
                             <span className={`text-sm ${textSecondary}`}>Đang tải...</span>
                         </div>
                     ) : mySubscription ? (
-                        <div className={`rounded-xl border ${borderCls} p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4`}>
+                        <div className={`rounded-xl border ${borderCls} p-4 grid grid-cols-3 gap-4`}>
                             {(
                                 [
-                                    ['Gói', mySubscription.subscriptionName || '—'],
+                                    ['Tên gói', mySubscription.subscriptionName || '—'],
                                     ['Workspace tối đa', mySubscription.maxWorkspaces != null ? mySubscription.maxWorkspaces.toString() : '—'],
-                                    ['Giá', mySubscription.price != null ? formatPrice(mySubscription.price) : '—'],
-                                    ['Thời hạn', mySubscription.durationInDays != null ? `${mySubscription.durationInDays} ngày` : '—'],
-                                    ['Ngày bắt đầu', mySubscription.startDate ? new Date(mySubscription.startDate).toLocaleDateString('vi-VN') : '—'],
                                     ['Ngày kết thúc', mySubscription.endDate ? new Date(mySubscription.endDate).toLocaleDateString('vi-VN') : '—'],
                                 ] as [string, string][]
                             ).map(([label, value]) => (
@@ -74,17 +127,15 @@ export function ProfileSubscriptionTab() {
                             ))}
                         </div>
                     ) : (
-                        <div className={`rounded-xl border ${borderCls} p-6 text-center text-sm ${textSecondary}`}>
+                        <div className={`rounded-xl border ${borderCls} p-4 text-center text-sm ${textSecondary}`}>
                             Bạn chưa đăng ký gói thành viên nào
                         </div>
                     )}
-                </section>
+                </div>
 
-                <div className={`border-t ${borderCls}`} />
-
-                {/* Section 2: Available packages (4-col grid) */}
-                <section>
-                    <h2 className={`text-base font-semibold mb-4 ${textPrimary}`}>Các gói thành viên</h2>
+                {/* Available packages — 3-column portrait cards */}
+                <div>
+                    <h3 className={`text-sm font-medium mb-3 ${textSecondary}`}>Các gói thành viên</h3>
                     {loadingSubscriptions ? (
                         <div className="flex items-center gap-2 py-4">
                             <Spinner className="w-5 h-5 text-green-500" />
@@ -93,31 +144,29 @@ export function ProfileSubscriptionTab() {
                     ) : subscriptions.length === 0 ? (
                         <p className={`text-sm ${textSecondary}`}>Không có gói thành viên nào</p>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             {subscriptions.map(sub => (
                                 <div
                                     key={sub.id}
-                                    className={`rounded-xl border ${borderCls} p-5 flex flex-col gap-3 ${bgSub}`}
+                                    className={`rounded-xl border ${borderCls} p-4 flex flex-col gap-3 ${bgSub}`}
                                 >
-                                    <div>
-                                        <p className={`font-bold text-base ${textPrimary}`}>{sub.name}</p>
-                                        <p className={`text-xs mt-0.5 ${textMuted}`}>{levelOrderLabel(sub.levelOrder)}</p>
+                                    <p className={`font-bold text-sm ${textPrimary} truncate`}>{sub.name}</p>
+                                    <div className="flex-1 space-y-1.5">
+                                        <p className={`text-xs ${textSecondary}`}>
+                                            Workspace: <span className={`font-semibold ${textPrimary}`}>{sub.maxWorkspaces}</span>
+                                        </p>
+                                        <p className="text-base font-bold text-green-500">{formatPrice(sub.price)}</p>
                                     </div>
-                                    <div className={`flex-1 space-y-1 text-xs ${textSecondary}`}>
-                                        <p>Workspace tối đa: <span className={`font-medium ${textPrimary}`}>{sub.maxWorkspaces}</span></p>
-                                        <p className="text-xl font-bold text-green-500 pt-1">{formatPrice(sub.price)}</p>
-                                        <p className={textMuted}>{sub.durationInDays} ngày</p>
-                                    </div>
-                                    <div className="flex gap-2 pt-1">
+                                    <div className="flex flex-col gap-2">
                                         <button
                                             onClick={() => setDetailSub(sub)}
-                                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
+                                            className={`w-full py-1.5 rounded-lg text-xs font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
                                         >
                                             Chi tiết
                                         </button>
                                         <button
                                             onClick={() => setPaymentSub(sub)}
-                                            className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white transition-colors"
+                                            className="w-full py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white transition-colors"
                                         >
                                             Đăng ký
                                         </button>
@@ -126,9 +175,12 @@ export function ProfileSubscriptionTab() {
                             ))}
                         </div>
                     )}
-                </section>
+                </div>
             </div>
 
+            {showTransactionHistory && (
+                <TransactionHistoryModal onClose={() => setShowTransactionHistory(false)} />
+            )}
             {detailSub && (
                 <SubscriptionDetailModal sub={detailSub} onClose={() => setDetailSub(null)} />
             )}
