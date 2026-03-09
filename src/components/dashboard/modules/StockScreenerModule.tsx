@@ -18,7 +18,7 @@ import SymbolSearchBox from '@/components/dashboard/SymbolSearchBox';
 import ExchangeFilter from './StockScreener/ExchangeFilter';
 import SectorFilter from './StockScreener/SectorFilter';
 import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
-import IndexFilter, { type IndexType } from './StockScreener/IndexFilter';
+import IndexFilter from './StockScreener/IndexFilter';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Toast, { ToastType } from '@/components/ui/Toast';
 import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';

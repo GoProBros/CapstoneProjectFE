@@ -33,6 +33,13 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/sectors',
     BY_ID: (id: string) => `/api/v1/sectors/${id}`,
   },
+
+  // Market Index endpoints
+  MARKET_INDICES: {
+    BASE: '/api/v1/market-indices',
+    BY_CODE: (code: string) => `/api/v1/market-indices/${code}`,
+    CONSTITUENTS: (code: string) => `/api/v1/market-indices/${code}/constituents`,
+  },
   
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
