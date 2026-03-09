@@ -122,7 +122,11 @@ export function SignalRProvider({
     // Subscribe to market data updates — batch via RAF to avoid update-depth overflow
     const unsubscribeData = service.onMarketDataReceived((data) => {
       // Merge into pending batch (overwrites with latest value for same ticker)
-      const existing = marketDataRef.current.get(data.ticker);
+      // CRITICAL: Check pendingUpdatesRef FIRST — marketDataRef may not yet contain updates
+      // that arrived in the same animation frame (before the RAF flush ran).
+      // Without this, a second rapid update for the same ticker would NOT merge with the
+      // first (still-pending) update, causing fields from the first update to be lost → zeros.
+      const existing = pendingUpdatesRef.current.get(data.ticker) ?? marketDataRef.current.get(data.ticker);
       pendingUpdatesRef.current.set(data.ticker, existing ? { ...existing, ...data } : data);
 
       // Schedule a single flush for this animation frame
