@@ -176,7 +176,7 @@ export default function OrderMatchingModule() {
   const ceilingPrice = snap?.ceilingPrice ?? 0;
   const floorPrice = snap?.floorPrice ?? 0;
 
-  const bgCard = isDark ? 'bg-[#1c1f2e]' : 'bg-white';
+  const bgCard = isDark ? 'bg-cardBackground' : 'bg-gray-50';
   const bgTable = isDark ? 'bg-[#252938]' : 'bg-gray-50';
   const textPrimary = isDark ? 'text-white' : 'text-gray-900';
   const textMuted = isDark ? 'text-gray-400' : 'text-gray-500';

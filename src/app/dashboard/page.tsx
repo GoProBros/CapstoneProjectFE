@@ -24,6 +24,7 @@ const moduleComponents: Record<string, React.ComponentType> = {
   'stock-screener': Modules.StockScreenerModule,
   'heatmap': Modules.HeatmapModule,
   'analysis-report': Modules.AnalysisReportModule,
+  'ai-chat': Modules.AiChatModule,
 };
 
 export default function DashboardPage() {
