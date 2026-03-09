@@ -6,6 +6,18 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/hooks/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/services/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  safelist: [
+    // AG Grid dynamic cellClass strings — must not be purged
+    'text-green-500', 'text-green-600',
+    'text-red-500', 'text-red-600',
+    'text-yellow-500',
+    'text-cyan-500',
+    'text-purple-500',
+    'text-orange-500',
+    'text-blue-500',
   ],
   theme: {
     screens: {

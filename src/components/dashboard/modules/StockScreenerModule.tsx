@@ -42,8 +42,34 @@ ModuleRegistry.registerModules([AllCommunityModule]);
  * VD: 86500 → 86.5, 24300 → 24.3
  */
 const formatPrice = (value: number | null | undefined): string => {
-  if (!value) return '0';
+  if (!value) return '';
   return (value / 1000).toFixed(2);
+};
+
+/**
+ * Vietnamese stock exchange price color convention:
+ *  - Purple (tím)        = at or above ceiling price (giá trần)
+ *  - Blue   (xanh dương)   = at or below floor price   (giá sàn)
+ *  - Green  (xanh lá)    = above reference price     (giá TC)
+ *  - Red    (đỏ)          = below reference price
+ *  - Yellow (vàng)       = equal to reference price
+ *
+ * @param value  The price to color
+ * @param data   Row data (must contain referencePrice, ceilingPrice, floorPrice)
+ * @param weight Optional font-weight class ('font-semibold' | 'font-bold')
+ */
+const getPriceColorClass = (
+  value: number | null | undefined,
+  data: any,
+  weight: '' | 'font-semibold' | 'font-bold' = ''
+): string => {
+  const base = weight ? `${weight} text-xs` : 'text-xs';
+  if (!value || !data?.referencePrice) return base;
+  if (data.ceilingPrice && value >= data.ceilingPrice) return `text-purple-500 ${base}`;
+  if (data.floorPrice   && value <= data.floorPrice)   return `text-blue-500 ${base}`;
+  if (value > data.referencePrice) return `text-green-500 ${base}`;
+  if (value < data.referencePrice) return `text-red-500 ${base}`;
+  return `text-yellow-500 ${base}`;
 };
 
 export default function StockScreenerModule() {
@@ -153,7 +179,8 @@ export default function StockScreenerModule() {
       width: 80,
       pinned: 'left',
       valueFormatter: (params) => formatPrice(params.value),
-      cellClass: 'text-cyan-500 font-semibold text-xs',
+      cellClass: 'font-semibold text-xs',
+      cellStyle: { color: '#3b82f6' }, // blue-500 - giá sàn màu xanh dương
     },
     {
       field: 'referencePrice',
@@ -173,78 +200,42 @@ export default function StockScreenerModule() {
           headerName: 'Giá 3', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 text-xs';
-            if (diff < 0) return 'text-red-500 text-xs';
-            return 'text-yellow-500 text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data),
         },
         { 
           field: 'bidVol3',
           headerName: 'KL 3', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.bidPrice3 == null) return 'text-red-600 text-xs';
-            const diff = params.data.bidPrice3 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 text-xs';
-            if (diff < 0) return 'text-red-500 text-xs';
-            return 'text-yellow-500 text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.bidPrice3, params.data),
         },
         { 
           field: 'bidPrice2',
           headerName: 'Giá 2', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-semibold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'bidVol2',
           headerName: 'KL 2', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.bidPrice2 == null) return 'text-red-600 font-semibold text-xs';
-            const diff = params.data.bidPrice2 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.bidPrice2, params.data, 'font-semibold'),
         },
         { 
           field: 'bidPrice1',
           headerName: 'Giá 1', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-bold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-bold text-xs';
-            if (diff < 0) return 'text-red-500 font-bold text-xs';
-            return 'text-yellow-500 font-bold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'bidVol1',
           headerName: 'KL 1', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.bidPrice1 == null) return 'text-red-600 font-bold text-xs';
-            const diff = params.data.bidPrice1 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-bold text-xs';
-            if (diff < 0) return 'text-red-500 font-bold text-xs';
-            return 'text-yellow-500 font-bold text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.bidPrice1, params.data, 'font-bold'),
         },
       ]
     },
@@ -258,65 +249,40 @@ export default function StockScreenerModule() {
           headerName: 'Giá', 
           width: 95, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'font-bold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-bold text-xs';
-            if (diff < 0) return 'text-red-500 font-bold text-xs';
-            return 'text-yellow-500 font-bold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'lastVol',
           headerName: 'KL', 
           width: 110, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.lastPrice == null) return 'font-semibold text-xs';
-            const diff = params.data.lastPrice - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-semibold'),
         },
         { 
           field: 'change',
           headerName: '+/-', 
           width: 80, 
           valueFormatter: (params) => {
-            if (params.value == null) return '0';
+            if (params.value == null || params.value === 0) return '';
             // Chia 1000 để chuyển từ VND sang nghìn đồng
             const valueInThousands = params.value / 1000;
             return valueInThousands > 0 ? `+${valueInThousands.toFixed(2)}` : valueInThousands.toFixed(2);
           },
-          cellClass: (params) => {
-            // Khi change = 0, hiển thị theo màu của lastPrice so với referencePrice
-            if (params.value === 0) {
-              if (!params.data?.referencePrice || params.data?.lastPrice == null) return 'text-xs';
-              const diff = params.data.lastPrice - params.data.referencePrice;
-              if (diff > 0) return 'text-green-500 font-semibold text-xs';
-              if (diff < 0) return 'text-red-500 font-semibold text-xs';
-              return 'text-yellow-500 font-semibold text-xs';
-            }
-            // Khi change != 0, hiển thị theo dấu của change
-            if (params.value == null) return 'text-xs';
-            return params.value > 0 ? 'text-green-500 font-semibold text-xs' : params.value < 0 ? 'text-red-500 font-semibold text-xs' : 'text-xs';
-          },
+          // Màu theo lastPrice để đồng bộ với giá khớp lệnh
+          cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-semibold'),
         },
         { 
           field: 'ratioChange',
           headerName: '+/- (%)', 
           width: 90, 
           valueFormatter: (params) => {
-            if (params.value == null) return '0%';
+            if (params.value == null || params.value === 0) return '';
             // Backend đã trả về %, chỉ cần format
             const pct = params.value.toFixed(2);
             return params.value > 0 ? `+${pct}%` : `${pct}%`;
           },
-          cellClass: (params) => {
-            if (params.value == null) return 'text-xs';
-            return params.value > 0 ? 'text-green-500 font-bold text-xs' : params.value < 0 ? 'text-red-500 font-bold text-xs' : 'text-yellow-500 font-bold text-xs';
-          },
+          // Màu theo lastPrice để đồng bộ với giá khớp lệnh
+          cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-bold'),
         },
       ]
     },
@@ -330,78 +296,42 @@ export default function StockScreenerModule() {
           headerName: 'Giá 1', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-bold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-bold text-xs';
-            if (diff < 0) return 'text-red-500 font-bold text-xs';
-            return 'text-yellow-500 font-bold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'askVol1',
           headerName: 'KL 1', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.askPrice1 == null) return 'text-green-600 font-bold text-xs';
-            const diff = params.data.askPrice1 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-bold text-xs';
-            if (diff < 0) return 'text-red-500 font-bold text-xs';
-            return 'text-yellow-500 font-bold text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.askPrice1, params.data, 'font-bold'),
         },
         { 
           field: 'askPrice2',
           headerName: 'Giá 2', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-semibold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'askVol2',
           headerName: 'KL 2', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.askPrice2 == null) return 'text-green-600 font-semibold text-xs';
-            const diff = params.data.askPrice2 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.askPrice2, params.data, 'font-semibold'),
         },
         { 
           field: 'askPrice3',
           headerName: 'Giá 3', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 text-xs';
-            if (diff < 0) return 'text-red-500 text-xs';
-            return 'text-yellow-500 text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data),
         },
         { 
           field: 'askVol3',
           headerName: 'KL 3', 
           width: 100, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.data?.askPrice3 == null) return 'text-green-600 text-xs';
-            const diff = params.data.askPrice3 - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 text-xs';
-            if (diff < 0) return 'text-red-500 text-xs';
-            return 'text-yellow-500 text-xs';
-          },
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          cellClass: (params) => getPriceColorClass(params.data?.askPrice3, params.data),
         },
       ]
     },
@@ -414,7 +344,7 @@ export default function StockScreenerModule() {
           field: 'totalVol',
           headerName: 'Tổng KL', 
           width: 120, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           cellClass: 'font-semibold text-xs',
         },
         { 
@@ -422,26 +352,14 @@ export default function StockScreenerModule() {
           headerName: 'Cao', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-green-600 font-semibold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'lowest',
           headerName: 'Thấp', 
           width: 85, 
           valueFormatter: (params) => formatPrice(params.value),
-          cellClass: (params) => {
-            if (!params.data?.referencePrice || params.value == null) return 'text-red-600 font-semibold text-xs';
-            const diff = params.value - params.data.referencePrice;
-            if (diff > 0) return 'text-green-500 font-semibold text-xs';
-            if (diff < 0) return 'text-red-500 font-semibold text-xs';
-            return 'text-yellow-500 font-semibold text-xs';
-          },
+          cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'avgPrice',
@@ -461,7 +379,7 @@ export default function StockScreenerModule() {
           field: 'totalVal',
           headerName: 'Tổng GT', 
           width: 120, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           hide: true,
           cellClass: 'text-xs',
         },
@@ -506,35 +424,35 @@ export default function StockScreenerModule() {
           field: 'ThanhKhoanTB50', 
           headerName: 'GTTB (50 phiên)',
           width: columns.ThanhKhoanTB50?.width || 140, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'volTB50', 
           headerName: 'KLTB (50 phiên)',
           width: columns.volTB50?.width || 140, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'KL1KLTB',
           headerName: '%KLTB', 
           width: columns.KL1KLTB?.width || 100, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
+          valueFormatter: (params) => params.value ? `${params.value}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'bulVol',
           headerName: 'Bull Vol (5p)', 
           width: columns.bulVol?.width || 130, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'bearVol',
           headerName: 'Bear Vol (5p)', 
           width: columns.bearVol?.width || 130, 
-          valueFormatter: (params) => params.value?.toLocaleString() || '0',
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
           cellClass: 'text-xs',
         },
         { 
@@ -565,7 +483,7 @@ export default function StockScreenerModule() {
           field: 'RS',
           headerName: 'RS', 
           width: columns.RS?.width || 80, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
@@ -590,7 +508,7 @@ export default function StockScreenerModule() {
           field: 'pVWMA20',
           headerName: '%VWMA20', 
           width: columns.pVWMA20?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
       ]
@@ -602,42 +520,42 @@ export default function StockScreenerModule() {
           field: 'ptop52W',
           headerName: '%Top 52W', 
           width: columns.ptop52W?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : 'text-red-500 text-xs',
         },
         { 
           field: 'plow52W',
           headerName: '%Low 52W', 
           width: columns.plow52W?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'pMA20',
           headerName: '%MA20', 
           width: columns.pMA20?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'pMA50',
           headerName: '%MA50', 
           width: columns.pMA50?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'pMA100',
           headerName: '%MA100', 
           width: columns.pMA100?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'pMA200',
           headerName: '%MA200', 
           width: columns.pMA200?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '0%',
+          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
           cellClass: 'text-xs',
         },
       ]
@@ -649,77 +567,77 @@ export default function StockScreenerModule() {
           field: 'PE',
           headerName: 'P/E', 
           width: columns.PE?.width || 80, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'ROE',
           headerName: 'ROE', 
           width: columns.ROE?.width || 80, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
+          valueFormatter: (params) => params.value ? `${params.value}%` : '',
           cellClass: 'text-xs',
         },
         { 
           field: 'BLNR',
           headerName: 'BLNR', 
           width: columns.BLNR?.width || 80, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'diemBinhquan',
           headerName: 'Action Score', 
           width: columns.diemBinhquan?.width || 120, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'DG_bq',
           headerName: 'Định giá', 
           width: columns.DG_bq?.width || 100, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'skTaichinh',
           headerName: 'Sức khỏe TC', 
           width: columns.skTaichinh?.width || 120, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'mohinhKinhdoanh',
           headerName: 'Mô hình KD', 
           width: columns.mohinhKinhdoanh?.width || 120, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'hieuquaHoatdong',
           headerName: 'Hiệu quả HĐ', 
           width: columns.hieuquaHoatdong?.width || 120, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'diemKythuat',
           headerName: 'Điểm KT', 
           width: columns.diemKythuat?.width || 100, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'BAT',
           headerName: 'BAT', 
           width: columns.BAT?.width || 80, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'AIPredict20d',
           headerName: 'AI Predict 20d', 
           width: columns.AIPredict20d?.width || 130, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
       ]
@@ -804,14 +722,14 @@ export default function StockScreenerModule() {
           field: 'GIABAN',
           headerName: 'Giá bán', 
           width: columns.GIABAN?.width || 100, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'LAILO',
           headerName: 'Lãi/Lỗ', 
           width: columns.LAILO?.width || 100, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '0%',
+          valueFormatter: (params) => params.value ? `${params.value}%` : '',
           cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : params.value < 0 ? 'text-red-500 text-xs' : 'text-gray-500 text-xs',
         },
         { 
@@ -830,14 +748,14 @@ export default function StockScreenerModule() {
           field: 'TTDT',
           headerName: 'TTDT', 
           width: columns.TTDT?.width || 100, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
         { 
           field: 'TTLN',
           headerName: 'TTLN', 
           width: columns.TTLN?.width || 100, 
-          valueFormatter: (params) => params.value || '0',
+          valueFormatter: (params) => params.value || '',
           cellClass: 'text-xs',
         },
       ]
