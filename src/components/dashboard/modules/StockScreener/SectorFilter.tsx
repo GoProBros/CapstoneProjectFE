@@ -28,8 +28,8 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
   const dropdownRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
   
-  // Get sectors from zustand store
-  const { sectors, setSectors } = useSectorStore();
+  // Get sectors store setter
+  const { setSectors } = useSectorStore();
 
   // Load level 2 sectors on mount only
   useEffect(() => {
@@ -39,23 +39,16 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
     const loadSectors = async () => {
       setLoadingSectors(true);
       try {
-        // Check if we have level 2 sectors in store
-        const level2FromStore = sectors.filter(s => s.level === 2);
+        // Always fetch fresh from API to ensure symbols are populated
+        const response = await getSectors({ 
+          level: 2, 
+          status: 1, // Active only
+          pageSize: 100 
+        });
         
-        if (level2FromStore.length > 0) {
-          setLevel2Sectors(level2FromStore);
-        } else {
-          // Fetch from API
-          const response = await getSectors({ 
-            level: 2, 
-            status: 1, // Active only
-            pageSize: 100 
-          });
-          
-          if (response.isSuccess && response.data) {
-            setSectors(response.data);
-            setLevel2Sectors(response.data.items);
-          }
+        if (response.isSuccess && response.data) {
+          setSectors(response.data);
+          setLevel2Sectors(response.data.items);
         }
       } catch (error) {
         console.error('[SectorFilter] Error loading sectors:', error);

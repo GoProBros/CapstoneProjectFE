@@ -24,6 +24,7 @@ export * from './workspace';
 export * from './sector';
 export * from './file';
 export * from './analysisReport';
+export * from './marketIndex';
 
 export interface PaginationParams {
   page: number;

@@ -9,7 +9,8 @@ import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
 import { watchListService } from '@/services/watchListService';
 import * as layoutService from '@/services/layoutService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
-import type { IndexType } from '@/components/dashboard/modules/StockScreener/IndexFilter';
+import { getIndexConstituents } from '@/services/marketIndexService';
+import type { MarketIndex } from '@/types/marketIndex';
 import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
 import type { WatchListSummary, WatchListDetail } from '@/types/watchList';
 import type { MarketSymbolDto } from '@/types/market';
@@ -109,7 +110,7 @@ export function useStockScreener() {
   // Filter states to track selections
   const [selectedExchange, setSelectedExchange] = useState<ExchangeCode | null>(null);
   const [selectedSymbolType, setSelectedSymbolType] = useState<SymbolType | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<IndexType | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<MarketIndex | null>(null);
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [isLoadingSector, setIsLoadingSector] = useState(false);
   
@@ -145,7 +146,7 @@ export function useStockScreener() {
   const { columns, setColumns, setColumnWidth, setColumnVisibility, setSidebarOpen, resetColumns } = useColumnStore();
 
   // Get SignalR connection và market data
-  const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState } = useSignalR();
+  const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData, connectionState, subscribedSymbols } = useSignalR();
 
   /**
    * Subscribe to default symbols when connected
@@ -158,6 +159,12 @@ export function useStockScreener() {
    * Chỉ hiển thị ticker thuộc watch-list hiện tại
    */
   const currentWatchListTickers = useRef<Set<string>>(new Set());
+
+  /**
+   * Ref to track the currently active sector ID, used to prevent
+   * re-subscribing when the same sector is clicked multiple times.
+   */
+  const activeSectorIdRef = useRef<string | null>(null);
 
   /**
    * Handle exchange filter change
@@ -184,6 +191,7 @@ export function useStockScreener() {
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedSector(null);
+    activeSectorIdRef.current = null;
     setSelectedSymbolType(null);
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
@@ -207,15 +215,13 @@ export function useStockScreener() {
 
   /**
    * Handle index filter change
-   * TODO: Implement API integration when endpoint is available
-   * Expected API: GET /api/v1/symbols/indices/{indexType}
-   * Should return array of ticker symbols belonging to the index
+   * Fetches constituent symbols from the market-indices API and subscribes to them
    */
-  const handleIndexChange = async (indexType: IndexType) => {
+  const handleIndexChange = async (index: MarketIndex | null) => {
     if (!isConnected) return;
 
     setIsLoadingIndex(true);
-    setSelectedIndex(indexType);
+    setSelectedIndex(index);
     gridApi?.showLoadingOverlay();
 
     const currentTickers = Array.from(marketData.keys());
@@ -233,20 +239,29 @@ export function useStockScreener() {
     currentWatchListTickers.current.clear();
     setSelectedExchange(null);
     setSelectedSector(null);
+    activeSectorIdRef.current = null;
     setSelectedSymbolType(null);
-    hasLoadedDefaultSymbols.current = false;
+    // Prevent the default HSX load from firing
+    hasLoadedDefaultSymbols.current = true;
 
     try {
-      // Unsubscribe in parallel with any future index fetch
-      if (currentTickers.length > 0) {
-        await unsubscribeFromSymbols(currentTickers);
+      // Unsubscribe old tickers and fetch new ones in parallel
+      const [response] = await Promise.all([
+        index ? getIndexConstituents(index.code, { pageSize: 100 }) : Promise.resolve(null),
+        currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
+      ]);
+
+      if (!index) {
+        setIsLoadingIndex(false);
+        return;
       }
 
-      // TODO: Subscribe to index symbols when API is available
-      // const tickers = await fetchSymbolsByIndex(indexType);
-      // if (tickers.length > 0) await subscribeToSymbols(tickers);
+      if (response && response.isSuccess && response.data?.items?.length) {
+        const tickers = response.data.items.map((s) => s.ticker);
+        await subscribeToSymbols(tickers);
+      }
     } catch (error) {
-      console.error(`[StockScreener] Error changing to index ${indexType}:`, error);
+      console.error(`[StockScreener] Error changing to index ${index?.code}:`, error);
     } finally {
       setIsLoadingIndex(false);
     }
@@ -254,19 +269,25 @@ export function useStockScreener() {
 
   /**
    * Handle sector filter change
-   * Subscribe to all symbols in the selected sector (Level 2)
+   * Full sequential unsub → sub to avoid race conditions and overlapping symbol sets
    */
   const handleSectorChange = async (sector: Sector) => {
     if (!isConnected) return;
+
+    // Prevent re-subscribing when the same sector is already active
+    if (activeSectorIdRef.current === sector.id) return;
+    activeSectorIdRef.current = sector.id;
 
     setIsLoadingSector(true);
     setSelectedSector(sector);
     gridApi?.showLoadingOverlay();
 
-    const currentTickers = Array.from(marketData.keys());
+    // Use subscribedSymbols as the authoritative list (includes symbols subscribed but
+    // not yet received data — more reliable than marketData.keys())
+    const currentTickers = subscribedSymbols;
     const sectorSymbols = sector.symbols;
 
-    // Clear grid immediately
+    // Clear grid immediately for instant visual feedback
     if (gridApi) {
       const allRows: any[] = [];
       gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
@@ -289,13 +310,15 @@ export function useStockScreener() {
     }
 
     try {
-      // Unsubscribe old (SignalR) in parallel — sector symbols already available locally
-      await Promise.all([
-        subscribeToSymbols(sectorSymbols),
-        currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
-      ]);
+      // Sequential: unsubscribe ALL current symbols first, then subscribe to sector symbols.
+      // Running in parallel caused race conditions where the server processed subscribe
+      // before unsubscribe, resulting in sector symbols being immediately removed.
+      if (currentTickers.length > 0) await unsubscribeFromSymbols(currentTickers);
+      await subscribeToSymbols(sectorSymbols);
     } catch (error) {
       console.error(`[StockScreener] Error changing to sector ${sector.viName}:`, error);
+      // Allow retry on error
+      activeSectorIdRef.current = null;
     } finally {
       setIsLoadingSector(false);
     }
@@ -325,6 +348,7 @@ export function useStockScreener() {
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedSector(null);
+    activeSectorIdRef.current = null;
     setSelectedExchange(null);
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
@@ -360,31 +384,32 @@ export function useStockScreener() {
     }
   };
 
-  // Subscribe to default symbols when connected
+  // Subscribe to default symbols when connected - default is VN30 index
   useEffect(() => {
-    // Chỉ subscribe khi đã connected VÀ chưa load symbols
     if (!isConnected || hasLoadedDefaultSymbols.current) {
       return;
     }
 
-    // Load default symbol list on first connection - SỬ DỤNG EXCHANGE HSX
     const loadDefaultSymbols = async () => {
+      // Mark as loaded immediately to prevent concurrent runs
+      hasLoadedDefaultSymbols.current = true;
       try {
-        const tickers = await fetchSymbolsByExchange('HSX');
-        
-        if (!tickers || tickers.length === 0) {
+        const response = await getIndexConstituents('VN30', { pageSize: 100 });
+
+        if (!response.isSuccess || !response.data?.items?.length) {
           return;
         }
-        
+
+        const tickers = response.data.items.map((s) => s.ticker);
+        // Set selectedIndex to VN30 so the UI reflects the default selection
+        setSelectedIndex({ code: 'VN30', name: 'VN30', exchangeCode: 'HSX', isBenchmark: true, status: 1 });
         await subscribeToSymbols(tickers);
-        
-        // ĐÁNH DẤU đã load để tránh load lại
-        hasLoadedDefaultSymbols.current = true;
       } catch (error) {
         console.error('[StockScreener] Error loading default symbols:', error);
+        hasLoadedDefaultSymbols.current = false;
       }
     };
-    
+
     loadDefaultSymbols();
   }, [isConnected, subscribeToSymbols]);
 
@@ -533,13 +558,26 @@ export function useStockScreener() {
       return;
     }
 
-    // LẤY danh sách ticker hiện có trong grid
+    // LẤY danh sách ticker hiện có trong grid, đồng thời phát hiện stale rows
+    // (rows có trong grid nhưng không còn trong marketData - do RAF batch race condition)
+    const validTickerSet = new Set(validRows.map(r => r.ticker));
     const existingTickers = new Set<string>();
+    const staleGridRows: any[] = [];
+
     gridApi.forEachNode((node: any) => {
       if (node.data?.ticker) {
-        existingTickers.add(node.data.ticker);
+        if (validTickerSet.has(node.data.ticker)) {
+          existingTickers.add(node.data.ticker);
+        } else {
+          // Row in grid but no longer in marketData (unsubscribed) → remove it
+          staleGridRows.push(node.data);
+        }
       }
     });
+
+    if (staleGridRows.length > 0) {
+      gridApi.applyTransaction({ remove: staleGridRows });
+    }
 
     // PHÂN LOẠI: Rows cần ADD (mới) vs UPDATE (đã tồn tại)
     const rowsToAdd: MarketSymbolDto[] = [];
