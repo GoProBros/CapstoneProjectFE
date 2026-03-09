@@ -167,47 +167,56 @@ export function useStockScreener() {
   const activeSectorIdRef = useRef<string | null>(null);
 
   /**
-   * Handle exchange filter change
+   * Handle exchange filter change.
+   * Exchange and SymbolType can be combined — selecting one does NOT clear the other.
+   * Sector and Index are exclusive filters and are cleared when Exchange/SymbolType changes.
    */
-  const handleExchangeChange = async (exchange: ExchangeCode) => {
+  const handleExchangeChange = async (exchange: ExchangeCode | null) => {
     if (!isConnected) return;
 
     setIsLoadingExchange(true);
     setSelectedExchange(exchange);
     gridApi?.showLoadingOverlay();
 
-    // Snapshot current tickers before any state changes
     const currentTickers = Array.from(marketData.keys());
 
-    // Clear grid immediately (loading overlay visible)
     if (gridApi) {
       const allRows: any[] = [];
       gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
       if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
     }
 
-    // Reset filter state
+    // Clear exclusive filters (sector, index, watchlist) but KEEP selectedSymbolType
     setCurrentWatchListId(null);
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedSector(null);
     activeSectorIdRef.current = null;
-    setSelectedSymbolType(null);
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
 
     try {
-      // Unsubscribe (SignalR) and fetch new symbol list (REST) run in parallel
+      const exchangeToLoad = exchange ?? 'HSX';
+      // Combine with current SymbolType if one is active
+      let tickerPromise: Promise<string[]>;
+      if (selectedSymbolType !== null) {
+        tickerPromise = fetchSymbols({ Exchange: exchangeToLoad, Type: selectedSymbolType, PageSize: 5000, PageIndex: 1 })
+          .then(symbols => symbols.filter(s => s.type === selectedSymbolType).map(s => s.ticker));
+      } else {
+        tickerPromise = fetchSymbolsByExchange(exchangeToLoad);
+      }
+
       const [newTickers] = await Promise.all([
-        fetchSymbolsByExchange(exchange),
+        tickerPromise,
         currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
       ]);
 
       if (!newTickers || newTickers.length === 0) return;
 
       await subscribeToSymbols(newTickers);
+      if (!exchange && selectedSymbolType === null) hasLoadedDefaultSymbols.current = true;
     } catch (error) {
-      console.error(`[StockScreener] Error changing to ${exchange}:`, error);
+      console.error(`[StockScreener] Error changing to ${exchange ?? 'default'}:`, error);
     } finally {
       setIsLoadingExchange(false);
     }
@@ -271,8 +280,16 @@ export function useStockScreener() {
    * Handle sector filter change
    * Full sequential unsub → sub to avoid race conditions and overlapping symbol sets
    */
-  const handleSectorChange = async (sector: Sector) => {
+  const handleSectorChange = async (sector: Sector | null) => {
     if (!isConnected) return;
+
+    // Null means deselect → reset to HSX default
+    if (sector === null) {
+      activeSectorIdRef.current = null;
+      setSelectedSector(null);
+      await handleExchangeChange('HSX');
+      return;
+    }
 
     // Prevent re-subscribing when the same sector is already active
     if (activeSectorIdRef.current === sector.id) return;
@@ -325,7 +342,9 @@ export function useStockScreener() {
   };
 
   /**
-   * Handle symbol type filter change
+   * Handle symbol type filter change.
+   * SymbolType and Exchange can be combined — selecting one does NOT clear the other.
+   * Sector and Index are exclusive filters and are cleared when SymbolType changes.
    */
   const handleSymbolTypeChange = async (type: SymbolType | null) => {
     if (!isConnected) return;
@@ -343,32 +362,39 @@ export function useStockScreener() {
       if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
     }
 
-    // Reset filter state
+    // Clear exclusive filters (sector, index, watchlist) but KEEP selectedExchange
     setCurrentWatchListId(null);
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedSector(null);
     activeSectorIdRef.current = null;
-    setSelectedExchange(null);
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
 
     try {
       if (type === null) {
-        // Unsubscribe old and fetch HSX default in parallel
+        // Deselect type: fall back to exchange-only filter or HSX default
+        const exchangeToLoad = selectedExchange ?? 'HSX';
         const [tickers] = await Promise.all([
-          fetchSymbolsByExchange('HSX'),
+          fetchSymbolsByExchange(exchangeToLoad),
           currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
         ]);
         if (!tickers || tickers.length === 0) return;
         await subscribeToSymbols(tickers);
-        hasLoadedDefaultSymbols.current = true;
+        if (!selectedExchange) hasLoadedDefaultSymbols.current = true;
         return;
       }
 
-      // Unsubscribe old and fetch symbols by type in parallel
+      // Combine with current Exchange filter if one is active
+      let symbolsPromise: ReturnType<typeof fetchSymbols>;
+      if (selectedExchange !== null) {
+        symbolsPromise = fetchSymbols({ Exchange: selectedExchange, Type: type, PageSize: 5000, PageIndex: 1 });
+      } else {
+        symbolsPromise = fetchSymbols({ Type: type, PageSize: 5000, PageIndex: 1 });
+      }
+
       const [symbols] = await Promise.all([
-        fetchSymbols({ Type: type, PageSize: 5000, PageIndex: 1 }),
+        symbolsPromise,
         currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
       ]);
 

@@ -26,8 +26,12 @@ export function SubscriptionPaymentModal({ sub, onClose }: SubscriptionPaymentMo
         setPaymentError(null);
         try {
             const result = await createPaymentLink(sub.id, paymentProvider);
-            window.open(result.checkoutUrl, '_blank', 'noopener,noreferrer');
-            onClose();
+            // Store pending payment so the profile page can sync after redirect returns
+            sessionStorage.setItem('pendingPayment', JSON.stringify({
+                orderCode: result.orderCode,
+                provider: paymentProvider,
+            }));
+            window.location.href = result.checkoutUrl;
         } catch (err: unknown) {
             setPaymentError(err instanceof Error ? err.message : 'Đã xảy ra lỗi khi tạo liên kết thanh toán');
         } finally {
@@ -69,7 +73,7 @@ export function SubscriptionPaymentModal({ sub, onClose }: SubscriptionPaymentMo
                         {(
                             [
                                 [PaymentProviderType.PayOS, 'PayOS', 'Thanh toán qua PayOS'],
-                                [PaymentProviderType.Momo, 'MoMo', 'Thanh toán qua Ví MoMo'],
+                                [PaymentProviderType.Momo, 'MoMo', 'Thanh toán qua Ví MoMo (sandbox)'],
                             ] as [PaymentProviderValue, string, string][]
                         ).map(([val, name, desc]) => (
                             <label

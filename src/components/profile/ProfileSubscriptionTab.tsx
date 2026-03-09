@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
+import { syncMomoPayment, getPaymentStatus } from '@/services/paymentService';
+import { PaymentProviderType } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
 import { formatPrice } from './helpers';
 import { Spinner } from './Spinner';
@@ -68,21 +70,47 @@ export function ProfileSubscriptionTab() {
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        setLoadingSubscriptions(true);
-        setLoadingMySubscription(true);
+        const initialize = async () => {
+            setLoadingSubscriptions(true);
+            setLoadingMySubscription(true);
 
-        getSubscriptions()
-            .then(data => setSubscriptions(data))
-            .catch(err => console.error('[ProfileSubscriptionTab] getSubscriptions error:', err))
-            .finally(() => setLoadingSubscriptions(false));
+            // If returning from a payment gateway, sync the payment status first
+            const pendingRaw = sessionStorage.getItem('pendingPayment');
+            if (pendingRaw) {
+                sessionStorage.removeItem('pendingPayment');
+                try {
+                    const pending: { orderCode: number; provider: number } = JSON.parse(pendingRaw);
+                    if (pending.provider === PaymentProviderType.Momo) {
+                        await syncMomoPayment(pending.orderCode).catch(err =>
+                            console.error('[ProfileSubscriptionTab] MoMo sync error:', err),
+                        );
+                    } else {
+                        // PayOS: check payment status (webhook handled server-side but verify here)
+                        await getPaymentStatus(pending.orderCode).catch(err =>
+                            console.error('[ProfileSubscriptionTab] PayOS status check error:', err),
+                        );
+                    }
+                } catch {
+                    // ignore malformed data
+                }
+            }
 
-        getMySubscription()
-            .then(data => {
-                setMySubscription(data);
-                setMySubscriptionStore(data);
-            })
-            .catch(err => console.error('[ProfileSubscriptionTab] getMySubscription error:', err))
-            .finally(() => setLoadingMySubscription(false));
+            await Promise.allSettled([
+                getSubscriptions()
+                    .then(data => setSubscriptions(data))
+                    .catch(err => console.error('[ProfileSubscriptionTab] getSubscriptions error:', err))
+                    .finally(() => setLoadingSubscriptions(false)),
+                getMySubscription()
+                    .then(data => {
+                        setMySubscription(data);
+                        setMySubscriptionStore(data);
+                    })
+                    .catch(err => console.error('[ProfileSubscriptionTab] getMySubscription error:', err))
+                    .finally(() => setLoadingMySubscription(false)),
+            ]);
+        };
+
+        initialize();
     }, [isAuthenticated]);
 
     return (

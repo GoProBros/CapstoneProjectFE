@@ -13,7 +13,7 @@ import { getSectors } from '@/services/sectorService';
 import type { Sector } from '@/types/sector';
 
 interface SectorFilterProps {
-  onSectorChange: (sector: Sector) => void;
+  onSectorChange: (sector: Sector | null) => void;
   isLoading?: boolean;
   selectedSector?: Sector | null;
 }
@@ -80,7 +80,12 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
 
   const handleSectorClick = (sector: Sector) => {
     if (isLoading) return;
-    onSectorChange(sector);
+    // Re-click selected sector to deselect
+    if (selectedSector?.id === sector.id) {
+      onSectorChange(null);
+    } else {
+      onSectorChange(sector);
+    }
     setIsOpen(false);
   };
 

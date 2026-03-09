@@ -48,6 +48,16 @@ const formatPrice = (value: number | null | undefined): string => {
 };
 
 /**
+ * Returns true when a row is in a "zero session" state
+ * (both matched price and matched volume are 0).
+ * In this case, only the 4 basic columns should show values.
+ */
+const isZeroSession = (data: any): boolean => {
+  if (!data) return false;
+  return (!data.lastPrice || data.lastPrice === 0) && (!data.lastVol || data.lastVol === 0);
+};
+
+/**
  * Vietnamese stock exchange price color convention:
  *  - Purple (tím)        = at or above ceiling price (giá trần)
  *  - Blue   (xanh dương)   = at or below floor price   (giá sàn)
@@ -204,42 +214,42 @@ export default function StockScreenerModule() {
           field: 'bidPrice3',
           headerName: 'Giá 3', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data),
         },
         { 
           field: 'bidVol3',
           headerName: 'KL 3', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.bidPrice3, params.data),
         },
         { 
           field: 'bidPrice2',
           headerName: 'Giá 2', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'bidVol2',
           headerName: 'KL 2', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.bidPrice2, params.data, 'font-semibold'),
         },
         { 
           field: 'bidPrice1',
           headerName: 'Giá 1', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'bidVol1',
           headerName: 'KL 1', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.bidPrice1, params.data, 'font-bold'),
         },
       ]
@@ -253,14 +263,14 @@ export default function StockScreenerModule() {
           field: 'lastPrice',
           headerName: 'Giá', 
           width: 95, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'lastVol',
           headerName: 'KL', 
           width: 110, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-semibold'),
         },
         { 
@@ -268,12 +278,11 @@ export default function StockScreenerModule() {
           headerName: '+/-', 
           width: 80, 
           valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
             if (params.value == null || params.value === 0) return '';
-            // Chia 1000 để chuyển từ VND sang nghìn đồng
             const valueInThousands = params.value / 1000;
             return valueInThousands > 0 ? `+${valueInThousands.toFixed(2)}` : valueInThousands.toFixed(2);
           },
-          // Màu theo lastPrice để đồng bộ với giá khớp lệnh
           cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-semibold'),
         },
         { 
@@ -281,12 +290,11 @@ export default function StockScreenerModule() {
           headerName: '+/- (%)', 
           width: 90, 
           valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
             if (params.value == null || params.value === 0) return '';
-            // Backend đã trả về %, chỉ cần format
             const pct = params.value.toFixed(2);
             return params.value > 0 ? `+${pct}%` : `${pct}%`;
           },
-          // Màu theo lastPrice để đồng bộ với giá khớp lệnh
           cellClass: (params) => getPriceColorClass(params.data?.lastPrice, params.data, 'font-bold'),
         },
       ]
@@ -300,42 +308,42 @@ export default function StockScreenerModule() {
           field: 'askPrice1',
           headerName: 'Giá 1', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-bold'),
         },
         { 
           field: 'askVol1',
           headerName: 'KL 1', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.askPrice1, params.data, 'font-bold'),
         },
         { 
           field: 'askPrice2',
           headerName: 'Giá 2', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'askVol2',
           headerName: 'KL 2', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.askPrice2, params.data, 'font-semibold'),
         },
         { 
           field: 'askPrice3',
           headerName: 'Giá 3', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data),
         },
         { 
           field: 'askVol3',
           headerName: 'KL 3', 
           width: 100, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: (params) => getPriceColorClass(params.data?.askPrice3, params.data),
         },
       ]
@@ -349,28 +357,28 @@ export default function StockScreenerModule() {
           field: 'totalVol',
           headerName: 'Tổng KL', 
           width: 120, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           cellClass: 'font-semibold text-xs',
         },
         { 
           field: 'highest',
           headerName: 'Cao', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'lowest',
           headerName: 'Thấp', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: (params) => getPriceColorClass(params.value, params.data, 'font-semibold'),
         },
         { 
           field: 'avgPrice',
           headerName: 'TB', 
           width: 85, 
-          valueFormatter: (params) => formatPrice(params.value),
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : formatPrice(params.value),
           cellClass: 'text-xs',
         },
         // CÁC CỘT ẨN MẶC ĐỊNH - đặt trong group 'Tổng' để group header luôn hiển thị (không bị ẩn khi toàn bộ children bị hide)
@@ -378,7 +386,7 @@ export default function StockScreenerModule() {
           field: 'totalVal',
           headerName: 'Tổng GT', 
           width: 120, 
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           hide: true,
           cellClass: 'text-xs',
         },
@@ -416,17 +424,23 @@ export default function StockScreenerModule() {
           field: 'totalBuyVol',
           headerName: 'Tổng KL mua',
           width: 120,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-green-500 text-xs',
+          cellClass: 'text-xs',
         },
         {
           field: 'totalSellVol',
           headerName: 'Tổng KL bán',
           width: 120,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-red-500 text-xs',
+          cellClass: 'text-xs',
         },
       ]
     },
@@ -437,39 +451,51 @@ export default function StockScreenerModule() {
           field: 'fBuyVol',
           headerName: 'KL mua NN',
           width: 120,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-green-500 text-xs',
+          cellClass: 'text-xs',
         },
         {
           field: 'fSellVol',
           headerName: 'KL bán NN',
           width: 120,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-red-500 text-xs',
+          cellClass: 'text-xs',
         },
         {
           field: 'fBuyVal',
           headerName: 'GT mua NN',
           width: 130,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-green-500 text-xs',
+          cellClass: 'text-xs',
         },
         {
           field: 'fSellVal',
           headerName: 'GT bán NN',
           width: 130,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => {
+            if (isZeroSession(params.data)) return '';
+            return params.value ? params.value.toLocaleString() : '';
+          },
           hide: true,
-          cellClass: 'text-red-500 text-xs',
+          cellClass: 'text-xs',
         },
         {
           field: 'totalRoom',
           headerName: 'Tổng room NN',
           width: 120,
-          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          valueFormatter: (params) => isZeroSession(params.data) ? '' : (params.value ? params.value.toLocaleString() : ''),
           hide: true,
           cellClass: 'text-xs',
         },

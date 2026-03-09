@@ -49,7 +49,7 @@ export async function searchSymbols(params: SymbolSearchParams): Promise<Paginat
  */
 export async function getAllTickers(): Promise<string[]> {
   try {
-    const result = await get<string[]>('/api/v1/symbol/tickers');
+    const result = await get<string[]>(API_ENDPOINTS.SYMBOL.TICKERS);
     
     // Handle ApiResponse wrapper
     if (result.isSuccess && result.data) {

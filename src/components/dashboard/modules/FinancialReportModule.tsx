@@ -90,7 +90,7 @@ export default function FinancialReportModule() {
 
   const chartData = useMemo(() => {
     if (reportType === 'income') {
-      return filteredData.map(r => ({
+      return visibleData.map(r => ({
         label: r.periodLabel,
         'Doanh thu thuần': parseFloat(((r.netRevenue ?? 0) / BILLION).toFixed(2)),
         'Lợi nhuận gộp': parseFloat(((r.grossProfit ?? 0) / BILLION).toFixed(2)),
@@ -98,20 +98,20 @@ export default function FinancialReportModule() {
       }));
     }
     if (reportType === 'balance') {
-      return filteredData.map(r => ({
+      return visibleData.map(r => ({
         label: r.periodLabel,
         'Tổng tài sản': parseFloat((r.totalAssets / BILLION).toFixed(2)),
         'Vốn điều lệ': parseFloat(((r.contributedCapital ?? 0) / BILLION).toFixed(2)),
         'Vốn chủ sở hữu': parseFloat((r.totalEquity / BILLION).toFixed(2)),
       }));
     }
-    return filteredData.map(r => ({
+    return visibleData.map(r => ({
       label: r.periodLabel,
       'Dòng tiền KD': parseFloat((r.operatingCashFlow / BILLION).toFixed(2)),
       'Dòng tiền ĐT': parseFloat((r.investingCashFlow / BILLION).toFixed(2)),
       'Dòng tiền tự do': parseFloat(((r.operatingCashFlow + r.investingCashFlow) / BILLION).toFixed(2)),
     }));
-  }, [filteredData, reportType]);
+  }, [visibleData, reportType]);
 
   const currentMetrics = reportType === 'income' ? incomeMetrics
     : reportType === 'balance' ? balanceMetrics
@@ -188,7 +188,7 @@ export default function FinancialReportModule() {
                     contentStyle={{ backgroundColor: isDark ? '#424242' : '#fff', border: 'none', borderRadius: '4px' }}
                     labelStyle={{ color: isDark ? '#fff' : '#000' }}
                   />
-                  <Legend wrapperStyle={{ fontSize: '11px', color: isDark ? '#fff' : '#333' }} iconType="square" />
+                  <Legend wrapperStyle={{ fontSize: '9px', color: isDark ? '#fff' : '#333' }} iconType="square" />
                   {reportType === 'income' ? (
                     <>
                       <Bar dataKey="Doanh thu thuần" fill="#84cc16" radius={[4, 4, 0, 0]} />
@@ -273,7 +273,7 @@ export default function FinancialReportModule() {
             <div className="px-6 pb-4">
               {activeMetrics.map(metric => (
                 <div key={metric.key} className="flex justify-between items-center py-0.5">
-                  <div className={`flex-shrink-0 w-36 text-xs leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <div className={`flex-shrink-0 w-36 text-sm leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {metric.label}
                   </div>
                   <div className="flex gap-2 text-center">
@@ -283,7 +283,7 @@ export default function FinancialReportModule() {
                       return (
                         <div
                           key={r.id}
-                          className={`w-14 text-xs ${raw < 0 ? 'text-red-400' : isDark ? 'text-white' : 'text-gray-900'}`}
+                          className={`w-14 text-sm ${raw < 0 ? 'text-red-400' : isDark ? 'text-white' : 'text-gray-900'}`}
                         >
                           {display}
                         </div>

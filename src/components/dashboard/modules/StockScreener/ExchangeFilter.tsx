@@ -10,7 +10,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import type { ExchangeCode } from '@/types/symbol';
 
 interface ExchangeFilterProps {
-  onExchangeChange: (exchange: ExchangeCode) => void;
+  onExchangeChange: (exchange: ExchangeCode | null) => void;
   isLoading?: boolean;
   selectedExchange?: ExchangeCode | null;
 }
@@ -23,7 +23,12 @@ export default function ExchangeFilter({ onExchangeChange, isLoading, selectedEx
 
   const handleClick = (exchange: ExchangeCode) => {
     if (isLoading) return;
-    onExchangeChange(exchange);
+    // Re-click to deselect
+    if (selectedExchange === exchange) {
+      onExchangeChange(null);
+    } else {
+      onExchangeChange(exchange);
+    }
   };
 
   return (

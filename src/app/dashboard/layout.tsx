@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
 import AddPageModal from "@/components/dashboard/AddPageModal";
@@ -102,9 +103,17 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
   const maxWorkspaces = useSubscriptionStore((s) => s.maxWorkspaces);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Guard: redirect to home when auth check completes and user is not authenticated
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      router.replace('/');
+    }
+  }, [isAuthLoading, isAuthenticated, router]);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [pages, setPages] = useState<PageData[]>([]);
@@ -288,17 +297,33 @@ export default function DashboardLayout({
               return;
             }
             
-            // Save to localStorage
-            localStorage.setItem('dashboard-pages', JSON.stringify(apiWorkspaces));
+            // Merge API workspaces with any locally-created pages that were added
+            // while this GET request was in-flight (race condition: user created a
+            // workspace before getMyWorkspaces returned).
+            const mergedPages = (prev: PageData[]): PageData[] => {
+              const apiIds = new Set(apiWorkspaces.map((w) => w.id));
+              // Keep locally-added pages that have a real workspaceId (created via API)
+              // but aren't in this GET response yet.
+              const recentLocal = prev.filter((p) => p.workspaceId && !apiIds.has(p.id));
+              const merged = [...apiWorkspaces, ...recentLocal];
+              localStorage.setItem('dashboard-pages', JSON.stringify(merged));
+              return merged;
+            };
 
-            // After API sync, if the currently selected page no longer exists
-            // in the new list switch to first available.
-            setCurrentPageId((prev) =>
-              apiWorkspaces.some((w) => w.id === prev) ? prev : (apiWorkspaces[0]?.id ?? '')
-            );
+            // After API sync, keep currentPageId if it's in the merged list,
+            // otherwise switch to first available.
+            setCurrentPageId((prev) => {
+              const apiIds = new Set(apiWorkspaces.map((w) => w.id));
+              // If still in API list, keep it
+              if (apiIds.has(prev)) return prev;
+              // If it looks like a recently-created workspace (workspace-* prefix),
+              // keep it — it will be preserved in the merged pages above.
+              if (prev.startsWith('workspace-')) return prev;
+              return apiWorkspaces[0]?.id ?? '';
+            });
 
-            // Update UI
-            setPages(apiWorkspaces);
+            // Update UI with merged data
+            setPages(mergedPages);
             console.log('[Dashboard] Synced workspaces from API:', apiWorkspaces.length);
           }
         }
@@ -344,9 +369,7 @@ export default function DashboardLayout({
     setIsAddPageModalOpen(false);
   };
 
-  const handleAddPage = async (pageName: string, layoutType: string) => {
-    console.log("handleAddPage called with:", { pageName, layoutType });
-
+  const handleAddPage = async (pageName: string) => {
     // Check workspace limit from subscription
     if (pages.length >= maxWorkspaces) {
       setNotification(`Bạn đã đạt giới hạn ${maxWorkspaces} giao diện. Vui lòng xóa giao diện cũ hoặc nâng cấp gói đăng kí để tạo mới.`);
@@ -362,139 +385,6 @@ export default function DashboardLayout({
       modules: [],
       layout: [],
     };
-
-    // If "Giao diện mặc định" is selected, pre-populate with default modules
-    console.log(
-      "Checking layout type:",
-      layoutType,
-      'equals "Giao diện mặc định":',
-      layoutType === "Giao diện mặc định"
-    );
-
-    if (layoutType === "Giao diện mặc định") {
-      const defaultModules: Module[] = [
-        {
-          id: `global-stock-chart-${timestamp}`,
-          type: "global-stock-chart",
-          title: "Biểu đồ chứng khoán thế giới",
-        },
-        {
-          id: `financial-report-${timestamp}`,
-          type: "financial-report",
-          title: "Báo cáo tài chính",
-        },
-        { id: `news-${timestamp}`, type: "news", title: "Tin tức" },
-        { id: `canslim-${timestamp}`, type: "canslim", title: "Canslim" },
-        {
-          id: `ta-advisor-${timestamp}`,
-          type: "ta-advisor",
-          title: "Tư trụ T A",
-        },
-        {
-          id: `fa-advisor-${timestamp}`,
-          type: "fa-advisor",
-          title: "Tư trụ F A",
-        },
-        {
-          id: `stock-screener-${timestamp}`,
-          type: "stock-screener",
-          title: "Bộ lọc cổ phiếu",
-        },
-      ];
-
-      const defaultLayout: LayoutItem[] = [
-        { i: defaultModules[0].id, x: 0, y: 0, w: 62, h: 25 },
-        { i: defaultModules[1].id, x: 62, y: 0, w: 34, h: 18 },
-        { i: defaultModules[2].id, x: 62, y: 18, w: 34, h: 18 },
-        { i: defaultModules[3].id, x: 0, y: 25, w: 21, h: 11 },
-        { i: defaultModules[4].id, x: 21, y: 25, w: 21, h: 11 },
-        { i: defaultModules[5].id, x: 42, y: 25, w: 20, h: 11 },
-        { i: defaultModules[6].id, x: 0, y: 36, w: 96, h: 20 },
-      ];
-
-      newPage.modules = defaultModules;
-      newPage.layout = defaultLayout;
-    } else if (layoutType === "Giao diện nâng cao") {
-      const advancedModules: Module[] = [
-        {
-          id: `session-info-${timestamp}`,
-          type: "session-info",
-          title: "Thông tin phiên giao dịch",
-        },
-        {
-          id: `order-matching-${timestamp}`,
-          type: "order-matching",
-          title: "Khớp lệnh",
-        },
-        { id: `canslim-${timestamp}`, type: "canslim", title: "Canslim" },
-        {
-          id: `fa-advisor-${timestamp}`,
-          type: "fa-advisor",
-          title: "Tư trụ F A",
-        },
-        {
-          id: `financial-report-${timestamp}`,
-          type: "financial-report",
-          title: "Báo cáo tài chính",
-        },
-        {
-          id: `global-stock-chart-${timestamp}`,
-          type: "global-stock-chart",
-          title: "Biểu đồ chứng khoán thế giới",
-        },
-        { id: `news-${timestamp}`, type: "news", title: "Tin tức" },
-      ];
-
-      const advancedLayout: LayoutItem[] = [
-        { i: advancedModules[0].id, x: 0, y: 0, w: 16, h: 8 },
-        { i: advancedModules[1].id, x: 16, y: 0, w: 15, h: 8 },
-        { i: advancedModules[2].id, x: 31, y: 0, w: 16, h: 8 },
-        { i: advancedModules[3].id, x: 47, y: 0, w: 15, h: 8 },
-        { i: advancedModules[4].id, x: 62, y: 0, w: 34, h: 19 },
-        { i: advancedModules[5].id, x: 0, y: 8, w: 62, h: 26 },
-        { i: advancedModules[6].id, x: 62, y: 19, w: 34, h: 15 },
-      ];
-
-      newPage.modules = advancedModules;
-      newPage.layout = advancedLayout;
-    } else if (layoutType === "Giao diện đơn giản") {
-      const simpleModules: Module[] = [
-        {
-          id: `global-stock-chart-${timestamp}`,
-          type: "global-stock-chart",
-          title: "Biểu đồ chứng khoán thế giới",
-        },
-        {
-          id: `financial-report-${timestamp}`,
-          type: "financial-report",
-          title: "Báo cáo tài chính",
-        },
-        { id: `news-${timestamp}`, type: "news", title: "Tin tức" },
-        { id: `canslim-${timestamp}`, type: "canslim", title: "Canslim" },
-        {
-          id: `ta-advisor-${timestamp}`,
-          type: "ta-advisor",
-          title: "Tư trụ T A",
-        },
-        {
-          id: `fa-advisor-${timestamp}`,
-          type: "fa-advisor",
-          title: "Tư trụ F A",
-        },
-      ];
-
-      const simpleLayout: LayoutItem[] = [
-        { i: simpleModules[0].id, x: 0, y: 0, w: 96, h: 20 },
-        { i: simpleModules[1].id, x: 0, y: 20, w: 31, h: 18 },
-        { i: simpleModules[2].id, x: 31, y: 20, w: 31, h: 18 },
-        { i: simpleModules[3].id, x: 62, y: 20, w: 34, h: 7 },
-        { i: simpleModules[4].id, x: 62, y: 27, w: 17, h: 11 },
-        { i: simpleModules[5].id, x: 79, y: 27, w: 17, h: 11 },
-      ];
-
-      newPage.modules = simpleModules;
-      newPage.layout = simpleLayout;
-    }
 
     try {
       // Save to API if authenticated
@@ -518,16 +408,16 @@ export default function DashboardLayout({
       // Continue with local-only workspace
     }
 
-    const updatedPages = [...pages, newPage];
-    setPages(updatedPages);
-    
-    // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setPages(prev => {
+      const updatedPages = [...prev, newPage];
+      localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+      return updatedPages;
+    });
+
     localStorage.setItem('dashboard-current-page', newPage.id);
     
     setCurrentPageId(newPage.id); // Auto switch to new page
 
-    console.log("Total pages after add:", updatedPages.length);
     console.log("New page:", newPage);
 
     setNotification(`Đã tạo page "${pageName}" thành công!`);
@@ -862,7 +752,25 @@ export default function DashboardLayout({
     };
   }, [currentPage?.modules]);
 
-  console.log("Modal state:", isModalOpen);
+  // Show full-screen spinner while auth state is being resolved
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-pageBackground">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-accentGreen" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <span className="text-sm text-gray-400">Đang kiểm tra phiên đăng nhập...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Block render if not authenticated (redirect effect is already triggered)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <ThemeProvider>
