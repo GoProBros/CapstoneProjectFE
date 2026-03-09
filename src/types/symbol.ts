@@ -41,9 +41,9 @@ export interface ApiResponse<T> {
  */
 export enum SymbolType {
   Stock = 1,
-  ETF = 2,
+  ETF = 4,
   Bond = 3,
-  Futures = 4,
+  Futures = 2,
 }
 
 /**

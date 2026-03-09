@@ -18,15 +18,8 @@ interface EventItem {
   type: 'dividend' | 'stock-dividend' | 'rights' | 'bonus';
 }
 
-interface ReportItem {
-  id: string;
-  code: string;
-  date: string;
-  content: string;
-}
-
 export default function NewsModule() {
-  const [activeTab, setActiveTab] = useState<'market' | 'stock' | 'event' | 'report'>('market');
+  const [activeTab, setActiveTab] = useState<'market' | 'stock' | 'event'>('market');
 
   // Market news with images
   const marketNews: NewsItem[] = [
@@ -200,60 +193,6 @@ export default function NewsModule() {
     { id: '35', code: 'ABR', date: '26-09-2025', content: 'ABR: chia cổ tức bằng tiền, tỉ lệ 0.2 (2,000 đồng/CP)', type: 'dividend' }
   ];
 
-  // Report data
-  const reportData: ReportItem[] = [
-    { id: '1', code: 'Báo cáo vĩ mô', date: '2025-11-27', content: 'Cập nhật kinh tế vĩ mô tháng 10 và 10 tháng đầu năm 2025' },
-    { id: '2', code: 'GMD', date: '2025-11-27', content: 'GMD - KẾ HOẠCH MỞ RỘNG CẢNG ĐẢM BẢO CHO TĂNG TRƯỞNG KẾT QUẢ KINH DOANH' },
-    { id: '3', code: 'PHR', date: '2025-11-27', content: 'PHR - Khoản đền bù tiềm năng thúc đẩy dòng tiền tích cực' },
-    { id: '4', code: 'PVS', date: '2025-11-27', content: 'PVS (Q3/2025): Tiến độ thuận lợi' },
-    { id: '5', code: 'FRT', date: '2025-11-26', content: 'Báo cáo phân tích cổ phiếu FRT' },
-    { id: '6', code: 'FRT', date: '2025-11-26', content: 'FRT - Cập nhật KQKD Q3.2025' },
-    { id: '7', code: 'DPG', date: '2025-11-26', content: 'Cập nhật DPG – MUA' },
-    { id: '8', code: 'BMP', date: '2025-11-26', content: 'BMP (KHẢ QUAN, Giá mục tiêu: 178.000 Đồng/cp): Tiềm năng tăng trưởng nhờ biên lợi nhuận ổn định' },
-    { id: '9', code: 'PVD', date: '2025-11-26', content: 'Cập nhật PVD – KHẢ QUAN' },
-    { id: '10', code: 'SAB', date: '2025-11-25', content: 'SAB (Q3/25): Đối diện nhiều thử thách' },
-    { id: '11', code: 'BCM', date: '2025-11-25', content: 'BCM - ĐỘNG LỰC MỚI TỪ KCN BÀU BÀNG MỞ RỘNG' },
-    { id: '12', code: 'HPG', date: '2025-11-25', content: 'Cập nhật HPG – MUA' },
-    { id: '13', code: 'MWG', date: '2025-11-25', content: 'MWG - Cân bằng giữa hiệu quả & quy mô' },
-    { id: '14', code: 'KBC', date: '2025-11-25', content: 'Cập nhật KBC – KHẢ QUAN' },
-    { id: '15', code: 'BID', date: '2025-11-25', content: 'Cập nhật BID – MUA' },
-    { id: '16', code: 'Báo cáo vĩ mô', date: '2025-11-25', content: 'Báo cáo Kinh tế Vĩ mô Tháng 10 và 10 tháng đầu năm 2025 – FED nhiều khả năng hạ lãi suất trong tháng 12, lãi suất huy động tại nhóm NHTMCP tại Việt Nam quay lại đà tăng' },
-    { id: '17', code: 'HT1', date: '2025-11-25', content: 'Cập nhật HT1 – MUA' },
-    { id: '18', code: 'KBC', date: '2025-11-25', content: 'KBC (Q3/2025): Kỳ vọng tăng trưởng mạnh sau thuế quan' },
-    { id: '19', code: 'VAB', date: '2025-11-25', content: 'VAB – Tăng trưởng bền vững' },
-    { id: '20', code: 'KDH', date: '2025-11-25', content: 'KDH -The Gladia dẫn dắt tăng trưởng 2025-2026' },
-    { id: '21', code: 'DGW', date: '2025-11-25', content: 'DGW - Công nghệ mới mở ra nhu cầu nâng cấp' },
-    { id: '22', code: 'DHC', date: '2025-11-24', content: 'DHC (KHẢ QUAN, Giá mục tiêu: 38.300 Đồng/cp): Triển vọng trung hạn từ biên lợi nhuận phục hồi và tái cấu trúc ngành' },
-    { id: '23', code: 'KBC', date: '2025-11-24', content: 'BÁO CÁO CẬP NHẬT KQKD - KBC' },
-    { id: '24', code: 'VNM, ANV', date: '2025-11-24', content: 'CẬP NHẬT KQKD Q3/2025: PHÂN HÓA RÕ NÉT GIỮA NỘI ĐỊA VÀ XUẤT KHẨU' },
-    { id: '25', code: 'BSR', date: '2025-11-24', content: 'BSR (Q3/2025): Chu kỳ kinh doanh ảm đạm' },
-    { id: '26', code: 'VIB', date: '2025-11-24', content: 'VIB (Q3/2025): Thử thách vẫn chưa qua đi' },
-    { id: '27', code: 'VCB, CTG, ABB,ACB, HDB', date: '2025-11-24', content: 'NGÀNH NGÂN HÀNG Chất lượng song hành' },
-    { id: '28', code: 'NLG', date: '2025-11-24', content: 'Cập nhật NLG – MUA' },
-    { id: '29', code: 'DCM', date: '2025-11-24', content: 'DCM- 3Q25: LNST tăng mạnh nhờ giá bán trung bình tăng và chi phí đầu vào giảm' },
-    { id: '30', code: 'Báo cáo chiến lược', date: '2025-11-24', content: 'BÁO CÁO NGÀNH CẢNG BIỂN Thích nghi với một thế giới thay đổi' },
-    { id: '31', code: 'Báo cáo vĩ mô', date: '2025-11-24', content: '[Cập nhật vĩ mô] - Lạm phát ảnh hưởng bởi bão. Tỷ giá tăng cao.' },
-    { id: '32', code: 'DGC', date: '2025-11-22', content: 'Phân tích kỹ thuật cổ phiếu DGC - FPTS' },
-    { id: '33', code: 'GDA', date: '2025-11-21', content: 'GDA - 3Q25 – Thị trường nội địa hỗ trợ lợi nhuận' },
-    { id: '34', code: 'Báo cáo thị trường', date: '2025-11-21', content: 'Nhóm BĐS dẫn dắt thị trường TPDN trong T10' },
-    { id: '35', code: 'IMP', date: '2025-11-21', content: 'IMP (Q3/2025): Giữ vững vị thế tại kênh ETC' },
-    { id: '36', code: 'NKG', date: '2025-11-21', content: 'NKG - Tăng trưởng thị phần là điểm sáng hiếm hoi' },
-    { id: '37', code: 'QNS, VNM', date: '2025-11-21', content: 'BÁO CÁO NGÀNH SỮA Premium Hóa, Tái Cấu Trúc Chuỗi Giá Trị' },
-    { id: '38', code: 'NKG', date: '2025-11-21', content: 'Phân tích kỹ thuật cổ phiếu NKG - FPTS' },
-    { id: '39', code: 'BSR', date: '2025-11-21', content: 'BSR - Cập nhật KQKD Q3.2025' },
-    { id: '40', code: 'TCM', date: '2025-11-21', content: 'Phân tích kỹ thuật cổ phiếu TCM - FPTS' },
-    { id: '41', code: 'VHC, ANV, IDI', date: '2025-11-21', content: 'Cập nhật ngành thủy sản: Diễn biến giá bán tích cực – Thích ứng bình thường mới hậu thuế quan' },
-    { id: '42', code: 'BMP', date: '2025-11-21', content: 'Báo cáo lần đầu BMP – MUA' },
-    { id: '43', code: 'IDC', date: '2025-11-21', content: 'BÁO CÁO CẬP NHẬT KQKD - IDC' },
-    { id: '44', code: 'AST', date: '2025-11-21', content: 'Phân tích kỹ thuật cổ phiếu AST - FPTS' },
-    { id: '45', code: 'HDB', date: '2025-11-21', content: 'HDB (KHẢ QUAN, Giá mục tiêu: 37.000 Đồng/cp): Lợi nhuận dự kiến tăng tốc trong Q4/2025' },
-    { id: '46', code: 'BAF', date: '2025-11-21', content: 'BAF - Mở rộng nhanh hơn thúc đẩy tăng trưởng lợi nhuận' },
-    { id: '47', code: 'STB', date: '2025-11-21', content: 'Cập nhật STB – Khả quan' },
-    { id: '48', code: 'Báo cáo vĩ mô', date: '2025-11-21', content: 'Tác động tỷ giá tăng' },
-    { id: '49', code: 'HDG', date: '2025-11-20', content: 'Phân tích kỹ thuật cổ phiếu HDG - FPTS' },
-    { id: '50', code: 'VJC', date: '2025-11-20', content: 'VJC - Nợ xấu hạ nhiệt' }
-  ];
-
   const newsItems = activeTab === 'stock' ? stockNews : marketNews;
 
   const getEventIcon = (type: EventItem['type']) => {
@@ -274,7 +213,6 @@ export default function NewsModule() {
     { id: 'market', label: 'Thị trường' },
     { id: 'stock', label: 'Cổ phiếu' },
     { id: 'event', label: 'Sự kiện' },
-    { id: 'report', label: 'Báo cáo' }
   ] as const;
 
   const { theme } = useTheme();
@@ -319,7 +257,7 @@ export default function NewsModule() {
       </div>
 
       {/* News list */}
-      <div className="m-3 flex-1 overflow-auto custom-scrollbar space-y-3">
+      <div className="m-3 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-3">
         {activeTab === 'event' ? (
           /* Event Table */
           <table className="w-full text-sm text-center">
@@ -353,44 +291,14 @@ export default function NewsModule() {
                 <tr key={event.id}>
                   <td colSpan={4}>
                     <div 
-                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}`}
+                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 overflow-hidden ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}`}
                     >
-                      <div className="flex-none w-[70px] text-gray-300">{event.code}</div>
-                      <div className="flex-none w-20 text-gray-300">{event.date}</div>
-                      <div className="flex-1 min-w-0 text-justify px-1 text-gray-300 truncate">{event.content}</div>
+                      <div className="flex-none w-[70px] text-xs text-gray-300">{event.code}</div>
+                      <div className="flex-none w-20 text-xs text-gray-300">{event.date}</div>
+                      <div className="flex-1 min-w-0 text-justify px-1 text-xs text-gray-300 truncate">{event.content}</div>
                       <div className="flex-none w-7" style={{ color: '#34C85E' }}>
                         <span className={`iconify ${getEventIcon(event.type)}`} aria-hidden="true" style={{ fontSize: '24px' }}></span>
                       </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : activeTab === 'report' ? (
-          /* Report Table */
-          <table className="w-full text-sm text-center">
-            <thead>
-              <tr className="text-xs">
-                <th colSpan={4}>
-                  <div className="flex items-center w-full rounded-full px-3 py-1 -mt-[1px]" style={{ backgroundColor: '#34C85E' }}>
-                    <div className="flex-none w-[136px] text-center text-[#282832] font-medium">Mã CK</div>
-                    <div className="flex-none w-[5.5rem] text-[#282832] font-medium">Ngày</div>
-                    <div className="flex-1 text-left text-[#282832] font-medium">Nội dung</div>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportData.map((report) => (
-                <tr key={report.id} className="cursor-pointer">
-                  <td colSpan={4}>
-                    <div 
-                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}`}
-                    >
-                      <div className="flex-none w-[136px] text-gray-300">{report.code}</div>
-                      <div className="flex-none w-[5.5rem] text-gray-300">{report.date}</div>
-                      <div className="flex-1 min-w-0 text-justify px-1 text-gray-300 truncate">{report.content}</div>
                     </div>
                   </td>
                 </tr>
@@ -445,7 +353,7 @@ export default function NewsModule() {
                     />
                   </span>
                 )}
-                <span className="text-gray-300 text-sm leading-relaxed">{item.title}</span>
+                <span className="text-gray-300 text-xs leading-relaxed line-clamp-3">{item.title}</span>
               </div>
             </div>
           ))}

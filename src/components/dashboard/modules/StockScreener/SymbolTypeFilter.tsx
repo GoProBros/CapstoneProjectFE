@@ -12,11 +12,8 @@ interface SymbolTypeFilterProps {
 }
 
 const SYMBOL_TYPE_OPTIONS = [
-  { value: null, label: 'Mặc định' },
   { value: SymbolType.Stock, label: 'Cổ phiếu' },
   { value: SymbolType.ETF, label: 'ETF' },
-  { value: SymbolType.Bond, label: 'Trái phiếu' },
-  { value: SymbolType.Futures, label: 'Phái sinh' },
 ];
 
 export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false, selectedType = null }: SymbolTypeFilterProps) {
@@ -27,10 +24,15 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const selectedOption = SYMBOL_TYPE_OPTIONS.find(opt => opt.value === selectedType) || SYMBOL_TYPE_OPTIONS[0];
+  const selectedOption = SYMBOL_TYPE_OPTIONS.find(opt => opt.value === selectedType) ?? null;
 
   const handleSelect = (value: SymbolType | null) => {
-    onSymbolTypeChange(value);
+    // Re-click selected type to deselect
+    if (value === selectedType) {
+      onSymbolTypeChange(null);
+    } else {
+      onSymbolTypeChange(value);
+    }
     setIsOpen(false);
   };
 
@@ -91,12 +93,16 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
         type="button"
         disabled={isLoading}
         className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-          isDark
-            ? 'bg-gray-700 text-white border border-gray-600 hover:bg-gray-600'
-            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
+          selectedType !== null
+            ? isDark
+              ? 'bg-blue-600 text-white border border-blue-500'
+              : 'bg-blue-500 text-white border border-blue-500'
+            : isDark
+              ? 'bg-gray-700 text-white border border-gray-600 hover:bg-gray-600'
+              : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
         }`}
       >
-        <span className="truncate">{selectedOption.label}</span>
+        <span className="truncate">{selectedOption?.label ?? 'Loại'}</span>
         <ChevronDown 
           size={16} 
           className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}

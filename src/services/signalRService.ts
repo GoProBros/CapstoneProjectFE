@@ -178,8 +178,6 @@ class SignalRService {
     
     // Setup event handlers
     this.setupEventHandlers();
-    
-    console.log('[SignalR] Service initialized with config:', this.config);
   }
   
   /**
@@ -270,7 +268,6 @@ class SignalRService {
         console.error('[SignalR] Connection closed with error:', error);
         this.updateConnectionState(ConnectionState.Error);
       } else {
-        console.log('[SignalR] Connection closed');
         this.updateConnectionState(ConnectionState.Disconnected);
       }
     });
@@ -283,12 +280,10 @@ class SignalRService {
     
     // Event: Reconnect thành công
     this.connection.onreconnected(async (connectionId) => {
-      console.log('[SignalR] Reconnected successfully. Connection ID:', connectionId);
       this.updateConnectionState(ConnectionState.Connected);
       
       // Tự động subscribe lại các symbols đã subscribe trước đó
       if (this.subscribedSymbols.size > 0) {
-        console.log('[SignalR] Re-subscribing to symbols:', Array.from(this.subscribedSymbols));
         await this.subscribeToSymbols(Array.from(this.subscribedSymbols));
       }
     });
@@ -304,19 +299,15 @@ class SignalRService {
     }
     
     if (this.connectionState === ConnectionState.Connected) {
-      console.log('[SignalR] Already connected');
       return;
     }
     
     try {
       this.updateConnectionState(ConnectionState.Connecting);
-      console.log('[SignalR] Connecting to hub...');
-      console.log('[SignalR] Hub URL:', `${this.config.baseUrl}/hubs/marketdata`);
       
       await this.connection.start();
       
       this.updateConnectionState(ConnectionState.Connected);
-      console.log('[SignalR] Connected successfully. Connection ID:', this.connection.connectionId);
     } catch (error: any) {
       console.error('[SignalR] Connection failed:', error);
       console.error('[SignalR] Error details:', {
@@ -347,19 +338,15 @@ class SignalRService {
     
     // Không disconnect nếu đang trong quá trình connecting (tránh lỗi negotiation)
     if (this.connectionState === ConnectionState.Connecting) {
-      console.log('[SignalR] Cannot disconnect while connecting. Skipping.');
       return;
     }
     
     // Không cần disconnect nếu đã disconnected
     if (this.connectionState === ConnectionState.Disconnected) {
-      console.log('[SignalR] Already disconnected. Skipping.');
       return;
     }
     
     try {
-      console.log('[SignalR] Disconnecting...');
-      
       // Unsubscribe tất cả symbols trước khi disconnect
       if (this.subscribedSymbols.size > 0 && this.connectionState === ConnectionState.Connected) {
         await this.unsubscribeFromSymbols(Array.from(this.subscribedSymbols));
@@ -367,8 +354,6 @@ class SignalRService {
       
       await this.connection.stop();
       this.updateConnectionState(ConnectionState.Disconnected);
-      
-      console.log('[SignalR] Disconnected successfully');
     } catch (error) {
       console.error('[SignalR] Error during disconnect:', error);
       throw error;
@@ -391,16 +376,11 @@ class SignalRService {
       // Normalize symbols to uppercase
       const normalizedSymbols = symbols.map(s => s.toUpperCase());
       
-      console.log('[SignalR] Subscribing to symbols:', normalizedSymbols);
-      
       // Gọi server method: SubscribeToSymbols
       await this.connection.invoke('SubscribeToSymbols', normalizedSymbols);
       
       // Lưu vào danh sách subscribed
       normalizedSymbols.forEach(symbol => this.subscribedSymbols.add(symbol));
-      
-      console.log('[SignalR] Successfully subscribed to symbols:', normalizedSymbols);
-      console.log('[SignalR] Total subscribed symbols:', this.subscribedSymbols.size);
     } catch (error) {
       console.error('[SignalR] Error subscribing to symbols:', error);
       throw error;
@@ -421,16 +401,12 @@ class SignalRService {
     try {
       const normalizedSymbols = symbols.map(s => s.toUpperCase());
       
-      console.log('[SignalR] Unsubscribing from symbols:', normalizedSymbols);
-      
       // Gọi server method: UnsubscribeFromSymbols
       await this.connection.invoke('UnsubscribeFromSymbols', normalizedSymbols);
       
       // Xóa khỏi danh sách subscribed
       normalizedSymbols.forEach(symbol => this.subscribedSymbols.delete(symbol));
-      
-      console.log('[SignalR] Successfully unsubscribed from symbols:', normalizedSymbols);
-      console.log('[SignalR] Remaining subscribed symbols:', this.subscribedSymbols.size);
+  
     } catch (error) {
       console.error('[SignalR] Error unsubscribing from symbols:', error);
       throw error;
@@ -447,9 +423,7 @@ class SignalRService {
     }
     
     try {
-      console.log('[SignalR] Subscribing to all market data');
       await this.connection.invoke('SubscribeToAll');
-      console.log('[SignalR] Successfully subscribed to all market data');
     } catch (error) {
       console.error('[SignalR] Error subscribing to all:', error);
       throw error;
@@ -466,10 +440,8 @@ class SignalRService {
     }
     
     try {
-      console.log('[SignalR] Unsubscribing from all market data');
       await this.connection.invoke('UnsubscribeFromAll');
       this.subscribedSymbols.clear();
-      console.log('[SignalR] Successfully unsubscribed from all market data');
     } catch (error) {
       console.error('[SignalR] Error unsubscribing from all:', error);
       throw error;
@@ -556,12 +528,10 @@ class SignalRService {
    */
   public onMarketDataReceived(callback: MarketDataCallback): () => void {
     this.marketDataCallbacks.add(callback);
-    console.log('[SignalR] Registered market data callback. Total callbacks:', this.marketDataCallbacks.size);
     
     // Return unsubscribe function
     return () => {
       this.marketDataCallbacks.delete(callback);
-      console.log('[SignalR] Unregistered market data callback. Remaining callbacks:', this.marketDataCallbacks.size);
     };
   }
   
@@ -588,7 +558,6 @@ class SignalRService {
    */
   private updateConnectionState(state: ConnectionState): void {
     if (this.connectionState !== state) {
-      console.log(`[SignalR] Connection state changed: ${this.connectionState} -> ${state}`);
       this.connectionState = state;
       
       // Notify tất cả callbacks

@@ -57,5 +57,5 @@ export async function deleteWorkspace(id: number): Promise<ApiResponse<void>> {
 export async function applySharedWorkspace(
   shareCode: string
 ): Promise<ApiResponse<Workspace>> {
-  return post<Workspace>(`/api/v1/workspace/apply/${shareCode}`, {});
+  return post<Workspace>(API_ENDPOINTS.WORKSPACE.APPLY(shareCode), {});
 }
