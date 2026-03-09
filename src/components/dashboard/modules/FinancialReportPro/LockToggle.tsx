@@ -7,9 +7,21 @@
 
 import React from 'react';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 
 export default function LockToggle() {
-  const { lockState, toggleLock } = useFinancialReportStore();
+  const { lockState, toggleLock, setTickerList } = useFinancialReportStore();
+
+  const handleChange = () => {
+    // When transitioning from unlocked → locked, capture the currently selected symbol
+    if (!lockState) {
+      const selected = useSelectedSymbolStore.getState().selectedSymbol;
+      if (selected) {
+        setTickerList([selected]);
+      }
+    }
+    toggleLock();
+  };
 
   return (
     <div className="relative inline-flex">
@@ -19,7 +31,7 @@ export default function LockToggle() {
           type="checkbox"
           className="hidden"
           checked={lockState}
-          onChange={toggleLock}
+          onChange={handleChange}
         />
         <label
           htmlFor="inpLock"

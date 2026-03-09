@@ -8,7 +8,7 @@ import { useSubscriptionStore } from '@/stores/subscriptionStore';
 interface AddPageModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (pageName: string, layoutType: string) => void;
+    onSave: (pageName: string) => void;
     onSwitchPage: (pageId: string) => void;
     workspaceCount: number;
 }
@@ -71,7 +71,7 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
             setError(`Bạn đã đạt giới hạn ${maxWorkspaces} workspace. Vui lòng xóa workspace cũ trước khi tạo mới.`);
             return;
         }
-        onSave(pageName.trim(), 'Giao diện mặc định');
+        onSave(pageName.trim());
         setPageName('');
         onClose();
     };

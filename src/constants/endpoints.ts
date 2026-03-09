@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
   SYMBOL: {
     SEARCH: '/api/v1/symbol/search',
     LIST: '/api/v1/symbol',
+    TICKERS: '/api/v1/symbol/tickers',
   },
   
   // Sector endpoints
@@ -78,6 +79,7 @@ export const API_ENDPOINTS = {
     MY_WORKSPACES: '/api/v1/workspace/my-workspaces',
     BASE: '/api/v1/workspace',
     BY_ID: (id: number) => `/api/v1/workspace/${id}`,
+    APPLY: (shareCode: string) => `/api/v1/workspace/apply/${shareCode}`,
   },
   
   // Subscription endpoints
@@ -91,11 +93,17 @@ export const API_ENDPOINTS = {
     CREATE_LINK: '/api/v1/payments/create-link',
     STATUS: (orderCode: number) => `/api/v1/payments/status/${orderCode}`,
     CANCEL: (orderCode: number) => `/api/v1/payments/cancel/${orderCode}`,
+    MOMO_SYNC: (orderCode: number) => `/api/v1/payments/momo/sync/${orderCode}`,
   },
 
   // SignalR Hub
   HUBS: {
     MARKET_DATA: '/hubs/marketdata',
+  },
+
+  // Heatmap endpoints
+  HEATMAP: {
+    BASE: '/api/heatmap',
   },
   
   // Legacy endpoints (to be removed)

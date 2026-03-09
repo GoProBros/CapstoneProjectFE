@@ -38,6 +38,7 @@ export default function AnalysisReportModule() {
     const [searchInput, setSearchInput] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [sourceFilter, setSourceFilter] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('');
 
     const [selectedReport, setSelectedReport] = useState<AnalysisReport | null>(null);
     const [selectedSource, setSelectedSource] = useState<AnalysisReportSource | null>(null);
@@ -50,7 +51,7 @@ export default function AnalysisReportModule() {
 
     // ─── Data fetching ────────────────────────────────────────────────────────
 
-    const fetchPage = useCallback(async (page: number, append: boolean, term = '', source = '') => {
+    const fetchPage = useCallback(async (page: number, append: boolean, term = '', source = '', category = '') => {
         if (!append) setLoading(true);
         else setLoadingMore(true);
         try {
@@ -59,6 +60,7 @@ export default function AnalysisReportModule() {
                 pageSize: PAGE_SIZE,
                 searchTerm: term || undefined,
                 sourceId: source || undefined,
+                categoryId: category || undefined,
             });
             const items = result.items ?? [];
             setReports(prev => append ? [...prev, ...items] : items);
@@ -74,8 +76,8 @@ export default function AnalysisReportModule() {
 
     // Re-fetch from page 1 whenever filters change
     useEffect(() => {
-        fetchPage(1, false, searchTerm, sourceFilter);
-    }, [fetchPage, searchTerm, sourceFilter]);
+        fetchPage(1, false, searchTerm, sourceFilter, categoryFilter);
+    }, [fetchPage, searchTerm, sourceFilter, categoryFilter]);
 
     // Debounced search
     useEffect(() => {
@@ -415,7 +417,18 @@ export default function AnalysisReportModule() {
                 >
                     <option value="">Tất cả nguồn</option>
                     {allSources.map(s => (
-                        <option key={s.code} value={s.code}>{s.name}</option>
+                        <option key={s.code} value={s.code}>{s.code} - {s.name}</option>
+                    ))}
+                </select>
+                {/* Category filter */}
+                <select
+                    value={categoryFilter}
+                    onChange={e => { setCategoryFilter(e.target.value); }}
+                    className={`px-2 py-1.5 text-xs rounded-lg border max-w-[130px] ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                >
+                    <option value="">Tất cả phân loại</option>
+                    {allCategories.map(c => (
+                        <option key={c.code} value={c.code}>{c.name}</option>
                     ))}
                 </select>
             </div>
@@ -431,11 +444,9 @@ export default function AnalysisReportModule() {
                         <table className="w-full text-sm">
                             <thead className={`sticky top-0 ${isDark ? 'bg-[#1e1e26] text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
                                 <tr>
-                                    {['Nguồn', 'Ngày xuất bản', 'Tiêu đề'].map(h => (
-                                        <th key={h} className={`px-4 py-3 text-left text-xs font-medium border-b ${borderCls}`}>
-                                            {h}
-                                        </th>
-                                    ))}
+                                    <th className={`px-4 py-3 text-left text-xs font-medium border-b w-20 ${borderCls}`}>Mã CK</th>
+                                    <th className={`px-4 py-3 text-left text-xs font-medium border-b w-28 ${borderCls}`}>Ngày xuất bản</th>
+                                    <th className={`px-4 py-3 text-left text-xs font-medium border-b ${borderCls}`}>Tiêu đề</th>
                                 </tr>
                             </thead>
                             <tbody className={textMutedCls}>
@@ -452,10 +463,10 @@ export default function AnalysisReportModule() {
                                             className={`cursor-pointer transition-colors ${hoverRowCls}`}
                                             onClick={() => handleSelectReport(r)}
                                         >
-                                            <td className={`px-4 py-3 border-b ${borderCls} whitespace-nowrap font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                                                {r.sourceId}
+                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[80px] font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                                                <p className="truncate">{r.tickers && r.tickers.length > 0 ? r.tickers.join(', ') : '—'}</p>
                                             </td>
-                                            <td className={`px-4 py-3 border-b ${borderCls} whitespace-nowrap`}>
+                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[110px] whitespace-nowrap`}>
                                                 {r.publishDate
                                                     ? new Date(r.publishDate).toLocaleDateString('vi-VN')
                                                     : '—'}
@@ -474,7 +485,7 @@ export default function AnalysisReportModule() {
                             <div className={`px-4 py-3 border-t ${borderCls}`}>
                                 <button
                                     type="button"
-                                    onClick={() => fetchPage(pageIndex + 1, true, searchTerm, sourceFilter)}
+                                    onClick={() => fetchPage(pageIndex + 1, true, searchTerm, sourceFilter, categoryFilter)}
                                     disabled={loadingMore}
                                     className={`w-full py-2 text-xs rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
                                         isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-50'
@@ -483,6 +494,11 @@ export default function AnalysisReportModule() {
                                     {loadingMore && <Spinner />}
                                     {loadingMore ? 'Đang tải...' : 'Tải thêm...'}
                                 </button>
+                            </div>
+                        )}
+                        {reports.length > 0 && !hasMore && (
+                            <div className={`px-4 py-2 text-center text-xs ${textMutedCls}`}>
+                                Đã hiển thị tất cả {reports.length} báo cáo
                             </div>
                         )}
                     </>

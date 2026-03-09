@@ -87,7 +87,11 @@ export default function DashboardPage() {
   return (
     <div className="p-4 sm:p-5 md:p-6" ref={containerRef}>
       {modules.length === 0 ? (
-        <div className="">
+        <div className="flex flex-col items-center justify-center h-64 text-center gap-3 opacity-50">
+          <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+          </svg>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Giao diện trống — nhấn thêm module</p>
         </div>
       ) : (
         <GridLayout
