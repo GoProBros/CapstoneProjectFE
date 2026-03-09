@@ -908,7 +908,7 @@ export default function DashboardLayout({
 
                 {/* Success Notification */}
                 {notification && (
-                  <div className="fixed top-4 right-4 z-[10000] animate-in slide-in-from-top">
+                  <div className="fixed top-12 right-4 z-[10000] animate-in slide-in-from-top">
                     <div className="bg-gray-900/90 backdrop-blur-sm border border-gray-600 text-gray-100 px-5 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5">
                       <svg
                         className="w-4 h-4 text-green-400 flex-shrink-0"
