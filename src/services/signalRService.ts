@@ -58,9 +58,6 @@ export interface PriceDepthDto {
   fSellVol: number;
   fBuyVal: number;
   fSellVal: number;
-  // Tổng KL mua/bán tích lũy từ X-Trade
-  totalBuyVol: number;
-  totalSellVol: number;
   // Pre-computed server-side derived values
   bullPct: number;
   bearPct: number;

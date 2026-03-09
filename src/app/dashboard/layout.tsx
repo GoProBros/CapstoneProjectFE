@@ -577,6 +577,12 @@ export default function DashboardLayout({
       height = 12; // 28 units = 560px
     }
 
+    // AI Chat - compact, medium height
+    else if (moduleType === "ai-chat") {
+      width = 24; // 24 columns = 25% width
+      height = 22; // 22 units = 440px
+    }
+
     const newLayoutItem: LayoutItem = {
       i: newModule.id,
       x: 0,

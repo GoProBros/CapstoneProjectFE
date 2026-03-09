@@ -3,17 +3,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSignalR } from '@/contexts/SignalRContext';
-import { HeatmapFilters, HeatmapItem } from '@/types/heatmap';
-import { MarketSymbolDto } from '@/types/market';
-import { fetchSymbols } from '@/services/symbolService';
+import { HeatmapItem } from '@/types/heatmap';
 import { heatmapService } from '@/services/heatmapService';
 import { watchListService } from '@/services/watchListService';
-import sectorService from '@/services/sectorService';
 import SignalRService from '@/services/signalRService';
-import { ExchangeCode, SymbolData } from '@/types/symbol';
+import { ExchangeCode, SymbolData, SymbolType } from '@/types/symbol';
 import { Sector } from '@/types/sector';
 import { WatchListSummary } from '@/types/watchList';
 import * as echarts from 'echarts';
+import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
+import ExchangeFilter from './StockScreener/ExchangeFilter';
+import SectorFilter from './StockScreener/SectorFilter';
+import IndexFilter, { type IndexType } from './StockScreener/IndexFilter';
+import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
 
 interface MarketStats {
   index: string;
@@ -30,15 +32,14 @@ interface MarketStats {
 export default function HeatmapModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [exchange, setExchange] = useState(() =>
-    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-exchange') : null) ?? 'HSX'
-  );
-  const [sector, setSector] = useState<string | undefined>(() =>
-    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-sector') ?? undefined : undefined)
-  );
-  const [filterMode, setFilterMode] = useState<'all' | 'sector' | 'custom'>(() =>
-    (typeof window !== 'undefined' ? localStorage.getItem('heatmap-filterMode') as 'all' | 'sector' | 'custom' : null) ?? 'all'
-  );
+  const [selectedExchange, setSelectedExchange] = useState<ExchangeCode | null>(() => {
+    if (typeof window === 'undefined') return 'HSX';
+    const saved = localStorage.getItem('heatmap-exchange');
+    return (saved === 'HSX' || saved === 'HNX' || saved === 'UPCOM') ? saved as ExchangeCode : 'HSX';
+  });
+  const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<IndexType | null>(null);
+  const [selectedSymbolType, setSelectedSymbolType] = useState<SymbolType | null>(null);
   const [customTickers, setCustomTickers] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -46,11 +47,6 @@ export default function HeatmapModule() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
-  const [isWatchlistDropdownOpen, setIsWatchlistDropdownOpen] = useState(false);
-  const [availableSectors, setAvailableSectors] = useState<Sector[]>([]);
-  const [isLoadingSectors, setIsLoadingSectors] = useState(false);
   const [availableWatchlists, setAvailableWatchlists] = useState<WatchListSummary[]>([]);
   const [selectedWatchlistId, setSelectedWatchlistId] = useState<number | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -86,15 +82,11 @@ export default function HeatmapModule() {
   // Used to reset zoom/pan without losing the active filter state.
   const lastChartOptionRef = useRef<any>(null);
 
-  const exchanges = ['Tất cả', 'HSX', 'HNX', 'UPCOM'];
-
   // Persist filter state across page refreshes
-  useEffect(() => { localStorage.setItem('heatmap-exchange', exchange); }, [exchange]);
   useEffect(() => {
-    if (sector) localStorage.setItem('heatmap-sector', sector);
-    else localStorage.removeItem('heatmap-sector');
-  }, [sector]);
-  useEffect(() => { localStorage.setItem('heatmap-filterMode', filterMode); }, [filterMode]);
+    if (selectedExchange) localStorage.setItem('heatmap-exchange', selectedExchange);
+    else localStorage.removeItem('heatmap-exchange');
+  }, [selectedExchange]);
   useEffect(() => { localStorage.setItem('heatmap-customTickers', JSON.stringify(customTickers)); }, [customTickers]);
   useEffect(() => {
     if (selectedWatchlistId !== null) localStorage.setItem('heatmap-watchlistId', String(selectedWatchlistId));
@@ -118,11 +110,11 @@ export default function HeatmapModule() {
       try {
         setIsLoading(true);
         
-        console.log(`[Heatmap] 🔄 Fetching heatmap data for ${exchange}...`);
+        console.log(`[Heatmap] 🔄 Fetching heatmap data for ${selectedExchange ?? 'all'}...`);
         
         // Fetch heatmap data from REST API (includes prices, sectors, etc.)
         const heatmapData = await heatmapService.getHeatmapData({
-          exchange: exchange === 'Tất cả' ? undefined : exchange,
+          exchange: selectedExchange ?? undefined,
         });
         
         console.log(`[Heatmap] ✅ Loaded ${heatmapData.items.length} items from REST API`);
@@ -174,7 +166,7 @@ export default function HeatmapModule() {
 
   // Reload symbols when exchange changes
   useEffect(() => {
-    console.log(`[Heatmap] 🔄 Exchange changed to: ${exchange}`);
+    console.log(`[Heatmap] 🔄 Exchange changed to: ${selectedExchange ?? 'all'}`);
     
     if (!isConnected) {
       console.log('[Heatmap] ⚠️ Not connected, skipping exchange change');
@@ -185,7 +177,7 @@ export default function HeatmapModule() {
       try {
         setIsLoading(true);
         
-        console.log(`[Heatmap] 🔄 Reloading symbols for exchange: ${exchange}`);
+        console.log(`[Heatmap] 🔄 Reloading symbols for exchange: ${selectedExchange ?? 'all'}`);
         
         // Unsubscribe from old symbols
         if (subscribedSymbolsRef.current.length > 0) {
@@ -199,10 +191,10 @@ export default function HeatmapModule() {
         
         // Fetch heatmap data (price + sector) for the new exchange — same path as initial load
         const heatmapData = await heatmapService.getHeatmapData({
-          exchange: exchange === 'Tất cả' ? undefined : exchange,
+          exchange: selectedExchange ?? undefined,
         });
 
-        console.log(`[Heatmap] ✅ Loaded ${heatmapData.items.length} items for ${exchange}`);
+        console.log(`[Heatmap] ✅ Loaded ${heatmapData.items.length} items for ${selectedExchange ?? 'all'}`);
 
         heatmapData.items.forEach(item => {
           heatmapItemsMapRef.current.set(item.ticker, {
@@ -243,7 +235,7 @@ export default function HeatmapModule() {
     if (hasLoadedSymbols.current) {
       reloadSymbols();
     }
-  }, [exchange, isConnected]); // Only depend on exchange and isConnected
+  }, [selectedExchange, isConnected]); // Only depend on exchange and isConnected
 
   // Real-time SignalR updates — O(1) Map update per message, chart re-render throttled to
   // once every 500 ms. ECharts treemap layout for 400+ nodes takes 50–200 ms; firing it
@@ -318,13 +310,13 @@ export default function HeatmapModule() {
   // Without this, stocks on other exchanges (HNX/UPCOM) are missing from the heatmap because
   // the initial load only fetches data for the currently selected exchange.
   useEffect(() => {
-    if (filterMode !== 'sector' || !sector || !isConnected) return;
+    if (!selectedSector || !isConnected) return;
 
     const loadSectorData = async () => {
       try {
-        console.log(`[Heatmap] 🏭 Loading all-exchange data for sector: ${sector}`);
+        console.log(`[Heatmap] 🏭 Loading all-exchange data for sector: ${selectedSector.id}`);
         // Fetch without exchange filter so we get stocks from all exchanges
-        const sectorData = await heatmapService.getHeatmapData({ sector });
+        const sectorData = await heatmapService.getHeatmapData({ sector: selectedSector.id });
 
         const newTickers: string[] = [];
         sectorData.items.forEach(item => {
@@ -363,39 +355,11 @@ export default function HeatmapModule() {
     };
 
     loadSectorData();
-  }, [filterMode, sector, isConnected]); // Re-run when sector selection changes
+  }, [selectedSector?.id, isConnected]); // Re-run when sector selection changes
 
-  // Load all watchlists when switching to custom mode
+  // Load selected watchlist details (tickers) when watchlist is selected
   useEffect(() => {
-    if (filterMode === 'custom') {
-      const loadWatchlists = async () => {
-        try {
-          setIsLoadingWatchlists(true);
-          console.log('[Heatmap] 📋 Loading watchlists...');
-          const watchlists = await watchListService.getWatchLists();
-          
-          setAvailableWatchlists(watchlists);
-          console.log(`[Heatmap] ✅ Loaded ${watchlists.length} watchlists`);
-          
-          // Auto-select first watchlist if available
-          if (watchlists.length > 0 && !selectedWatchlistId) {
-            setSelectedWatchlistId(watchlists[0].id);
-          }
-        } catch (error) {
-          console.error('[Heatmap] ❌ Failed to load watchlists:', error);
-          setAvailableWatchlists([]);
-        } finally {
-          setIsLoadingWatchlists(false);
-        }
-      };
-      
-      loadWatchlists();
-    }
-  }, [filterMode]);
-
-  // Load selected watchlist details (tickers)
-  useEffect(() => {
-    if (filterMode === 'custom' && selectedWatchlistId) {
+    if (selectedWatchlistId) {
       const loadWatchlistDetail = async () => {
         try {
           console.log(`[Heatmap] 📥 Loading watchlist detail for ID: ${selectedWatchlistId}`);
@@ -410,11 +374,10 @@ export default function HeatmapModule() {
       };
       
       loadWatchlistDetail();
-    } else if (filterMode !== 'custom') {
+    } else {
       setCustomTickers([]);
-      setSelectedWatchlistId(null);
     }
-  }, [filterMode, selectedWatchlistId]);
+  }, [selectedWatchlistId]);
 
   // Calculate market stats from real-time data (use Map values)
   const marketStats: MarketStats = useMemo(() => {
@@ -447,7 +410,7 @@ export default function HeatmapModule() {
 
     // TODO: Get actual index value from backend
     return {
-      index: exchange === 'HSX' ? 'VNINDEX' : exchange === 'HNX' ? 'HNX-INDEX' : 'UPCOM-INDEX',
+      index: selectedExchange === 'HSX' ? 'VNINDEX' : selectedExchange === 'HNX' ? 'HNX-INDEX' : 'UPCOM-INDEX',
       indexValue: 1722.26, // Placeholder - should come from backend
       indexChange: -0.23,  // Placeholder - should come from backend
       up: { count: upItems.length, value: upValue },
@@ -457,39 +420,7 @@ export default function HeatmapModule() {
       totalValue: totalValue,
       foreignNetValue: -1288.2, // Placeholder - should come from backend
     };
-  }, [heatmapItemsVersion, exchange]); // Depend on version counter instead of items array
-
-  // Load sectors from API (level 2 commonly used for filtering)
-  useEffect(() => {
-    const loadSectors = async () => {
-      try {
-        setIsLoadingSectors(true);
-        console.log('[Heatmap] 📋 Loading sectors from API...');
-        
-        const response = await sectorService.getSectors({
-          level: 2, // Level 2 sectors for filtering
-          status: 1, // Active sectors only
-          pageIndex: 1,
-          pageSize: 100, // Get all sectors
-        });
-        
-        if (response.isSuccess && response.data) {
-          setAvailableSectors(response.data.items);
-          console.log(`[Heatmap] ✅ Loaded ${response.data.items.length} sectors from API`);
-        } else {
-          console.error('[Heatmap] ❌ Failed to load sectors:', response.message);
-          setAvailableSectors([]);
-        }
-      } catch (error) {
-        console.error('[Heatmap] ❌ Error loading sectors:', error);
-        setAvailableSectors([]);
-      } finally {
-        setIsLoadingSectors(false);
-      }
-    };
-    
-    loadSectors();
-  }, []); // Load once on mount
+  }, [heatmapItemsVersion, selectedExchange]); // Depend on version counter instead of items array
 
   // Transform real-time data to heatmap format (with optimization)
   const heatmapData = useMemo(() => {
@@ -513,14 +444,10 @@ export default function HeatmapModule() {
     // Filter by mode
     let filteredItems = items;
     
-    if (filterMode === 'sector' && sector) {
-      // Filter by selected sector ID
-      // Find sector to get all symbols including from child level 4 sectors
-      const selectedSector = availableSectors.find(s => s.id === sector);
-      if (selectedSector && selectedSector.symbols.length > 0) {
-        filteredItems = items.filter(item => selectedSector.symbols.includes(item.ticker));
-      }
-    } else if (filterMode === 'custom' && customTickers.length > 0) {
+    if (selectedSector && selectedSector.symbols.length > 0) {
+      // Filter by selected sector
+      filteredItems = items.filter(item => selectedSector.symbols.includes(item.ticker));
+    } else if (customTickers.length > 0) {
       // Filter by custom tickers (watchlist)
       filteredItems = items.filter(item => customTickers.includes(item.ticker));
     }
@@ -538,7 +465,7 @@ export default function HeatmapModule() {
         // - all / sector modes: sqrt-compress trading value to reduce dynamic range
         //   without completely hiding small-cap stocks.
         let compressedValue: number;
-        if (filterMode === 'custom') {
+        if (selectedWatchlistId !== null) {
           compressedValue = 1; // equal weight — user picked these stocks to monitor
         } else {
           const rawValue = item.totalValue > 0
@@ -571,24 +498,12 @@ export default function HeatmapModule() {
       });
     
     if (hasChanged) {
-      console.log(`[Heatmap] 📊 HeatmapData changed: ${result.length} items (mode: ${filterMode})`);
+      console.log(`[Heatmap] 📊 HeatmapData changed: ${result.length} items`);
       prevHeatmapDataRef.current = result;
     }
     
     return result;
-  }, [heatmapItemsVersion, sector, filterMode, customTickers, availableSectors]); // Added availableSectors dependency
-
-  // Count of stocks per sector based on currently loaded heatmap data.
-  // Used in the sector dropdown so the shown count matches the chart exactly.
-  const sectorCountMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const items = Array.from(heatmapItemsMapRef.current.values());
-    items.forEach(item => {
-      const id = item.sector || 'Khác';
-      map.set(id, (map.get(id) ?? 0) + 1);
-    });
-    return map;
-  }, [heatmapItemsVersion]);
+  }, [heatmapItemsVersion, selectedSector, customTickers, selectedWatchlistId]);
 
   // Initialize Pie Chart
   useEffect(() => {
@@ -921,294 +836,95 @@ export default function HeatmapModule() {
     console.log('[Heatmap] ✅ Chart data updated incrementally (optimized)');
   }, [heatmapData, isDark]); // Update when data or theme changes
 
-  return (
-    <div className={`w-full h-full flex flex-col ${isDark ? 'bg-[#0a0a0a] text-white' : 'bg-gray-50 text-gray-900'}`}>
-      {/* Header Bar */}
-      <div className={`flex items-center justify-between px-4 py-3 ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-200'}`}>
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Biểu đồ nhiệt thị trường</h2>
-          {/* Connection Status Indicator */}
-          <div className="flex items-center gap-2 text-xs">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-              {isLoading ? 'Đang tải...' : isConnected ? 'Realtime' : 'Ngắt kết nối'}
-            </span>
-          </div>
-        </div>
+  // Filter event handlers
+  const handleExchangeChange = (ex: ExchangeCode) => {
+    setSelectedExchange(prev => prev === ex ? null : ex);
+  };
 
-        {/* Exchange Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            <span>{exchange}</span>
-            <svg 
-              className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {isDropdownOpen && (
-            <div className={`absolute right-0 mt-1 w-32 rounded-lg shadow-lg z-50 overflow-hidden ${
-              isDark ? 'bg-[#2a2a2a]' : 'bg-white'
-            }`}>
-              {exchanges.map((ex) => (
-                <div
-                  key={ex}
-                  onClick={() => {
-                    setExchange(ex);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={`px-4 py-2 cursor-pointer text-sm ${
-                    exchange === ex
-                      ? 'bg-blue-600 text-white'
-                      : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {ex}
-                </div>
-              ))}
-            </div>
-          )}
+  const handleSectorChange = (sector: Sector) => {
+    setSelectedSector(prev => prev?.id === sector.id ? null : sector);
+  };
+
+  const handleIndexChange = (index: IndexType | null) => {
+    setSelectedIndex(index);
+  };
+
+  const handleSymbolTypeChange = (type: SymbolType | null) => {
+    setSelectedSymbolType(type);
+  };
+
+  const fetchWatchLists = async () => {
+    try {
+      setIsLoadingWatchlists(true);
+      const watchlists = await watchListService.getWatchLists();
+      setAvailableWatchlists(watchlists);
+    } catch (error) {
+      console.error('[Heatmap] ❌ Failed to load watchlists:', error);
+      setAvailableWatchlists([]);
+    } finally {
+      setIsLoadingWatchlists(false);
+    }
+  };
+
+  const handleSelectWatchList = (watchList: WatchListSummary) => {
+    setSelectedWatchlistId(prev => prev === watchList.id ? null : watchList.id);
+  };
+
+  return (
+    <div className={`w-full h-full flex flex-col ${isDark ? 'bg-cardBackground text-white' : 'bg-gray-50 text-gray-900'}`}>
+      {/* Badge title */}
+      <div className="flex-none flex items-center justify-center pt-1.5 pb-0.5">
+        <div className="relative flex items-center justify-center cursor-move drag-handle select-none">
+          <svg width="180" height="28" viewBox="0 0 136 22" className="block">
+            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
+            Biểu đồ nhiệt
+          </span>
         </div>
       </div>
+      {/* Filter Bar */}
+      <div className={`flex items-center gap-2 px-4 py-2 border-b flex-wrap ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+        {/* Watch List Selector */}
+        <WatchListSelector
+          watchLists={availableWatchlists}
+          currentWatchListId={selectedWatchlistId}
+          currentWatchListName={availableWatchlists.find(w => w.id === selectedWatchlistId)?.name || 'Danh mục của tôi'}
+          isLoading={isLoadingWatchlists}
+          onSelect={handleSelectWatchList}
+          onRefresh={fetchWatchLists}
+        />
 
-      {/* Filter Section */}
-      <div className={`px-4 py-3 border-b ${isDark ? 'bg-[#151515] border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-3">
-          {/* Filter Mode Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setFilterMode('all');
-                setSector(undefined);
-              }}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                filterMode === 'all'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : isDark
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Tất cả
-              </span>
-            </button>
-            
-            <button
-              onClick={() => setFilterMode('sector')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                filterMode === 'sector'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : isDark
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                Theo ngành
-              </span>
-            </button>
-            
-            <button
-              onClick={() => setFilterMode('custom')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                filterMode === 'custom'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : isDark
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                Danh sách của tôi
-              </span>
-            </button>
-          </div>
+        {/* Index Filter */}
+        <IndexFilter
+          onIndexChange={handleIndexChange}
+          selectedIndex={selectedIndex}
+        />
 
-          {/* Sector Dropdown (only show in sector mode) */}
-          {filterMode === 'sector' && (
-            <div className="relative ml-2">
-              <button
-                onClick={() => setIsSectorDropdownOpen(!isSectorDropdownOpen)}
-                disabled={isLoadingSectors}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                } ${isLoadingSectors ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>
-                  {isLoadingSectors 
-                    ? 'Đang tải...' 
-                    : sector 
-                      ? availableSectors.find(s => s.id === sector)?.viName || 'Chọn ngành'
-                      : 'Tất cả ngành'}
-                </span>
-                <svg 
-                  className={`w-4 h-4 transition-transform ${isSectorDropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              
-              {isSectorDropdownOpen && !isLoadingSectors && (
-                <div className={`absolute left-0 mt-1 w-64 max-h-96 overflow-y-auto rounded-lg shadow-lg z-50 ${
-                  isDark ? 'bg-[#2a2a2a]' : 'bg-white'
-                }`}>
-                  {/* All sectors option */}
-                  <div
-                    onClick={() => {
-                      setSector(undefined);
-                      setIsSectorDropdownOpen(false);
-                    }}
-                    className={`px-4 py-2 cursor-pointer text-sm ${
-                      !sector
-                        ? 'bg-blue-600 text-white'
-                        : isDark
-                          ? 'text-gray-300 hover:bg-gray-700'
-                          : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    Tất cả ngành
-                  </div>
-                  
-                  {availableSectors.map((sec) => (
-                    <div
-                      key={sec.id}
-                      onClick={() => {
-                        setSector(sec.id);
-                        setIsSectorDropdownOpen(false);
-                      }}
-                      className={`px-4 py-2 cursor-pointer text-sm ${
-                        sector === sec.id
-                          ? 'bg-blue-600 text-white'
-                          : isDark
-                            ? 'text-gray-300 hover:bg-gray-700'
-                            : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div>{sec.viName}</div>
-                      <div className="text-xs opacity-70 mt-0.5">{sectorCountMap.get(sec.id) ?? 0} mã</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        {/* Symbol Type Filter */}
+        <SymbolTypeFilter
+          onSymbolTypeChange={handleSymbolTypeChange}
+          selectedType={selectedSymbolType}
+        />
 
-          {/* Watchlist Dropdown (only show in custom mode) */}
-          {filterMode === 'custom' && (
-            <div className="relative ml-2">
-              <button
-                onClick={() => setIsWatchlistDropdownOpen(!isWatchlistDropdownOpen)}
-                disabled={isLoadingWatchlists}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                } ${isLoadingWatchlists ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                <span>
-                  {isLoadingWatchlists 
-                    ? 'Đang tải...' 
-                    : selectedWatchlistId 
-                      ? availableWatchlists.find(w => w.id === selectedWatchlistId)?.name || 'Chọn danh sách'
-                      : 'Chọn danh sách'}
-                </span>
-                <svg 
-                  className={`w-4 h-4 transition-transform ${isWatchlistDropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              
-              {isWatchlistDropdownOpen && !isLoadingWatchlists && (
-                <div className={`absolute left-0 mt-1 w-64 max-h-96 overflow-y-auto rounded-lg shadow-lg z-50 ${
-                  isDark ? 'bg-[#2a2a2a]' : 'bg-white'
-                }`}>
-                  {availableWatchlists.length === 0 ? (
-                    <div className={`px-4 py-3 text-sm text-center ${
-                      isDark ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      <p>Chưa có danh sách nào</p>
-                      <p className="text-xs mt-1">Tạo watchlist mới để bắt đầu</p>
-                    </div>
-                  ) : (
-                    availableWatchlists.map((watchlist) => (
-                      <div
-                        key={watchlist.id}
-                        onClick={() => {
-                          setSelectedWatchlistId(watchlist.id);
-                          setIsWatchlistDropdownOpen(false);
-                        }}
-                        className={`px-4 py-2 cursor-pointer text-sm ${
-                          selectedWatchlistId === watchlist.id
-                            ? 'bg-blue-600 text-white'
-                            : isDark
-                              ? 'text-gray-300 hover:bg-gray-700'
-                              : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{watchlist.name}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            selectedWatchlistId === watchlist.id
-                              ? 'bg-white/20'
-                              : isDark
-                                ? 'bg-gray-700'
-                                : 'bg-gray-200'
-                          }`}>
-                            {watchlist.tickerCount} mã
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+        {/* Exchange Filter */}
+        <ExchangeFilter
+          onExchangeChange={handleExchangeChange}
+          selectedExchange={selectedExchange}
+        />
 
-          {/* Custom mode info */}
-          {filterMode === 'custom' && (
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${
-              isDark ? 'bg-gray-800/50 text-gray-400' : 'bg-blue-50 text-blue-600'
-            }`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                {selectedWatchlistId 
-                  ? customTickers.length > 0 
-                    ? `Hiển thị ${customTickers.length} mã từ "${availableWatchlists.find(w => w.id === selectedWatchlistId)?.name}"`
-                    : 'Danh sách trống'
-                  : 'Chọn một watchlist để hiển thị'}
-              </span>
-            </div>
-          )}
+        {/* Sector Filter */}
+        <SectorFilter
+          onSectorChange={handleSectorChange}
+          selectedSector={selectedSector}
+        />
+
+        {/* Connection Status */}
+        <div className={`ml-auto flex items-center justify-center w-8 h-8 rounded-full ${
+          isConnected ? 'bg-green-500/20' : 'bg-red-500/20'
+        }`}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            title={isConnected ? 'Đang kết nối' : 'Ngắt kết nối'} />
         </div>
       </div>
 

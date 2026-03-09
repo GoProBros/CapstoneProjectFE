@@ -30,7 +30,7 @@ function getPriceColor(price: number, ref: number, ceiling: number, floor: numbe
   if (price <= 0)                      return 'text-gray-500';
   if (ceiling > 0 && price >= ceiling) return 'text-[#d97bff]';
   if (floor   > 0 && price <= floor)   return 'text-[#00c8f8]';
-  if (price > ref) return 'text-[#22c55e]';
+  if (price > ref) return 'text-[#4ADE80]';
   if (price < ref) return 'text-[#ef4444]';
   return 'text-[#f5c518]';
 }
@@ -102,16 +102,11 @@ export default function SessionInfoModule() {
   ] : [];
 
   const totalVol     = depth?.totalVol     ?? 0;
-  const totalBuyVol  = depth?.totalBuyVol  ?? 0;
-  const totalSellVol = depth?.totalSellVol ?? 0;
-  const tradeTotal   = totalBuyVol + totalSellVol;
-  const buyPct       = tradeTotal > 0 ? Math.round((totalBuyVol  / tradeTotal) * 100) : 50;
-  const sellPct      = tradeTotal > 0 ? Math.round((totalSellVol / tradeTotal) * 100) : 50;
   const fBuyPct      = depth?.fBuyPct.toFixed(1)  ?? '0.0';
   const fSellPct     = depth?.fSellPct.toFixed(1) ?? '0.0';
 
   // ── theme tokens ─────────────────────────────────────────────────────────
-  const bg     = isDark ? 'bg-[#181b28]'  : 'bg-white';
+  const bg     = isDark ? 'bg-cardBackground' : 'bg-gray-50';
   const bgCard = isDark ? 'bg-[#1e2130]'  : 'bg-gray-50';
   const border = isDark ? 'border-white/8': 'border-gray-200';
   const muted  = isDark ? 'text-gray-400' : 'text-gray-500';
@@ -126,7 +121,7 @@ export default function SessionInfoModule() {
           <svg width="136" height="22" viewBox="0 0 136 22" className="block">
             <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
           </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-black tracking-wide">
+          <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
             3 Bước Giá
           </span>
         </div>
@@ -156,35 +151,12 @@ export default function SessionInfoModule() {
               {searchResults.map(s => (
                 <button key={s.ticker} onMouseDown={() => selectSymbol(s.ticker)}
                   className={`w-full text-left px-3 py-1.5 text-[11px] flex gap-2 items-center transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`}>
-                  <span className="font-bold text-[#22c55e] w-12 shrink-0">{s.ticker}</span>
+                  <span className="font-bold text-[#4ADE80] w-12 shrink-0">{s.ticker}</span>
                   <span className={`${muted} truncate`}>{s.viCompanyName}</span>
                 </button>
               ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* ── Buy/Sell bar ───────────────────────────────────────────────── */}
-      <div className="flex-none px-2 pb-1.5 group relative">
-        <div className="h-[22px] flex rounded-full overflow-hidden cursor-default">
-          <div className="flex items-center justify-center text-[10px] font-bold text-black transition-all duration-500"
-            style={{ width: `${buyPct}%`, minWidth: buyPct > 0 ? 16 : 0, background: 'linear-gradient(90deg,#166534,#22c55e)' }}>
-            {buyPct >= 20 && `${buyPct}%`}
-          </div>
-          <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all duration-500"
-            style={{ width: `${sellPct}%`, minWidth: sellPct > 0 ? 16 : 0, background: 'linear-gradient(90deg,#dc2626,#7f1d1d)' }}>
-            {sellPct >= 20 && `${sellPct}%`}
-          </div>
-        </div>
-        {/* Hover tooltip */}
-        <div className={`pointer-events-none absolute left-2 right-2 bottom-full mb-1 z-50
-          opacity-0 group-hover:opacity-100 transition-opacity duration-150
-          flex justify-between rounded-md px-3 py-1.5 text-[11px] shadow-lg border
-          ${isDark ? 'bg-[#252938] border-white/10' : 'bg-white border-gray-200'}`}>
-          <span className="text-[#22c55e] font-semibold">Mua {fmtVol(totalBuyVol)}</span>
-          <span className={muted}>{buyPct}% / {sellPct}%</span>
-          <span className="text-[#ef4444] font-semibold">Bán {fmtVol(totalSellVol)}</span>
         </div>
       </div>
 
@@ -206,7 +178,7 @@ export default function SessionInfoModule() {
           if (!lv.price && !lv.vol) return null;
           const sep = idx === 3;
           const pc  = getPriceColor(lv.price, ref, ceiling, floor);
-          const cc  = lv.pct >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]';
+          const cc  = lv.pct >= 0 ? 'text-[#4ADE80]' : 'text-[#ef4444]';
           return (
             <React.Fragment key={idx}>
               {sep && <div className={`flex-none h-px mx-0.5 mt-px mb-px ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />}
@@ -233,27 +205,17 @@ export default function SessionInfoModule() {
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <div className={`flex-none border-t ${border} px-2 pt-1.5 pb-1.5 space-y-1.5`}>
 
-        {/* Tổng mua / KL / Tổng bán */}
-        <div className="grid grid-cols-3 text-center">
-          <div className="flex flex-col items-start">
-            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng mua</span>
-            <span className="text-[12px] font-bold tabular-nums text-[#22c55e]">{fmtVol(totalBuyVol)}</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng KL</span>
-            <span className={`text-[12px] font-bold tabular-nums ${textPri}`}>{fmtVol(totalVol)}</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng bán</span>
-            <span className="text-[12px] font-bold tabular-nums text-[#ef4444]">{fmtVol(totalSellVol)}</span>
-          </div>
+        {/* Tổng KL */}
+        <div className="flex flex-col items-center text-center">
+          <span className={`text-[9px] uppercase tracking-wide ${muted}`}>Tổng KL</span>
+          <span className={`text-[12px] font-bold tabular-nums ${textPri}`}>{fmtVol(totalVol)}</span>
         </div>
 
         {/* NN Mua / NN Bán pill */}
         <div className={`flex items-center justify-between ${bgCard} rounded-full px-3 py-[5px] border ${border}`}>
           <span className="text-[11px]">
             <span className={muted}>NN Mua </span>
-            <span className="text-[#22c55e] font-bold">{fBuyPct}%</span>
+            <span className="text-[#4ADE80] font-bold">{fBuyPct}%</span>
           </span>
           <span className={`text-[10px] font-medium ${muted}`}>Ngoại</span>
           <span className="text-[11px]">

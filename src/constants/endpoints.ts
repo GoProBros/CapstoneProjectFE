@@ -88,6 +88,14 @@ export const API_ENDPOINTS = {
     ME: '/api/v1/subscriptions/me',
   },
 
+  // AI Chat endpoints
+  CHAT: {
+    SESSIONS: '/api/v1/chat/sessions',
+    SESSION_BY_ID: (id: number) => `/api/v1/chat/sessions/${id}`,
+    SEND_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/messages`,
+    SUMMARIZE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/summarize`,
+  },
+
   // Payment endpoints
   PAYMENTS: {
     CREATE_LINK: '/api/v1/payments/create-link',

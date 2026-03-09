@@ -106,6 +106,11 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
       title: 'Báo cáo phân tích',
       preview: '/assets/Dashboard/ModulePreviews/analysis-report.png'
     },
+    { 
+      id: 'ai-chat', 
+      title: 'Trợ lý AI',
+      preview: '/assets/Dashboard/ModulePreviews/analysis-report.png'
+    },
   ];
 
   const handleAddModule = (moduleId: string, moduleTitle: string) => {

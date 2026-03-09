@@ -861,9 +861,22 @@ export default function VNStockChartModule() {
   };
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-lg flex border ${
-      isDark ? 'bg-[#1e1e2d] border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'
+    <div className={`w-full h-full rounded-lg flex flex-col border ${
+      isDark ? 'bg-cardBackground border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
     }`}>
+      {/* Badge title */}
+      <div className="flex-none flex items-center justify-center pt-1.5 pb-0.5">
+        <div className="relative flex items-center justify-center cursor-move drag-handle select-none">
+          <svg width="180" height="28" viewBox="0 0 136 22" className="block">
+            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
+            Biểu đồ giá
+          </span>
+        </div>
+      </div>
+      {/* Main content row: toolbar + chart */}
+      <div className="dashboard-module flex flex-1 min-h-0 overflow-hidden">
       {/* Drawing Toolbar Sidebar */}
       <div className={`flex flex-col gap-1 p-2 border-r overflow-y-auto ${
         isDark ? 'border-gray-800 bg-[#252531]' : 'border-gray-200 bg-gray-50'
@@ -1136,7 +1149,7 @@ export default function VNStockChartModule() {
       </div>
 
       {/* Footer Info */}
-      <div className={`flex items-center justify-between px-4 py-2 border-t text-xs ${
+      {/* <div className={`flex items-center justify-between px-4 py-2 border-t text-xs ${
         isDark ? 'border-gray-800 bg-[#252531] text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'
       }`}>
         <div className="flex items-center gap-4">
@@ -1156,7 +1169,7 @@ export default function VNStockChartModule() {
           <Clock className="w-3 h-3" />
           <span>Cập nhật: {lastUpdateTime || '--'}</span>
         </div>
-      </div>
+      </div> */}
       </div>
 
       {/* Portal Dropdown for Drawing Tools */}
@@ -1384,6 +1397,7 @@ export default function VNStockChartModule() {
         </>,
         document.body
       )}
+      </div>{/* end main content row */}
     </div>
   );
 }
