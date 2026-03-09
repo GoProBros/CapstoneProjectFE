@@ -682,16 +682,17 @@ export function useStockScreener() {
     if (!gridApi) return;
     
     try {
-      // BUILD partial column state - CHỈ update visibility
+      // BUILD partial column state - update visibility AND width
       const columnState = Object.keys(columns).map(colId => {
         const columnConfig = columns[colId];
         return {
           colId,
           hide: columnConfig?.visible === false,
+          width: columnConfig?.width, // Include width to prevent columns rendering at wrong size when shown
         };
       });
 
-      // APPLY partial column state - CHỈ update visibility, giữ nguyên width
+      // APPLY column state
       gridApi.applyColumnState({
         state: columnState,
         applyOrder: false,

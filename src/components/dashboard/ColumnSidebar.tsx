@@ -14,29 +14,34 @@ const columnGroups = [
       'lastPrice', 'lastVol', 'change', 'ratioChange',
       'askPrice1', 'askVol1', 'askPrice2', 'askVol2', 'askPrice3', 'askVol3',
       'totalVol', 'highest', 'lowest', 'avgPrice',
-      'totalVal', 'side', 'tradingSession', 'tradingStatus'
+      'totalVal', 'side', 'tradingSession', 'tradingStatus',
+      'totalBuyVol', 'totalSellVol'
     ]
   },
   {
-    title: 'PHÂN TÍCH KỸ THUẬT',
-    fields: ['ThanhKhoanTB50', 'volTB50', 'KL1KLTB', 'bulVol', 'bearVol', 'NGANHAN', 'TRUNGHAN', 'DAIHAN', 'SUCMANH', 'RS', 'rrg', 'signalSMC', 'AiTrend', 'pVWMA20']
+    title: 'ĐẦU TƯ NƯỚC NGOÀI',
+    fields: ['fBuyVol', 'fSellVol', 'fBuyVal', 'fSellVal', 'totalRoom', 'currentRoom']
   },
-  {
-    title: 'CHỈ SỐ GIÁ',
-    fields: ['ptop52W', 'plow52W', 'pMA20', 'pMA50', 'pMA100', 'pMA200']
-  },
-  {
-    title: 'PHÂN TÍCH CƠ BẢN',
-    fields: ['PE', 'ROE', 'BLNR', 'diemBinhquan', 'DG_bq', 'skTaichinh', 'mohinhKinhdoanh', 'hieuquaHoatdong', 'diemKythuat', 'BAT', 'AIPredict20d']
-  },
-  {
-    title: 'PHÂN TÍCH KỸ THUẬT NÂNG CAO',
-    fields: ['candles', 'pattern', 'vungcau', 'vungcung', 'hotro', 'khangcu', 'kenhduoi', 'kenhtren', 'cmtTA']
-  },
-  {
-    title: 'CHIẾN LƯỢC',
-    fields: ['CHIENLUOC', 'GIAMUA', 'GIABAN', 'LAILO', 'NGAYMUA', 'NGAYBAN', 'TTDT', 'TTLN']
-  }
+  // {
+  //   title: 'PHÂN TÍCH KỸ THUẬT',
+  //   fields: ['ThanhKhoanTB50', 'volTB50', 'KL1KLTB', 'bulVol', 'bearVol', 'NGANHAN', 'TRUNGHAN', 'DAIHAN', 'SUCMANH', 'RS', 'rrg', 'signalSMC', 'AiTrend', 'pVWMA20']
+  // },
+  // {
+  //   title: 'CHỈ SỐ GIÁ',
+  //   fields: ['ptop52W', 'plow52W', 'pMA20', 'pMA50', 'pMA100', 'pMA200']
+  // },
+  // {
+  //   title: 'PHÂN TÍCH CƠ BẢN',
+  //   fields: ['PE', 'ROE', 'BLNR', 'diemBinhquan', 'DG_bq', 'skTaichinh', 'mohinhKinhdoanh', 'hieuquaHoatdong', 'diemKythuat', 'BAT', 'AIPredict20d']
+  // },
+  // {
+  //   title: 'PHÂN TÍCH KỸ THUẬT NÂNG CAO',
+  //   fields: ['candles', 'pattern', 'vungcau', 'vungcung', 'hotro', 'khangcu', 'kenhduoi', 'kenhtren', 'cmtTA']
+  // },
+  // {
+  //   title: 'CHIẾN LƯỢC',
+  //   fields: ['CHIENLUOC', 'GIAMUA', 'GIABAN', 'LAILO', 'NGAYMUA', 'NGAYBAN', 'TTDT', 'TTLN']
+  // }
 ];
 
 const columnLabels: Record<string, string> = {
@@ -69,56 +74,65 @@ const columnLabels: Record<string, string> = {
   side: 'Chiều',
   tradingSession: 'Phiên',
   tradingStatus: 'Trạng thái',
+  totalBuyVol: 'Tổng KL mua',
+  totalSellVol: 'Tổng KL bán',
+  // Đầu tư nước ngoài
+  fBuyVol: 'KL mua NN',
+  fSellVol: 'KL bán NN',
+  fBuyVal: 'GT mua NN',
+  fSellVal: 'GT bán NN',
+  totalRoom: 'Tổng room NN',
+  currentRoom: 'Room NN còn lại',
   
-  // Analysis columns
-  ThanhKhoanTB50: 'GTTB (50 phiên)', 
-  volTB50: 'KLTB (50 phiên)', 
-  KL1KLTB: '%KLTB', 
-  bulVol: 'Bull Vol (5p)', 
-  bearVol: 'Bear Vol (5p)',
-  NGANHAN: 'Ngắn hạn', 
-  TRUNGHAN: 'Trung hạn', 
-  DAIHAN: 'Dài hạn', 
-  SUCMANH: 'Sức mạnh', 
-  RS: 'RS', 
-  rrg: 'RRG',
-  signalSMC: 'Signal SMC', 
-  AiTrend: 'AI Trend', 
-  pVWMA20: '%VWMA20',
-  ptop52W: '%Top 52W', 
-  plow52W: '%Low 52W', 
-  pMA20: '%MA20', 
-  pMA50: '%MA50', 
-  pMA100: '%MA100', 
-  pMA200: '%MA200',
-  PE: 'P/E', 
-  ROE: 'ROE', 
-  BLNR: 'BLNR', 
-  diemBinhquan: 'Action Score', 
-  DG_bq: 'Định giá',
-  skTaichinh: 'Sức khỏe TC', 
-  mohinhKinhdoanh: 'Mô hình KD', 
-  hieuquaHoatdong: 'Hiệu quả HĐ', 
-  diemKythuat: 'Điểm KT',
-  BAT: 'BAT', 
-  AIPredict20d: 'AI Predict 20d',
-  candles: 'Candles', 
-  pattern: 'Pattern', 
-  vungcau: 'Vùng cầu', 
-  vungcung: 'Vùng cung', 
-  hotro: 'Hỗ trợ',
-  khangcu: 'Kháng cự', 
-  kenhduoi: 'Kênh dưới', 
-  kenhtren: 'Kênh trên', 
-  cmtTA: 'Comment TA',
-  CHIENLUOC: 'Chiến lược', 
-  GIAMUA: 'Giá mua', 
-  GIABAN: 'Giá bán', 
-  LAILO: 'Lãi/Lỗ',
-  NGAYMUA: 'Ngày mua', 
-  NGAYBAN: 'Ngày bán', 
-  TTDT: 'TTDT', 
-  TTLN: 'TTLN'
+  // // Analysis columns
+  // ThanhKhoanTB50: 'GTTB (50 phiên)', 
+  // volTB50: 'KLTB (50 phiên)', 
+  // KL1KLTB: '%KLTB', 
+  // bulVol: 'Bull Vol (5p)', 
+  // bearVol: 'Bear Vol (5p)',
+  // NGANHAN: 'Ngắn hạn', 
+  // TRUNGHAN: 'Trung hạn', 
+  // DAIHAN: 'Dài hạn', 
+  // SUCMANH: 'Sức mạnh', 
+  // RS: 'RS', 
+  // rrg: 'RRG',
+  // signalSMC: 'Signal SMC', 
+  // AiTrend: 'AI Trend', 
+  // pVWMA20: '%VWMA20',
+  // ptop52W: '%Top 52W', 
+  // plow52W: '%Low 52W', 
+  // pMA20: '%MA20', 
+  // pMA50: '%MA50', 
+  // pMA100: '%MA100', 
+  // pMA200: '%MA200',
+  // PE: 'P/E', 
+  // ROE: 'ROE', 
+  // BLNR: 'BLNR', 
+  // diemBinhquan: 'Action Score', 
+  // DG_bq: 'Định giá',
+  // skTaichinh: 'Sức khỏe TC', 
+  // mohinhKinhdoanh: 'Mô hình KD', 
+  // hieuquaHoatdong: 'Hiệu quả HĐ', 
+  // diemKythuat: 'Điểm KT',
+  // BAT: 'BAT', 
+  // AIPredict20d: 'AI Predict 20d',
+  // candles: 'Candles', 
+  // pattern: 'Pattern', 
+  // vungcau: 'Vùng cầu', 
+  // vungcung: 'Vùng cung', 
+  // hotro: 'Hỗ trợ',
+  // khangcu: 'Kháng cự', 
+  // kenhduoi: 'Kênh dưới', 
+  // kenhtren: 'Kênh trên', 
+  // cmtTA: 'Comment TA',
+  // CHIENLUOC: 'Chiến lược', 
+  // GIAMUA: 'Giá mua', 
+  // GIABAN: 'Giá bán', 
+  // LAILO: 'Lãi/Lỗ',
+  // NGAYMUA: 'Ngày mua', 
+  // NGAYBAN: 'Ngày bán', 
+  // TTDT: 'TTDT', 
+  // TTLN: 'TTLN'
 };
 
 export function ColumnSidebar() {
@@ -128,11 +142,12 @@ export function ColumnSidebar() {
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'THÔNG TIN GIAO DỊCH': true,
-    'PHÂN TÍCH KỸ THUẬT': false,
-    'CHỈ SỐ GIÁ': false,
-    'PHÂN TÍCH CƠ BẢN': false,
-    'PHÂN TÍCH KỸ THUẬT NÂNG CAO': false,
-    'CHIẾN LƯỢC': false,
+    'ĐẦU TƯ NƯỚC NGOÀI': false,
+    // 'PHÂN TÍCH KỸ THUẬT': false,
+    // 'CHỈ SỐ GIÁ': false,
+    // 'PHÂN TÍCH CƠ BẢN': false,
+    // 'PHÂN TÍCH KỸ THUẬT NÂNG CAO': false,
+    // 'CHIẾN LƯỢC': false,
   });
 
   const toggleGroup = (title: string) => {

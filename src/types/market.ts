@@ -95,6 +95,30 @@ export interface MarketSymbolDto {
   
   /** Trạng thái giao dịch - Trading status (e.g., "Active", "Halted", "Suspended") */
   tradingStatus?: string;
+
+  /** Tổng room ngoại - Total foreign ownership room */
+  totalRoom?: number;
+
+  /** Room ngoại còn lại - Remaining foreign ownership room */
+  currentRoom?: number;
+
+  /** KL mua nước ngoài - Foreign buy volume */
+  fBuyVol?: number;
+
+  /** KL bán nước ngoài - Foreign sell volume */
+  fSellVol?: number;
+
+  /** GT mua nước ngoài - Foreign buy value */
+  fBuyVal?: number;
+
+  /** GT bán nước ngoài - Foreign sell value */
+  fSellVal?: number;
+
+  /** Tổng KL mua tích lũy (X-Trade) - Total accumulated buy volume */
+  totalBuyVol?: number;
+
+  /** Tổng KL bán tích lũy (X-Trade) - Total accumulated sell volume */
+  totalSellVol?: number;
 }
 
 /**

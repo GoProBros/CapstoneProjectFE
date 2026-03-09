@@ -155,6 +155,10 @@ export default function StockScreenerModule() {
   } = useStockScreener();
 
   // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
+  // QUAN TRỌANG: deps là [] để columnDefs không bao giờ được recreate khi columns visibility thay đổi.
+  // Việc recreate columnDefs sẽ khiến AG Grid re-process toàn bộ column, gây ra race condition
+  // giữa column def và applyColumnState, dấn đến các cột ẩn bị flash visible rồi hidden lại → overlap.
+  // Width của các cột luôn được quản lý bởi applyColumnState (trong sync effect).
   const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => [
     // CỘT CỐ ĐỊNH BÊN TRÁI - Thứ tự: CK → Trần → Sàn → TC
     {
@@ -336,7 +340,7 @@ export default function StockScreenerModule() {
       ]
     },
     
-    // NHÓM THỐNG KÊ PHIÊN
+    // NHÓM THỐNG KÊ PHIÊN - bao gồm cả các cột ẩn mặc định để group header luôn hiển thị
     {
       headerName: 'Tổng',
       children: [
@@ -368,13 +372,7 @@ export default function StockScreenerModule() {
           valueFormatter: (params) => formatPrice(params.value),
           cellClass: 'text-xs',
         },
-      ]
-    },
-    
-    // CÁC CỘT BỔ SUNG (Ẩn mặc định - có thể bật trong column manager)
-    {
-      headerName: 'Thông tin khác',
-      children: [
+        // CÁC CỘT ẨN MẶC ĐỊNH - đặt trong group 'Tổng' để group header luôn hiển thị (không bị ẩn khi toàn bộ children bị hide)
         { 
           field: 'totalVal',
           headerName: 'Tổng GT', 
@@ -413,354 +411,84 @@ export default function StockScreenerModule() {
           },
           hide: true,
         },
-      ]
-    },
-    
-    // CÁC NHÓM CỘT PHÂN TÍCH (Các cột trùng lặp đã được xóa)
-    {
-      headerName: 'PHÂN TÍCH KỸ THUẬT',
-      children: [
-        { 
-          field: 'ThanhKhoanTB50', 
-          headerName: 'GTTB (50 phiên)',
-          width: columns.ThanhKhoanTB50?.width || 140, 
+        {
+          field: 'totalBuyVol',
+          headerName: 'Tổng KL mua',
+          width: 120,
           valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-          cellClass: 'text-xs',
+          hide: true,
+          cellClass: 'text-green-500 text-xs',
         },
-        { 
-          field: 'volTB50', 
-          headerName: 'KLTB (50 phiên)',
-          width: columns.volTB50?.width || 140, 
+        {
+          field: 'totalSellVol',
+          headerName: 'Tổng KL bán',
+          width: 120,
           valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-          cellClass: 'text-xs',
+          hide: true,
+          cellClass: 'text-red-500 text-xs',
         },
-        { 
-          field: 'KL1KLTB',
-          headerName: '%KLTB', 
-          width: columns.KL1KLTB?.width || 100, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'bulVol',
-          headerName: 'Bull Vol (5p)', 
-          width: columns.bulVol?.width || 130, 
+      ]
+    },
+    {
+      headerName: 'ĐẦU TƯ NƯỚC NGOÀI',
+      children: [
+        {
+          field: 'fBuyVol',
+          headerName: 'KL mua NN',
+          width: 120,
           valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-          cellClass: 'text-xs',
+          hide: true,
+          cellClass: 'text-green-500 text-xs',
         },
-        { 
-          field: 'bearVol',
-          headerName: 'Bear Vol (5p)', 
-          width: columns.bearVol?.width || 130, 
+        {
+          field: 'fSellVol',
+          headerName: 'KL bán NN',
+          width: 120,
           valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          hide: true,
+          cellClass: 'text-red-500 text-xs',
+        },
+        {
+          field: 'fBuyVal',
+          headerName: 'GT mua NN',
+          width: 130,
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          hide: true,
+          cellClass: 'text-green-500 text-xs',
+        },
+        {
+          field: 'fSellVal',
+          headerName: 'GT bán NN',
+          width: 130,
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          hide: true,
+          cellClass: 'text-red-500 text-xs',
+        },
+        {
+          field: 'totalRoom',
+          headerName: 'Tổng room NN',
+          width: 120,
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          hide: true,
           cellClass: 'text-xs',
         },
-        { 
-          field: 'NGANHAN',
-          headerName: 'Ngắn hạn', 
-          width: columns.NGANHAN?.width || 110, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'TRUNGHAN',
-          headerName: 'Trung hạn', 
-          width: columns.TRUNGHAN?.width || 110, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'DAIHAN',
-          headerName: 'Dài hạn', 
-          width: columns.DAIHAN?.width || 110, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'SUCMANH',
-          headerName: 'Sức mạnh', 
-          width: columns.SUCMANH?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'RS',
-          headerName: 'RS', 
-          width: columns.RS?.width || 80, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'rrg',
-          headerName: 'RRG', 
-          width: columns.rrg?.width || 100, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'signalSMC',
-          headerName: 'Signal SMC', 
-          width: columns.signalSMC?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'AiTrend',
-          headerName: 'AI Trend', 
-          width: columns.AiTrend?.width || 110, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pVWMA20',
-          headerName: '%VWMA20', 
-          width: columns.pVWMA20?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
+        {
+          field: 'currentRoom',
+          headerName: 'Room NN còn lại',
+          width: 130,
+          valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+          hide: true,
+          cellClass: (params) => {
+            if (!params.value || !params.data?.totalRoom) return 'text-xs';
+            const pct = params.value / params.data.totalRoom;
+            if (pct <= 0.05) return 'text-red-500 text-xs';
+            if (pct <= 0.2) return 'text-yellow-500 text-xs';
+            return 'text-green-500 text-xs';
+          },
         },
       ]
     },
-    {
-      headerName: 'CHỈ SỐ GIÁ',
-      children: [
-        { 
-          field: 'ptop52W',
-          headerName: '%Top 52W', 
-          width: columns.ptop52W?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : 'text-red-500 text-xs',
-        },
-        { 
-          field: 'plow52W',
-          headerName: '%Low 52W', 
-          width: columns.plow52W?.width || 110, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pMA20',
-          headerName: '%MA20', 
-          width: columns.pMA20?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pMA50',
-          headerName: '%MA50', 
-          width: columns.pMA50?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pMA100',
-          headerName: '%MA100', 
-          width: columns.pMA100?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pMA200',
-          headerName: '%MA200', 
-          width: columns.pMA200?.width || 100, 
-          valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(2)}%` : '',
-          cellClass: 'text-xs',
-        },
-      ]
-    },
-    {
-      headerName: 'PHÂN TÍCH CƠ BẢN',
-      children: [
-        { 
-          field: 'PE',
-          headerName: 'P/E', 
-          width: columns.PE?.width || 80, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'ROE',
-          headerName: 'ROE', 
-          width: columns.ROE?.width || 80, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'BLNR',
-          headerName: 'BLNR', 
-          width: columns.BLNR?.width || 80, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'diemBinhquan',
-          headerName: 'Action Score', 
-          width: columns.diemBinhquan?.width || 120, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'DG_bq',
-          headerName: 'Định giá', 
-          width: columns.DG_bq?.width || 100, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'skTaichinh',
-          headerName: 'Sức khỏe TC', 
-          width: columns.skTaichinh?.width || 120, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'mohinhKinhdoanh',
-          headerName: 'Mô hình KD', 
-          width: columns.mohinhKinhdoanh?.width || 120, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'hieuquaHoatdong',
-          headerName: 'Hiệu quả HĐ', 
-          width: columns.hieuquaHoatdong?.width || 120, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'diemKythuat',
-          headerName: 'Điểm KT', 
-          width: columns.diemKythuat?.width || 100, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'BAT',
-          headerName: 'BAT', 
-          width: columns.BAT?.width || 80, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'AIPredict20d',
-          headerName: 'AI Predict 20d', 
-          width: columns.AIPredict20d?.width || 130, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-      ]
-    },
-    {
-      headerName: 'PHÂN TÍCH KỸ THUẬT NÂNG CAO',
-      children: [
-        { 
-          field: 'candles',
-          headerName: 'Candles', 
-          width: columns.candles?.width || 150, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'pattern',
-          headerName: 'Pattern', 
-          width: columns.pattern?.width || 150, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'vungcau',
-          headerName: 'Vùng cầu', 
-          width: columns.vungcau?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'vungcung',
-          headerName: 'Vùng cung', 
-          width: columns.vungcung?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'hotro',
-          headerName: 'Hỗ trợ', 
-          width: columns.hotro?.width || 100, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'khangcu',
-          headerName: 'Kháng cự', 
-          width: columns.khangcu?.width || 100, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'kenhduoi',
-          headerName: 'Kênh dưới', 
-          width: columns.kenhduoi?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'kenhtren',
-          headerName: 'Kênh trên', 
-          width: columns.kenhtren?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'cmtTA',
-          headerName: 'Comment TA', 
-          width: columns.cmtTA?.width || 250, 
-          wrapText: true,
-          autoHeight: true,
-          cellClass: 'text-xs',
-        },
-      ]
-    },
-    {
-      headerName: 'CHIẾN LƯỢC',
-      children: [
-        { 
-          field: 'CHIENLUOC',
-          headerName: 'Chiến lược', 
-          width: columns.CHIENLUOC?.width || 150, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'GIAMUA',
-          headerName: 'Giá mua', 
-          width: columns.GIAMUA?.width || 100, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'GIABAN',
-          headerName: 'Giá bán', 
-          width: columns.GIABAN?.width || 100, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'LAILO',
-          headerName: 'Lãi/Lỗ', 
-          width: columns.LAILO?.width || 100, 
-          valueFormatter: (params) => params.value ? `${params.value}%` : '',
-          cellClass: (params) => params.value > 0 ? 'text-green-500 text-xs' : params.value < 0 ? 'text-red-500 text-xs' : 'text-gray-500 text-xs',
-        },
-        { 
-          field: 'NGAYMUA',
-          headerName: 'Ngày mua', 
-          width: columns.NGAYMUA?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'NGAYBAN',
-          headerName: 'Ngày bán', 
-          width: columns.NGAYBAN?.width || 120, 
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'TTDT',
-          headerName: 'TTDT', 
-          width: columns.TTDT?.width || 100, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-        { 
-          field: 'TTLN',
-          headerName: 'TTLN', 
-          width: columns.TTLN?.width || 100, 
-          valueFormatter: (params) => params.value || '',
-          cellClass: 'text-xs',
-        },
-      ]
-    }
-  ], [columns]);
+  ], []);
 
   // Cấu hình mặc định cho tất cả các cột
   const defaultColDef = useMemo(() => ({
@@ -940,7 +668,7 @@ export default function StockScreenerModule() {
             <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
           </button>
       
-          <div className={`w-full h-[calc(100%-3rem)] ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
+          <div className={`flex-1 min-h-0 ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
             <AgGridReact
               rowData={undefined}
               columnDefs={columnDefs}
