@@ -245,13 +245,13 @@ export default function HeatmapModule() {
     }
   }, [exchange, isConnected]); // Only depend on exchange and isConnected
 
-  // Real-time SignalR updates — subscribe DIRECTLY to per-ticker callbacks.
-  // Bypasses the SignalRContext RAF batch entirely: each incoming message triggers
-  // an O(1) Map lookup + update for that one ticker, then schedules a single RAF
-  // to flush a chart re-render. This removes the previous O(n) forEach loop that
-  // iterated all 500+ tickers on every update.
+  // Real-time SignalR updates — O(1) Map update per message, chart re-render throttled to
+  // once every 500 ms. ECharts treemap layout for 400+ nodes takes 50–200 ms; firing it
+  // on every RAF tick (16 ms) saturates the JS thread and causes extreme perceived lag.
+  // The Map always holds the latest values, so each 500 ms flush captures all accumulated changes.
   useEffect(() => {
-    const heatmapRafRef = { current: null as number | null };
+    const THROTTLE_MS = 500;
+    const throttleRef = { current: null as ReturnType<typeof setTimeout> | null };
 
     const unsubscribe = SignalRService.getInstance().onMarketDataReceived((realtimeData) => {
       const ticker = realtimeData.ticker?.toUpperCase();
@@ -260,12 +260,26 @@ export default function HeatmapModule() {
       const existingItem = heatmapItemsMapRef.current.get(ticker);
       if (!existingItem) return; // Not tracked in this heatmap view
 
-      const currentPrice = realtimeData.lastPrice || realtimeData.referencePrice || existingItem.currentPrice;
+      const lastPrice = realtimeData.lastPrice;
+
+      // Guard 1: Skip if lastPrice is 0 or missing — hub sends initial snapshot on subscribe;
+      // untraded stocks have LastPrice=0 which would overwrite correct REST data with 0%.
+      if (!lastPrice || lastPrice === 0) return;
+
       const refPrice = realtimeData.referencePrice || existingItem.currentPrice;
-      const changePercent = refPrice !== 0 ? ((currentPrice - refPrice) / refPrice * 100) : 0;
+
+      // Guard 2: Skip snapshot-replay where price == reference (no real trade yet),
+      // but only when existing data already has a meaningful non-zero changePercent.
+      if (lastPrice === refPrice && existingItem.changePercent !== 0) return;
+
+      // Prefer server-computed ratioChange (e.g. -6.82 = -6.82%).
+      // Fall back to local calculation only when ratioChange is absent.
+      const changePercent = (realtimeData.ratioChange != null && realtimeData.ratioChange !== 0)
+        ? realtimeData.ratioChange
+        : (refPrice !== 0 ? ((lastPrice - refPrice) / refPrice * 100) : 0);
 
       const hasChanged =
-        Math.abs(currentPrice - existingItem.currentPrice) > 0.01 ||
+        Math.abs(lastPrice - existingItem.currentPrice) > 0.01 ||
         Math.abs(changePercent - existingItem.changePercent) > 0.01 ||
         (realtimeData.totalVol != null && realtimeData.totalVol !== existingItem.volume);
 
@@ -273,7 +287,7 @@ export default function HeatmapModule() {
 
       heatmapItemsMapRef.current.set(ticker, {
         ...existingItem,
-        currentPrice,
+        currentPrice: lastPrice,
         changePercent,
         changeValue: realtimeData.change ?? existingItem.changeValue,
         volume: realtimeData.totalVol || existingItem.volume,
@@ -281,20 +295,21 @@ export default function HeatmapModule() {
         lastUpdate: new Date().toISOString(),
       });
 
-      // Batch chart re-renders — schedule at most one per animation frame
-      if (heatmapRafRef.current === null) {
-        heatmapRafRef.current = requestAnimationFrame(() => {
-          heatmapRafRef.current = null;
+      // Throttle chart re-renders: at most one flush per THROTTLE_MS window.
+      // Multiple ticks within the window fold silently into the Map.
+      if (throttleRef.current === null) {
+        throttleRef.current = setTimeout(() => {
+          throttleRef.current = null;
           setHeatmapItemsVersion(v => v + 1);
-        });
+        }, THROTTLE_MS);
       }
     });
 
     return () => {
       unsubscribe();
-      if (heatmapRafRef.current !== null) {
-        cancelAnimationFrame(heatmapRafRef.current);
-        heatmapRafRef.current = null;
+      if (throttleRef.current !== null) {
+        clearTimeout(throttleRef.current);
+        throttleRef.current = null;
       }
     };
   }, []); // Mount once — no dependency on the batched marketData Map
