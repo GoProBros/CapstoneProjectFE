@@ -171,6 +171,11 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
             placeholder="Tìm mã CK..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
+            onFocus={() => {
+              if (searchResults.length > 0 && searchInput.trim()) {
+                setShowDropdown(true);
+              }
+            }}
             disabled={!isConnected}
             className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors w-64 ${
               isDark 

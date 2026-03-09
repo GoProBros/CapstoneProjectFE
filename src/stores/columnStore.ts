@@ -63,64 +63,16 @@ const defaultColumns: Record<string, ColumnConfig> = {
   side: { field: 'side', visible: false, width: 70, order: 25 },
   tradingSession: { field: 'tradingSession', visible: false, width: 80, order: 26 },
   tradingStatus: { field: 'tradingStatus', visible: false, width: 100, order: 27 },
-  
-  // PHÂN TÍCH KỸ THUẬT (hidden by default)
-  ThanhKhoanTB50: { field: 'ThanhKhoanTB50', visible: false, width: 140, order: 28 },
-  volTB50: { field: 'volTB50', visible: false, width: 140, order: 29 },
-  KL1KLTB: { field: 'KL1KLTB', visible: false, width: 100, order: 30 },
-  bulVol: { field: 'bulVol', visible: false, width: 130, order: 31 },
-  bearVol: { field: 'bearVol', visible: false, width: 130, order: 32 },
-  NGANHAN: { field: 'NGANHAN', visible: false, width: 110, order: 33 },
-  TRUNGHAN: { field: 'TRUNGHAN', visible: false, width: 110, order: 34 },
-  DAIHAN: { field: 'DAIHAN', visible: false, width: 110, order: 35 },
-  SUCMANH: { field: 'SUCMANH', visible: false, width: 120, order: 36 },
-  RS: { field: 'RS', visible: false, width: 80, order: 37 },
-  rrg: { field: 'rrg', visible: false, width: 100, order: 38 },
-  signalSMC: { field: 'signalSMC', visible: false, width: 120, order: 39 },
-  AiTrend: { field: 'AiTrend', visible: false, width: 110, order: 40 },
-  pVWMA20: { field: 'pVWMA20', visible: false, width: 110, order: 41 },
-  
-  // CHỈ SỐ GIÁ
-  ptop52W: { field: 'ptop52W', visible: false, width: 110, order: 42 },
-  plow52W: { field: 'plow52W', visible: false, width: 110, order: 43 },
-  pMA20: { field: 'pMA20', visible: false, width: 100, order: 44 },
-  pMA50: { field: 'pMA50', visible: false, width: 100, order: 45 },
-  pMA100: { field: 'pMA100', visible: false, width: 100, order: 46 },
-  pMA200: { field: 'pMA200', visible: false, width: 100, order: 47 },
-  
-  // PHÂN TÍCH CƠ BẢN
-  PE: { field: 'PE', visible: false, width: 80, order: 48 },
-  ROE: { field: 'ROE', visible: false, width: 80, order: 49 },
-  BLNR: { field: 'BLNR', visible: false, width: 80, order: 50 },
-  diemBinhquan: { field: 'diemBinhquan', visible: false, width: 120, order: 51 },
-  DG_bq: { field: 'DG_bq', visible: false, width: 100, order: 52 },
-  skTaichinh: { field: 'skTaichinh', visible: false, width: 120, order: 53 },
-  mohinhKinhdoanh: { field: 'mohinhKinhdoanh', visible: false, width: 120, order: 54 },
-  hieuquaHoatdong: { field: 'hieuquaHoatdong', visible: false, width: 120, order: 55 },
-  diemKythuat: { field: 'diemKythuat', visible: false, width: 100, order: 56 },
-  BAT: { field: 'BAT', visible: false, width: 80, order: 57 },
-  AIPredict20d: { field: 'AIPredict20d', visible: false, width: 130, order: 58 },
-  
-  // PHÂN TÍCH KỸ THUẬT NÂNG CAO
-  candles: { field: 'candles', visible: false, width: 150, order: 59 },
-  pattern: { field: 'pattern', visible: false, width: 150, order: 60 },
-  vungcau: { field: 'vungcau', visible: false, width: 120, order: 61 },
-  vungcung: { field: 'vungcung', visible: false, width: 120, order: 62 },
-  hotro: { field: 'hotro', visible: false, width: 100, order: 63 },
-  khangcu: { field: 'khangcu', visible: false, width: 100, order: 64 },
-  kenhduoi: { field: 'kenhduoi', visible: false, width: 120, order: 65 },
-  kenhtren: { field: 'kenhtren', visible: false, width: 120, order: 66 },
-  cmtTA: { field: 'cmtTA', visible: false, width: 250, order: 67 },
-  
-  // CHIẾN LƯỢC
-  CHIENLUOC: { field: 'CHIENLUOC', visible: false, width: 150, order: 68 },
-  GIAMUA: { field: 'GIAMUA', visible: false, width: 100, order: 69 },
-  GIABAN: { field: 'GIABAN', visible: false, width: 100, order: 70 },
-  LAILO: { field: 'LAILO', visible: false, width: 100, order: 71 },
-  NGAYMUA: { field: 'NGAYMUA', visible: false, width: 120, order: 72 },
-  NGAYBAN: { field: 'NGAYBAN', visible: false, width: 120, order: 73 },
-  TTDT: { field: 'TTDT', visible: false, width: 100, order: 74 },
-  TTLN: { field: 'TTLN', visible: false, width: 100, order: 75 },
+  totalBuyVol: { field: 'totalBuyVol', visible: false, width: 120, order: 28 },
+  totalSellVol: { field: 'totalSellVol', visible: false, width: 120, order: 29 },
+
+  // ĐẦU TƯ NƯỚC NGOÀI
+  fBuyVol: { field: 'fBuyVol', visible: true, width: 120, order: 30 },
+  fSellVol: { field: 'fSellVol', visible: true, width: 120, order: 31 },
+  fBuyVal: { field: 'fBuyVal', visible: false, width: 130, order: 32 },
+  fSellVal: { field: 'fSellVal', visible: false, width: 130, order: 33 },
+  totalRoom: { field: 'totalRoom', visible: false, width: 120, order: 34 },
+  currentRoom: { field: 'currentRoom', visible: false, width: 130, order: 35 },
 };
 
 export const useColumnStore = create<ColumnState>()(
@@ -169,15 +121,16 @@ export const useColumnStore = create<ColumnState>()(
       resetColumns: () => set({ columns: defaultColumns }),
       
       toggleColumnVisibility: (field) =>
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [field]: {
-              ...state.columns[field],
-              visible: !state.columns[field].visible,
+        set((state) => {
+          const existing = state.columns[field] ?? defaultColumns[field];
+          if (!existing) return state;
+          return {
+            columns: {
+              ...state.columns,
+              [field]: { ...existing, visible: !existing.visible },
             },
-          },
-        })),
+          };
+        }),
       
       setGroupVisibility: (fields, visible) =>
         set((state) => {
@@ -194,6 +147,35 @@ export const useColumnStore = create<ColumnState>()(
     }),
     {
       name: 'stock-screener-columns',
+      version: 2,
+      migrate: (persistedState: unknown, version: number): unknown => {
+        const state = persistedState as { columns?: Record<string, ColumnConfig> } | null;
+        if (version < 2 && state?.columns) {
+          // fBuyVol and fSellVol are now visible by default. Make sure old data reflects this
+          // so the "ĐẦU TƯ NƯỚC NGOÀI" group header is never fully hidden on upgrade.
+          if (state.columns.fBuyVol) state.columns.fBuyVol = { ...state.columns.fBuyVol, visible: true };
+          if (state.columns.fSellVol) state.columns.fSellVol = { ...state.columns.fSellVol, visible: true };
+        }
+        return state;
+      },
+      merge: (persistedState: unknown, currentState: ColumnState): ColumnState => {
+        const persisted = persistedState as Partial<ColumnState>;
+        const persistedColumns = persisted?.columns ?? {};
+        // Only restore persisted settings for columns that still exist in defaultColumns.
+        // This discards stale entries from old versions of the store so that
+        // columns removed from defaultColumns are never force-hidden in AG Grid.
+        const filteredColumns = Object.fromEntries(
+          Object.entries(persistedColumns).filter(([key]) => key in defaultColumns)
+        );
+        return {
+          ...currentState,
+          ...persisted,
+          columns: {
+            ...defaultColumns,
+            ...filteredColumns,
+          },
+        };
+      },
     }
   )
 );
