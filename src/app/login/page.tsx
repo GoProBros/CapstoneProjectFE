@@ -403,6 +403,14 @@ const HeroSection = () => {
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const msg = sessionStorage.getItem('auth_redirect_message');
+    if (msg) {
+      setError(msg);
+      sessionStorage.removeItem('auth_redirect_message');
+    }
+  }, []);
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       <BackgroundEffects />
