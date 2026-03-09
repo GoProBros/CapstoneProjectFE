@@ -108,10 +108,11 @@ export default function DashboardLayout({
   const maxWorkspaces = useSubscriptionStore((s) => s.maxWorkspaces);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Guard: redirect to home when auth check completes and user is not authenticated
+  // Guard: redirect to login when auth check completes and user is not authenticated
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
-      router.replace('/');
+      sessionStorage.setItem('auth_redirect_message', 'Vui lòng đăng nhập / đăng ký để sử dụng');
+      router.replace('/login');
     }
   }, [isAuthLoading, isAuthenticated, router]);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);

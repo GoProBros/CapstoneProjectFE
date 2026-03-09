@@ -1,283 +1,585 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
   TrendingUp,
-  PlayCircle,
   Zap,
   LayoutDashboard,
   Activity,
-  Star,
   CheckCircle2,
-  XCircle,
   Globe,
   Share2,
   Mail,
   LogOut,
+  ChevronRight,
+  ArrowUpRight,
+  Shield,
+  Search,
+  BarChart2,
+  Users,
+  Clock,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROUTES } from '@/constants/routes';
+
+const MODULE_SHOWCASES = [
+  {
+    name: 'Heatmap',
+    description: 'Tổng quan thị trường theo sector và vốn hóa bằng biểu đồ nhiệt trực quan.',
+    image: '/assets/Dashboard/ModulePreviews/heatmap.png',
+    tag: 'Phổ biến',
+    tagColor: 'bg-[#00C805] text-[#0e0d15]',
+  },
+  {
+    name: 'Stock Screener',
+    description: 'Lọc cổ phiếu theo sàn, ngành, loại và nhiều điều kiện kết hợp cùng lúc.',
+    image: '/assets/Dashboard/ModulePreviews/stock-screener.png',
+    tag: 'Mới',
+    tagColor: 'bg-blue-500 text-white',
+  },
+  {
+    name: 'Biểu đồ VN',
+    description: 'Biểu đồ nến OHLCV tương tác với đầy đủ công cụ phân tích kỹ thuật.',
+    image: '/assets/Dashboard/ModulePreviews/vn-stock-chart.png',
+    tag: null,
+    tagColor: '',
+  },
+  {
+    name: 'Báo cáo tài chính',
+    description: 'Phân tích doanh thu, lợi nhuận và các chỉ số tài chính theo quý/năm.',
+    image: '/assets/Dashboard/ModulePreviews/financial-report.png',
+    tag: null,
+    tagColor: '',
+  },
+  {
+    name: 'Tin tức',
+    description: 'Tin tức thị trường và sự kiện doanh nghiệp cập nhật theo thời gian thực.',
+    image: '/assets/Dashboard/ModulePreviews/news.png',
+    tag: null,
+    tagColor: '',
+  },
+  {
+    name: 'Báo cáo phân tích',
+    description: 'Tổng hợp báo cáo từ các công ty chứng khoán và chuyên gia phân tích.',
+    image: '/assets/Dashboard/ModulePreviews/analysis-report.png',
+    tag: null,
+    tagColor: '',
+  },
+];
+
+const STATS = [
+  { value: '10+', label: 'Module chuyên biệt', icon: LayoutDashboard },
+  { value: '1.700+', label: 'Mã chứng khoán', icon: BarChart2 },
+  { value: '<1s', label: 'Độ trễ dữ liệu', icon: Zap },
+  { value: '24/7', label: 'Giám sát thị trường', icon: Clock },
+];
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: 'Dữ liệu thời gian thực',
+    desc: 'Nhận giá cổ phiếu, khớp lệnh và chỉ số thị trường với độ trễ dưới 1 giây qua SignalR streaming.',
+    iconColor: 'text-yellow-400',
+    bgColor: 'bg-yellow-400/10',
+  },
+  {
+    icon: LayoutDashboard,
+    title: 'Bố cục kéo-thả',
+    desc: 'Tự do sắp xếp 10+ module chuyên biệt. Lưu nhiều workspace và chuyển đổi theo chiến lược giao dịch.',
+    iconColor: 'text-blue-400',
+    bgColor: 'bg-blue-400/10',
+  },
+  {
+    icon: BarChart2,
+    title: 'Phân tích toàn diện',
+    desc: 'Từ heatmap ngành, screener đến báo cáo tài chính và tư vấn FA/TA — đủ cho mọi phong cách đầu tư.',
+    iconColor: 'text-[#00C805]',
+    bgColor: 'bg-[#00C805]/10',
+  },
+  {
+    icon: Shield,
+    title: 'Bảo mật cao',
+    desc: 'JWT authentication, refresh token tự động và kiến trúc Clean Architecture đảm bảo dữ liệu an toàn.',
+    iconColor: 'text-purple-400',
+    bgColor: 'bg-purple-400/10',
+  },
+  {
+    icon: Globe,
+    title: 'Dữ liệu toàn cầu',
+    desc: 'Theo dõi thị trường quốc tế, cổ phiếu Mỹ và châu Á qua TradingView integration.',
+    iconColor: 'text-cyan-400',
+    bgColor: 'bg-cyan-400/10',
+  },
+  {
+    icon: Search,
+    title: 'Stock Screener nâng cao',
+    desc: 'Lọc 1.700+ mã theo sàn, ngành, loại cổ phiếu và kết hợp nhiều điều kiện cùng lúc.',
+    iconColor: 'text-orange-400',
+    bgColor: 'bg-orange-400/10',
+  },
+];
+
+const PLANS = [
+  {
+    name: 'Miễn phí',
+    price: '0đ',
+    period: '/tháng',
+    highlight: false,
+    features: ['5 module cơ bản', '1 workspace', 'Dữ liệu delay 15 phút', 'Heatmap cơ bản'],
+    cta: 'Bắt đầu miễn phí',
+    href: ROUTES.DASHBOARD,
+  },
+  {
+    name: 'Pro',
+    price: 'Sắp ra mắt',
+    period: '',
+    highlight: true,
+    features: [
+      'Tất cả 10+ module',
+      'Workspace không giới hạn',
+      'Dữ liệu thời gian thực',
+      'FA/TA Advisor AI',
+      'Báo cáo phân tích',
+      'Hỗ trợ ưu tiên',
+    ],
+    cta: 'Đăng ký nhận thông báo',
+    href: '#',
+  },
+  {
+    name: 'Doanh nghiệp',
+    price: 'Liên hệ',
+    period: '',
+    highlight: false,
+    features: [
+      'Tất cả tính năng Pro',
+      'API access trực tiếp',
+      'Triển khai riêng (On-premise)',
+      'SLA cam kết',
+      'Hỗ trợ 24/7',
+    ],
+    cta: 'Liên hệ ngay',
+    href: '#',
+  },
+];
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
-  const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-slate-100 selection:bg-[#00C805]/30">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-[#0a0a0a]/80 backdrop-blur-md">
+    <div className="min-h-screen bg-[#0e0d15] text-slate-100 selection:bg-[#00C805]/30" style={{ fontFamily: 'Quicksand, sans-serif' }}>
+
+      {/* ── Header ── */}
+      <header className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
+        scrolled ? 'border-white/10 bg-[#0e0d15]/95 backdrop-blur-xl shadow-2xl' : 'border-transparent bg-transparent'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="text-[#00C805] w-8 h-8" />
-            <span className="text-xl font-bold tracking-tight">Kafi Stock</span>
-          </div>
+          <Link href={ROUTES.HOME} className="flex items-center gap-2 group">
+            <TrendingUp className="text-[#00C805] w-7 h-7 group-hover:scale-110 transition-transform" />
+            <span className="text-xl font-black tracking-tight">Kafi Stock</span>
+          </Link>
+
           <nav className="hidden md:flex items-center gap-8">
-            <a className="text-sm font-medium hover:text-[#00C805] transition-colors" href="#features">Tính năng</a>
-            <a className="text-sm font-medium hover:text-[#00C805] transition-colors" href="#pricing">Bảng giá</a>
-            <a className="text-sm font-medium hover:text-[#00C805] transition-colors" href="#testimonials">Đánh giá</a>
-            <a className="text-sm font-medium hover:text-[#00C805] transition-colors" href="#">Tài nguyên</a>
+            {[
+              { href: '#features', label: 'Tính năng' },
+              { href: '#modules', label: 'Module' },
+              // { href: '#pricing', label: 'Bảng giá' },
+            ].map((item) => (
+              <a key={item.href} href={item.href} className="text-sm font-semibold text-slate-400 hover:text-[#00C805] transition-colors">
+                {item.label}
+              </a>
+            ))}
           </nav>
-          <div className="flex items-center gap-4">
+
+          <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-slate-300 hidden sm:inline-block">
-                  Xin chào, {user?.fullName ?? user?.email}
+              <>
+                <span className="text-sm text-slate-400">
+                  Xin chào, <span className="text-white font-semibold">{user?.fullName ?? user?.email}</span>
                 </span>
                 <button
                   onClick={() => logout()}
-                  className="text-sm font-medium px-4 py-2 hover:text-[#00C805] transition-colors flex items-center gap-2 cursor-pointer"
+                  className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Đăng xuất
+                  <LogOut className="w-4 h-4" /> Đăng xuất
                 </button>
                 <Link
-                  href="/dashboard"
-                  className="bg-[#00C805] text-[#0a0a0a] font-bold text-sm px-5 py-2 rounded-lg hover:brightness-110 transition-all"
+                  href={ROUTES.DASHBOARD}
+                  className="bg-[#00C805] text-[#0e0d15] font-bold text-sm px-5 py-2 rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5"
                 >
-                  Bảng điều khiển
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
                 </Link>
-              </div>
+              </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium px-4 py-2 hover:text-[#00C805] transition-colors"
-                >
+                <Link href={ROUTES.LOGIN} className="text-sm font-semibold text-slate-300 hover:text-white px-4 py-2 transition-colors">
                   Đăng nhập
                 </Link>
-                <Link
-                  href="/dashboard"
-                  className="bg-[#00C805] text-[#0a0a0a] font-bold text-sm px-5 py-2 rounded-lg hover:brightness-110 transition-all"
-                >
+                <Link href={ROUTES.DASHBOARD} className="bg-[#00C805] text-[#0e0d15] font-bold text-sm px-5 py-2 rounded-lg hover:brightness-110 transition-all">
                   Dùng thử miễn phí
                 </Link>
               </>
             )}
           </div>
+
+          <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#0e0d15] border-t border-white/10 px-4 py-6 flex flex-col gap-5">
+            <a href="#features" className="text-sm font-semibold text-slate-300" onClick={() => setMobileMenuOpen(false)}>Tính năng</a>
+            <a href="#modules" className="text-sm font-semibold text-slate-300" onClick={() => setMobileMenuOpen(false)}>Module</a>
+            {/* <a href="#pricing" className="text-sm font-semibold text-slate-300" onClick={() => setMobileMenuOpen(false)}>Bảng giá</a> */}
+            <hr className="border-white/10" />
+            <Link href={ROUTES.LOGIN} className="text-sm font-semibold text-slate-300" onClick={() => setMobileMenuOpen(false)}>Đăng nhập</Link>
+            <Link href={ROUTES.DASHBOARD} className="bg-[#00C805] text-[#0e0d15] font-bold text-sm px-5 py-3 rounded-lg text-center" onClick={() => setMobileMenuOpen(false)}>
+              Dùng thử miễn phí
+            </Link>
+          </div>
+        )}
       </header>
 
       <main>
-        {/* Hero Section */}
-        <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#00C805]/10 blur-[120px] rounded-full"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-[#00C805]/5 blur-[100px] rounded-full"></div>
+        {/* ── Hero ── */}
+        <section className="relative pt-24 pb-20 md:pt-36 md:pb-28 overflow-hidden">
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[#00C805]/7 blur-[150px] rounded-full" />
+            <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-blue-500/5 blur-[120px] rounded-full" />
+            <div className="absolute top-[20%] left-[-10%] w-[300px] h-[300px] bg-purple-500/4 blur-[100px] rounded-full" />
           </div>
+
           <div className="max-w-7xl mx-auto px-4 text-center">
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-tight">
-              Làm chủ thị trường với không gian làm việc <span className="text-[#00C805]">tùy chỉnh</span> của bạn
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#00C805]/10 border border-[#00C805]/25 text-[#00C805] text-xs font-bold mb-8 uppercase tracking-widest">
+              <Zap className="w-3.5 h-3.5" /> Dữ liệu thị trường thời gian thực
+            </div>
+
+            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-[1.05]">
+              Không gian làm việc{' '}
+              <span className="text-[#00C805]">thông minh</span>
+              <br />
+              cho nhà đầu tư chứng khoán
             </h1>
-            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10">
-              Xây dựng bảng điều khiển giao dịch tối ưu với các module kéo-thả và luồng dữ liệu thời gian thực chuẩn chuyên nghiệp.
+
+            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Kéo - thả 10+ module phân tích chuyên biệt vào bảng điều khiển của bạn. Dữ liệu thời gian thực, heatmap ngành, screener và hơn thế nữa — trong một không gian duy nhất.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
               <Link
-                href="/dashboard"
-                className="w-full sm:w-auto px-8 py-4 bg-[#00C805] text-[#0a0a0a] font-bold text-lg rounded-xl hover:scale-105 transition-transform text-center"
+                href={ROUTES.DASHBOARD}
+                className="w-full sm:w-auto px-8 py-4 bg-[#00C805] text-[#0e0d15] font-extrabold text-base rounded-xl hover:brightness-110 hover:scale-105 transition-all text-center flex items-center justify-center gap-2"
               >
-                Bắt đầu miễn phí
+                Bắt đầu miễn phí <ChevronRight className="w-5 h-5" />
+              </Link>
+              <a
+                href="#modules"
+                className="w-full sm:w-auto px-8 py-4 text-base font-bold rounded-xl border border-white/15 text-slate-300 hover:border-[#00C805]/40 hover:text-white transition-all text-center"
+              >
+                Xem tính năng
+              </a>
+            </div>
+
+            {/* Stats strip */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+              {STATS.map((stat) => (
+                <div key={stat.label} className="glass-panel rounded-xl p-4 flex flex-col items-center gap-1 border border-white/5 hover:border-[#00C805]/20 transition-colors">
+                  <stat.icon className="w-5 h-5 text-[#00C805] mb-1" />
+                  <p className="text-2xl font-black text-white">{stat.value}</p>
+                  <p className="text-xs text-slate-500 text-center leading-tight">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Dashboard Preview ── */}
+        <section className="py-8 md:py-12">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_100px_rgba(0,200,5,0.07)]">
+              <Image
+                src="/assets/Dashboard/SidebarComponent/BlackHomePage.webp"
+                alt="Kafi Stock Dashboard"
+                width={1920}
+                height={1080}
+                className="w-full object-cover"
+                priority
+                unoptimized
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0e0d15] via-[#0e0d15]/10 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 flex flex-col md:flex-row items-end justify-between gap-4">
+                <div className="glass-panel rounded-xl p-5 max-w-md border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-4 h-4 text-[#00C805]" />
+                    <span className="text-xs font-bold text-[#00C805] uppercase tracking-wider">Live Dashboard</span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-1">Tùy chỉnh hoàn toàn</h3>
+                  <p className="text-slate-400 text-sm">Kéo, thả, resize tự do — không gian làm việc theo đúng cách bạn giao dịch.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="glass-panel rounded-xl px-4 py-3 text-center border border-white/10">
+                    <p className="text-[#00C805] font-black text-base">VN-Index</p>
+                    <p className="text-slate-200 text-sm font-bold">1,245.67</p>
+                    <p className="text-green-400 text-xs">+0.83%</p>
+                  </div>
+                  <div className="glass-panel rounded-xl px-4 py-3 text-center border border-white/10">
+                    <p className="text-[#00C805] font-black text-base">HNX30</p>
+                    <p className="text-slate-200 text-sm font-bold">218.45</p>
+                    <p className="text-red-400 text-xs">-0.21%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Features ── */}
+        <section className="py-24" id="features">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
+                Mọi công cụ bạn cần <span className="text-[#00C805]">trong một nơi</span>
+              </h2>
+              <p className="text-slate-400 max-w-xl mx-auto">
+                Không cần mở nhiều tab hay chuyển đổi ứng dụng. Toàn bộ dữ liệu và phân tích trong một bảng điều khiển.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {FEATURES.map((f) => (
+                <div key={f.title} className="group p-7 rounded-2xl glass-panel border border-white/5 hover:border-[#00C805]/25 transition-all duration-300">
+                  <div className={`w-11 h-11 rounded-xl ${f.bgColor} flex items-center justify-center mb-5`}>
+                    <f.icon className={`w-5 h-5 ${f.iconColor}`} />
+                  </div>
+                  <h3 className="text-lg font-bold mb-3">{f.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Module Showcase ── */}
+        <section className="py-24 bg-[#282832]/20" id="modules">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
+                10+ module <span className="text-[#00C805]">chuyên biệt</span>
+              </h2>
+              <p className="text-slate-400 max-w-xl mx-auto">
+                Mỗi module được thiết kế tối ưu cho một nhiệm vụ. Chọn những gì bạn cần, bỏ những gì không dùng.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {MODULE_SHOWCASES.map((mod) => (
+                <div key={mod.name} className="group relative rounded-2xl overflow-hidden border border-white/8 hover:border-[#00C805]/30 transition-all duration-300 bg-[#1a1a1a] cursor-pointer">
+                  {mod.tag && (
+                    <div className={`absolute top-3 right-3 z-10 px-2.5 py-0.5 rounded-full text-xs font-bold ${mod.tagColor}`}>
+                      {mod.tag}
+                    </div>
+                  )}
+                  <div className="relative h-44 overflow-hidden bg-[#0f0f0f]">
+                    <Image
+                      src={mod.image}
+                      alt={mod.name}
+                      fill
+                      className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      unoptimized
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#1a1a1a]" />
+                  </div>
+                  <div className="p-5">
+                    <h3 className="font-bold text-base mb-1.5">{mod.name}</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{mod.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-10">
+              <Link
+                href={ROUTES.LOGIN}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-[#00C805] text-[#0e0d15] font-extrabold rounded-xl hover:brightness-110 transition-all"
+              >
+                Khám phá tất cả module <ChevronRight className="w-5 h-5" />
               </Link>
             </div>
           </div>
         </section>
 
-        {/* Main Product Feature */}
-        <section className="py-20 bg-slate-900/30" id="features">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
-              <Image
-                alt="Professional stock trading dashboard with multiple charts and widgets"
-                className="w-full object-cover aspect-video"
-                src="https://images.unsplash.com/photo-1642790106117-e829e14a795f?q=80&w=2000&auto=format&fit=crop"
-                width={2000}
-                height={1125}
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/90 via-[#0a0a0a]/20 to-transparent flex items-end p-4 md:p-8">
-                <div className="glass-panel p-6 rounded-xl max-w-lg">
-                  <h3 className="text-2xl font-bold mb-2">Module kéo-thả</h3>
-                  <p className="text-slate-300">Sắp xếp biểu đồ, sổ lệnh và nguồn tin tức đúng theo cách bạn giao dịch. Không gian của bạn, luật chơi của bạn.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Key Features Grid */}
+        {/* ── How it works ── */}
         <section className="py-24">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="p-8 rounded-2xl glass-panel border border-slate-200/10 hover:border-[#00C805]/30 transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-[#00C805]/20 flex items-center justify-center text-[#00C805] mb-6">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold mb-4">Dữ liệu thời gian thực</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  Độ trễ dưới một giây trên nguồn giá toàn cầu. Trải nghiệm tốc độ của các nhà giao dịch chuyên nghiệp mà không cần chi phí tổ chức.
-                </p>
-              </div>
-              <div className="p-8 rounded-2xl glass-panel border border-slate-200/10 hover:border-[#00C805]/30 transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-[#00C805]/20 flex items-center justify-center text-[#00C805] mb-6">
-                  <LayoutDashboard className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold mb-4">Bố cục tùy chỉnh</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  Lưu không giới hạn hồ sơ không gian làm việc. Chuyển đổi giữa giao dịch ngắn hạn, phân tích dài hạn và chiến lược quyền chọn chỉ bằng một cú nhấp.
-                </p>
-              </div>
-              <div className="p-8 rounded-2xl glass-panel border border-slate-200/10 hover:border-[#00C805]/30 transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-[#00C805]/20 flex items-center justify-center text-[#00C805] mb-6">
-                  <Activity className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold mb-4">Chỉ báo nâng cao</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  Truy cập 150+ nghiên cứu kỹ thuật, nhận diện mẫu hình bằng AI và công cụ phân tích khối lượng chuẩn chuyên nghiệp.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Section */}
-        <section className="py-24" id="pricing">
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4">Bảng giá đơn giản, minh bạch</h2>
-              <p className="text-slate-400">Chọn gói phù hợp với phong cách giao dịch của bạn.</p>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
+                Bắt đầu <span className="text-[#00C805]">trong 3 bước</span>
+              </h2>
             </div>
-            {/* chưa điều chỉnh nên ẩn */}
-            <div className="grid md:grid-cols-2 gap-8"> 
-              {/* Pro Plan */}
-              {/* <div className="p-10 rounded-2xl glass-panel flex flex-col">
-                <h3 className="text-xl font-bold mb-2">Pro</h3>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black">$29</span>
-                  <span className="text-slate-500">/tháng</span>
-                </div>
-                <ul className="space-y-4 mb-10 flex-grow">
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#00C805] w-5 h-5" />
-                    <span>Không gian làm việc không giới hạn</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#00C805] w-5 h-5" />
-                    <span>Dữ liệu cổ phiếu thời gian thực</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#00C805] w-5 h-5" />
-                    <span>50+ chỉ báo kỹ thuật</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-slate-500">
-                    <XCircle className="w-5 h-5" />
-                    <span>Cảnh báo AI nâng cao</span>
-                  </li>
-                </ul>
-                <button className="w-full py-4 rounded-xl border border-[#00C805] text-[#00C805] font-bold hover:bg-[#00C805]/10 transition-colors cursor-pointer">
-                  Chọn gói Pro
-                </button>
-              </div> */}
 
-              {/* Elite Plan */}
-              {/* <div className="p-10 rounded-2xl bg-[#00C805] text-[#0a0a0a] flex flex-col relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-white/20 px-4 py-1 text-xs font-bold rounded-bl-lg">PHỔ BIẾN NHẤT</div>
-                <h3 className="text-xl font-bold mb-2">Elite</h3>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black">$79</span>
-                  <span className="text-[#0a0a0a]/70">/tháng</span>
+            <div className="grid md:grid-cols-3 gap-10">
+              {[
+                { step: 1, icon: Users, title: 'Tạo tài khoản', desc: 'Đăng ký miễn phí trong 30 giây. Không cần thẻ tín dụng.' },
+                { step: 2, icon: LayoutDashboard, title: 'Thiết kế workspace', desc: 'Kéo thả module vào bảng điều khiển theo cách bạn giao dịch.' },
+                { step: 3, icon: Activity, title: 'Phân tích thị trường', desc: 'Theo dõi danh mục, phân tích kỹ thuật và đưa ra quyết định nhanh hơn.' },
+              ].map((s) => (
+                <div key={s.step} className="flex flex-col items-center text-center gap-4">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-2xl bg-[#282832] border border-white/10 flex items-center justify-center">
+                      <s.icon className="w-8 h-8 text-[#00C805]" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#00C805] rounded-full flex items-center justify-center text-[#0e0d15] text-xs font-black">
+                      {s.step}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold">{s.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
                 </div>
-                <ul className="space-y-4 mb-10 flex-grow">
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#0a0a0a] w-5 h-5" />
-                    <span className="font-bold">Tất cả tính năng gói Pro</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#0a0a0a] w-5 h-5" />
-                    <span className="font-bold">Dữ liệu Phái sinh &amp; Crypto</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#0a0a0a] w-5 h-5" />
-                    <span className="font-bold">Bộ lọc AI chuyên sâu</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#0a0a0a] w-5 h-5" />
-                    <span className="font-bold">Truy cập API trực tiếp</span>
-                  </li>
-                </ul>
-                <button className="w-full py-4 rounded-xl bg-[#0a0a0a] text-white font-bold hover:brightness-125 transition-all cursor-pointer">
-                  Nâng cấp lên Elite
-                </button>
-              </div> */}
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pricing ── */}
+        {/* <section className="py-24 bg-[#282832]/20" id="pricing">
+          <div className="max-w-5xl mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
+                Bảng giá <span className="text-[#00C805]">đơn giản</span>
+              </h2>
+              <p className="text-slate-400">Chọn gói phù hợp với nhu cầu đầu tư của bạn.</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 items-start">
+              {PLANS.map((plan) => (
+                <div
+                  key={plan.name}
+                  className={`relative flex flex-col rounded-2xl p-8 border transition-all duration-300 ${
+                    plan.highlight
+                      ? 'bg-[#00C805] text-[#0e0d15] border-transparent shadow-[0_0_60px_rgba(0,200,5,0.2)] md:scale-105'
+                      : 'glass-panel border-white/10 hover:border-[#00C805]/30'
+                  }`}
+                >
+                  {plan.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0e0d15] text-[#00C805] text-xs font-black px-3 py-1 rounded-full border border-[#00C805]/40 whitespace-nowrap">
+                      PHỔ BIẾN NHẤT
+                    </div>
+                  )}
+                  <h3 className={`text-xl font-bold mb-2 ${plan.highlight ? 'text-[#0e0d15]' : ''}`}>{plan.name}</h3>
+                  <div className="mb-6">
+                    <span className={`text-3xl font-black ${plan.highlight ? 'text-[#0e0d15]' : 'text-white'}`}>{plan.price}</span>
+                    {plan.period && (
+                      <span className={`text-sm ml-1 ${plan.highlight ? 'text-[#0e0d15]/70' : 'text-slate-500'}`}>{plan.period}</span>
+                    )}
+                  </div>
+                  <ul className="space-y-3 mb-8 flex-grow">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2.5 text-sm">
+                        <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${plan.highlight ? 'text-[#0e0d15]' : 'text-[#00C805]'}`} />
+                        <span className={plan.highlight ? 'text-[#0e0d15]' : 'text-slate-300'}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={plan.href}
+                    className={`text-center py-3.5 rounded-xl font-bold text-sm transition-all ${
+                      plan.highlight
+                        ? 'bg-[#0e0d15] text-[#00C805] hover:bg-[#0e0d15]/90'
+                        : 'border border-[#00C805] text-[#00C805] hover:bg-[#00C805]/10'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section> */}
+
+        {/* ── CTA Banner ── */}
+        <section className="py-24">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            <div className="relative rounded-3xl overflow-hidden glass-panel border border-[#00C805]/20 p-12 md:p-16">
+              <div className="absolute inset-0 -z-10 bg-[#00C805]/4" />
+              <div className="absolute top-[-50%] left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#00C805]/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
+              <TrendingUp className="w-12 h-12 text-[#00C805] mx-auto mb-6" />
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5">
+                Sẵn sàng làm chủ{' '}
+                <span className="text-[#00C805]">thị trường?</span>
+              </h2>
+              <p className="text-slate-400 text-lg mb-10 max-w-lg mx-auto">
+                Hàng nghìn nhà đầu tư đã tin dùng Kafi Stock để theo dõi danh mục và phân tích cổ phiếu mỗi ngày.
+              </p>
+              <Link
+                href={ROUTES.LOGIN}
+                className="inline-flex items-center gap-2 px-10 py-5 bg-[#00C805] text-[#0e0d15] font-extrabold text-lg rounded-xl hover:brightness-110 hover:scale-105 transition-all"
+              >
+                Bắt đầu ngay — Miễn phí <ArrowUpRight className="w-5 h-5" />
+              </Link>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 pt-20 pb-10">
+      {/* ── Footer ── */}
+      <footer className="bg-[#282832]/40 border-t border-white/5 pt-16 pb-8">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-12 mb-16">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="col-span-2">
-              <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="text-[#00C805] w-8 h-8" />
-                <span className="text-xl font-bold tracking-tight">Kafi Stock</span>
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="text-[#00C805] w-7 h-7" />
+                <span className="text-xl font-black tracking-tight">Kafi Stock</span>
               </div>
-              <p className="text-slate-500 max-w-sm">
-                Nền tảng hỗ trợ theo dõi thị trường chứng khoán tối ưu. Được xây dựng bởi các nhà giao dịch, cho các nhà giao dịch.
+              <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
+                Nền tảng phân tích chứng khoán thời gian thực. Được xây dựng bởi các nhà đầu tư, cho các nhà đầu tư Việt Nam.
               </p>
+              <div className="flex gap-3 mt-6">
+                {[Globe, Share2, Mail].map((Icon, i) => (
+                  <a key={i} href="#" className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-[#00C805] hover:bg-[#00C805]/10 transition-all">
+                    <Icon className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
             </div>
             <div>
-              <h4 className="font-bold mb-6">Nền tảng</h4>
-              <ul className="space-y-4 text-slate-500 text-sm">
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Bảng giao dịch</a></li>
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Ứng dụng di động</a></li>
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Tài liệu Bên thứ 3</a></li>
+              <h4 className="font-bold text-sm mb-5 text-white">Nền tảng</h4>
+              <ul className="space-y-3 text-slate-500 text-sm">
+                <li><a href="#features" className="hover:text-[#00C805] transition-colors">Tính năng</a></li>
+                <li><a href="#modules" className="hover:text-[#00C805] transition-colors">Module</a></li>
+                <li><a href="#pricing" className="hover:text-[#00C805] transition-colors">Bảng giá</a></li>
+                <li><Link href={ROUTES.DASHBOARD} className="hover:text-[#00C805] transition-colors">Dashboard</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold mb-6">Công ty</h4>
-              <ul className="space-y-4 text-slate-500 text-sm">
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Giới thiệu</a></li>
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Tuyển dụng</a></li>
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Chính sách bảo mật</a></li>
-                <li><a className="hover:text-[#00C805] transition-colors" href="#">Điều khoản sử dụng</a></li>
+              <h4 className="font-bold text-sm mb-5 text-white">Công ty</h4>
+              <ul className="space-y-3 text-slate-500 text-sm">
+                <li><a href="#" className="hover:text-[#00C805] transition-colors">Giới thiệu</a></li>
+                <li><a href="#" className="hover:text-[#00C805] transition-colors">Chính sách bảo mật</a></li>
+                <li><a href="#" className="hover:text-[#00C805] transition-colors">Điều khoản sử dụng</a></li>
+                <li><a href="#" className="hover:text-[#00C805] transition-colors">Liên hệ</a></li>
               </ul>
             </div>
           </div>
-          <div className="pt-10 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-slate-500 text-xs">
-              © 2025 Kafi Stock. Đầu tư chứng khoán tiềm ẩn rủi ro đáng kể.
-            </p>
-            <div className="flex gap-6">
-              <a className="text-slate-400 hover:text-[#00C805] transition-colors" href="#"><Globe className="w-5 h-5" /></a>
-              <a className="text-slate-400 hover:text-[#00C805] transition-colors" href="#"><Share2 className="w-5 h-5" /></a>
-              <a className="text-slate-400 hover:text-[#00C805] transition-colors" href="#"><Mail className="w-5 h-5" /></a>
-            </div>
+          <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-slate-600 text-xs">© 2026 Kafi Stock. Đầu tư chứng khoán tiềm ẩn rủi ro đáng kể.</p>
+            <p className="text-slate-600 text-xs">Dữ liệu mang tính tham khảo — không phải tư vấn đầu tư.</p>
           </div>
         </div>
       </footer>
+
+
     </div>
   );
 }
