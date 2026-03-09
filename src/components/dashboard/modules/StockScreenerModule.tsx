@@ -28,6 +28,7 @@ import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
 import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
 import type { WatchListSummary, WatchListDetail } from '@/types/watchList';
 import * as layoutService from '@/services/layoutService';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 import { watchListService } from '@/services/watchListService';
 import { useStockScreener } from '@/hooks/useStockScreener';
 
@@ -684,6 +685,11 @@ export default function StockScreenerModule() {
               }}
               onColumnResized={onColumnResized}
               onColumnVisible={onColumnVisible}
+              onCellClicked={(params) => {
+                if (params.colDef.field === 'ticker' && params.data?.ticker) {
+                  useSelectedSymbolStore.getState().setSelectedSymbol(params.data.ticker);
+                }
+              }}
               onRowDragEnter={handleRowDragEnter}
               onRowDragLeave={handleRowDragLeave}
               // QUAN TRỌNG: getRowId để AG Grid có thể track và update đúng rows

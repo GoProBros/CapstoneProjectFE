@@ -343,24 +343,22 @@ export default function NewsModule() {
                     </div>
                     <div className="flex-none w-20 text-[#282832] font-medium">Ngày GDKHQ</div>
                     <div className="flex-1 text-[#282832] font-medium">Nội dung</div>
-                    <div className="flex-none w-9 text-[#282832] font-medium">Loại</div>
+                    <div className="flex-none w-7 text-[#282832] font-medium">Loại</div>
                   </div>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {eventData.map((event, index) => (
+              {eventData.map((event) => (
                 <tr key={event.id}>
                   <td colSpan={4}>
                     <div 
-                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${
-                        index % 2 === 0 ? (isDark ? 'bg-cyan-900/30' : 'bg-cyan-50') : ''
-                      }`}
+                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}`}
                     >
                       <div className="flex-none w-[70px] text-gray-300">{event.code}</div>
                       <div className="flex-none w-20 text-gray-300">{event.date}</div>
-                      <div className="flex-1 text-justify px-1 text-gray-300">{event.content}</div>
-                      <div className="flex-none w-9" style={{ color: '#34C85E' }}>
+                      <div className="flex-1 min-w-0 text-justify px-1 text-gray-300 truncate">{event.content}</div>
+                      <div className="flex-none w-7" style={{ color: '#34C85E' }}>
                         <span className={`iconify ${getEventIcon(event.type)}`} aria-hidden="true" style={{ fontSize: '24px' }}></span>
                       </div>
                     </div>
@@ -384,17 +382,15 @@ export default function NewsModule() {
               </tr>
             </thead>
             <tbody>
-              {reportData.map((report, index) => (
+              {reportData.map((report) => (
                 <tr key={report.id} className="cursor-pointer">
                   <td colSpan={4}>
                     <div 
-                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${
-                        index % 2 === 0 ? (isDark ? 'bg-cyan-900/30' : 'bg-cyan-50') : ''
-                      }`}
+                      className={`flex items-center w-full mt-2 rounded-lg px-3 py-1.5 ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}`}
                     >
                       <div className="flex-none w-[136px] text-gray-300">{report.code}</div>
                       <div className="flex-none w-[5.5rem] text-gray-300">{report.date}</div>
-                      <div className="flex-1 text-justify px-1 text-gray-300">{report.content}</div>
+                      <div className="flex-1 min-w-0 text-justify px-1 text-gray-300 truncate">{report.content}</div>
                     </div>
                   </td>
                 </tr>
