@@ -21,23 +21,15 @@ const HeaderSection = memo(function HeaderSection() {
         <IndustrySelect />
       </div>
 
-      {/* Center: Title với SVG decoration */}
-      <div className="flex-none hidden md:block">
-        <div className="flex relative origin-top-left text-yellow-400 rounded-b-lg overflow-hidden">
-          {/* Title */}
-          <div className="relative overflow-hidden -mx-0.5">
-            <svg
-              className="absolute inset-0"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              <rect width="100%" height="100%" fill="currentColor" />
-            </svg>
-            <div className="text-center font-semibold leading-8 text-[1.25rem] relative z-10 text-black px-4">
-              Báo cáo tài chính
-            </div>
-          </div>
+      {/* Center: Badge title */}
+      <div className="flex-none hidden md:flex items-center justify-center">
+        <div className="relative flex items-center justify-center">
+          <svg width="220" height="34" viewBox="0 0 136 22" className="block">
+            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-black tracking-wide">
+            Báo cáo tài chính
+          </span>
         </div>
       </div>
 

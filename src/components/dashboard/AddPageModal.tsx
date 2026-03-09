@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, LayoutGrid, Save, Copy, Check, AlertTriangle, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutGrid, Save, AlertTriangle, X } from 'lucide-react';
 import * as workspaceService from '@/services/workspaceService';
-import type { Workspace } from '@/types';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 interface AddPageModalProps {
     isOpen: boolean;
@@ -15,58 +15,16 @@ interface AddPageModalProps {
 
 export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, workspaceCount }: AddPageModalProps) {
     const [pageName, setPageName] = useState('');
-    const [selectedLayout, setSelectedLayout] = useState('Giao diện mặc định');
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(null);
-    const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
-    const [editingWorkspaceId, setEditingWorkspaceId] = useState<number | null>(null);
-    const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
+    const [mode, setMode] = useState<'create' | 'apply'>('create');
+    const maxWorkspaces = useSubscriptionStore(s => s.maxWorkspaces);
     const [shareCode, setShareCode] = useState('');
     const [isApplying, setIsApplying] = useState(false);
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const layoutOptions = ['Giao diện mặc định', 'Giao diện nâng cao', 'Giao diện đơn giản'];
-
-    // Load workspaces when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            loadWorkspaces();
-        }
-    }, [isOpen]);
-
-    const loadWorkspaces = async () => {
-        try {
-            const response = await workspaceService.getMyWorkspaces();
-            if (response.isSuccess && response.data) {
-                // Sort workspaces: ID 1 first, then others by ID ascending
-                const sortedWorkspaces = [...response.data].sort((a, b) => {
-                    if (a.id === 1) return -1;
-                    if (b.id === 1) return 1;
-                    return a.id - b.id;
-                });
-                setWorkspaces(sortedWorkspaces);
-            }
-        } catch (error) {
-            console.error('Error loading workspaces:', error);
-        }
-    };
-
-    const handleCopyShareCode = async (code: string) => {
-        try {
-            await navigator.clipboard.writeText(code);
-            setCopiedShareCode(code);
-            setTimeout(() => setCopiedShareCode(null), 2000);
-        } catch (error) {
-            console.error('Error copying to clipboard:', error);
-        }
-    };
-
     const handleApplyWorkspace = async () => {
-        // Check workspace limit
-        if (workspaceCount >= 6) {
-            setError('Bạn đã đạt giới hạn 6 workspace. Vui lòng xóa workspace cũ trước khi apply workspace mới.');
+        if (workspaceCount >= maxWorkspaces) {
+            setError(`Bạn đã đạt giới hạn ${maxWorkspaces} workspace. Vui lòng xóa workspace cũ trước khi apply workspace mới.`);
             return;
         }
 
@@ -97,9 +55,8 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
             return;
         }
 
-        // Check workspace limit before showing confirm popup
-        if (workspaceCount >= 6) {
-            setError('Bạn đã đạt giới hạn 6 workspace. Vui lòng xóa workspace cũ trước khi apply workspace mới.');
+        if (workspaceCount >= maxWorkspaces) {
+            setError(`Bạn đã đạt giới hạn ${maxWorkspaces} workspace. Vui lòng xóa workspace cũ trước khi apply workspace mới.`);
             return;
         }
 
@@ -109,98 +66,14 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
     if (!isOpen) return null;
 
     const handleSave = () => {
-        if (pageName.trim()) {
-            onSave(pageName.trim(), selectedLayout);
-            setPageName('');
-            setSelectedLayout('Giao diện mặc định');
-            onClose();
-        }
-    };
-
-    const handleStartEdit = (e: React.MouseEvent, ws: Workspace) => {
-        e.stopPropagation();
-        setEditingWorkspaceId(ws.id);
-        setEditingWorkspaceName(ws.workspaceName);
-    };
-
-    const handleCancelEdit = () => {
-        setEditingWorkspaceId(null);
-        setEditingWorkspaceName('');
-    };
-
-    const handleSaveEdit = async (workspaceId: number) => {
-        if (!editingWorkspaceName.trim()) {
-            setError('Tên workspace không được để trống');
+        if (!pageName.trim()) return;
+        if (workspaceCount >= maxWorkspaces) {
+            setError(`Bạn đã đạt giới hạn ${maxWorkspaces} workspace. Vui lòng xóa workspace cũ trước khi tạo mới.`);
             return;
         }
-
-        try {
-            const workspace = workspaces.find(w => w.id === workspaceId);
-            if (!workspace) return;
-
-            const response = await workspaceService.updateWorkspace(workspaceId, {
-                workspaceId: workspaceId.toString(),
-                workspaceName: editingWorkspaceName.trim(),
-                layoutJson: workspace.layoutJson,
-                isDefault: workspace.isDefault
-            });
-
-            if (response.isSuccess) {
-                // Update local workspace list
-                setWorkspaces(workspaces.map(w => 
-                    w.id === workspaceId 
-                        ? { ...w, workspaceName: editingWorkspaceName.trim() }
-                        : w
-                ));
-                
-                // Update localStorage if this workspace exists there
-                try {
-                    const savedPages = localStorage.getItem('dashboard-pages');
-                    if (savedPages) {
-                        const pages = JSON.parse(savedPages);
-                        const updatedPages = pages.map((p: any) => 
-                            p.workspaceId === workspaceId
-                                ? { ...p, name: editingWorkspaceName.trim() }
-                                : p
-                        );
-                        localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
-                    }
-                } catch (error) {
-                    console.error('Error updating localStorage:', error);
-                }
-
-                setEditingWorkspaceId(null);
-                setEditingWorkspaceName('');
-                setError(null);
-            } else {
-                setError(response.message || 'Có lỗi khi đổi tên workspace');
-            }
-        } catch (error: any) {
-            setError(error?.message || 'Có lỗi khi đổi tên workspace');
-        }
-    };
-
-    const handleSelectWorkspace = (workspaceId: number) => {
-        setSelectedWorkspaceId(workspaceId);
-        
-        // Load workspace from localStorage and apply it
-        try {
-            const savedPages = localStorage.getItem('dashboard-pages');
-            if (savedPages) {
-                const pages = JSON.parse(savedPages);
-                const workspace = pages.find((p: any) => p.workspaceId === workspaceId);
-                if (workspace) {
-                    // Switch to the selected workspace using the parent's handler
-                    onSwitchPage(workspace.id);
-                    
-                    // Close modal
-                    onClose();
-                }
-            }
-        } catch (error) {
-            console.error('Error loading workspace:', error);
-            setError('Có lỗi khi tải workspace');
-        }
+        onSave(pageName.trim(), 'Giao diện mặc định');
+        setPageName('');
+        onClose();
     };
 
     const handleClose = () => {
@@ -208,52 +81,64 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
         setShareCode('');
         setError(null);
         setShowConfirmPopup(false);
-        setSelectedWorkspaceId(null);
-        setEditingWorkspaceId(null);
-        setEditingWorkspaceName('');
         onClose();
     };
 
     return (
         <div 
-            className="fixed inset-0 bg-[black/70] flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
             onClick={handleClose}
         >
             <div 
-                className="w-full max-w-[1200px] h-[85vh] bg-[#0a0a0a] rounded-3xl border border-accentGreen shadow-2xl shadow-accentGreen/20 flex overflow-hidden relative"
+                className="w-full max-w-md bg-[#0a0a0a] rounded-2xl border border-accentGreen shadow-2xl shadow-accentGreen/20 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Close Button */}
                 <button
                     onClick={handleClose}
-                    className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center bg-gray-800 hover:bg-red-600 rounded-full transition-colors group"
+                    className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-gray-800 hover:bg-red-600 rounded-full transition-colors group"
                     title="Đóng"
                 >
-                    <X className="w-5 h-5 text-gray-300 group-hover:text-white" />
+                    <X className="w-4 h-4 text-gray-300 group-hover:text-white" />
                 </button>
 
-                {/* Content - Two Column Layout */}
-                <div className="flex-1 flex overflow-hidden">
-                    {/* Left Column - Workspace Management */}
-                    <div className="w-[400px] bg-moduleBackground border-r border-gray-800 overflow-y-auto p-6 space-y-6">
-                        {/* ShareCode Apply Section */}
-                        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
-                            <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-                                <Copy className="w-4 h-4 text-accentGreen" />
-                                Áp dụng Giao diện bằng Code
-                            </h3>
-                            <div className="flex gap-2">
+                <div className="p-6 pt-5">
+                    {/* Mode Toggle */}
+                    <div className="inline-flex bg-gray-800 rounded-lg p-0.5 mb-5 border border-gray-700">
+                        <button
+                            onClick={() => { setMode('create'); setError(null); }}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                                mode === 'create' ? 'bg-accentGreen text-white' : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            Tạo mới
+                        </button>
+                        <button
+                            onClick={() => { setMode('apply'); setError(null); }}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                                mode === 'apply' ? 'bg-accentGreen text-white' : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            Áp dụng Share Code
+                        </button>
+                    </div>
+
+                    {mode === 'apply' && (
+                        <div>
+                            <p className="text-gray-400 text-xs mb-3">Nhập Share Code để áp dụng workspace từ người khác</p>
+                            <div className="flex flex-col gap-2">
                                 <input
                                     type="text"
                                     value={shareCode}
                                     onChange={(e) => setShareCode(e.target.value)}
                                     placeholder="Nhập share code..."
-                                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-accentGreen"
+                                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-accentGreen"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleApplyClick(); }}
                                 />
                                 <button
                                     onClick={handleApplyClick}
-                                    disabled={isApplying || !shareCode.trim() || workspaceCount >= 6}
-                                    className="px-4 py-2 bg-accentGreen hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+                                    disabled={isApplying || !shareCode.trim()}
+                                    className="w-full py-2 bg-accentGreen hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
                                 >
                                     {isApplying ? 'Đang xử lý...' : 'Áp dụng'}
                                 </button>
@@ -265,297 +150,43 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                 </div>
                             )}
                         </div>
+                    )}
 
-                        {/* Workspace List Section */}
-                        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
-                            <div className="flex items-center gap-2 text-white font-medium mb-3">
-                                <LayoutGrid className="w-4 h-4 text-accentGreen" />
-                                <span>Danh sách Giao diện ({workspaces.length}/6)</span>
-                            </div>
-                            
-                            <div className="space-y-2 max-h-[calc(85vh-300px)] overflow-y-auto pr-2">
-                                {workspaces.length === 0 ? (
-                                    <div className="text-gray-500 text-sm text-center py-4">
-                                        Chưa có giao diện nào
-                                    </div>
-                                ) : (
-                                    workspaces.map((ws) => (
-                                        <div
-                                            key={ws.id}
-                                            onClick={() => editingWorkspaceId !== ws.id && handleSelectWorkspace(ws.id)}
-                                            className={`bg-gray-800 rounded-lg p-3 border transition-colors ${
-                                                editingWorkspaceId === ws.id 
-                                                    ? 'border-blue-500 bg-gray-750'
-                                                    : selectedWorkspaceId === ws.id 
-                                                        ? 'border-accentGreen bg-gray-700 cursor-pointer' 
-                                                        : 'border-gray-700 hover:border-gray-600 cursor-pointer'
-                                            }`}
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-gray-400 text-xs">ID:</span>
-                                                        <span className="text-white text-sm font-medium">{ws.id}</span>
-                                                    </div>
-                                                    {editingWorkspaceId === ws.id ? (
-                                                        <div className="mb-2">
-                                                            <input
-                                                                type="text"
-                                                                value={editingWorkspaceName}
-                                                                onChange={(e) => setEditingWorkspaceName(e.target.value)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                className="w-full px-2 py-1 bg-gray-900 border border-blue-500 rounded text-white text-sm focus:outline-none focus:border-blue-400"
-                                                                placeholder="Tên workspace..."
-                                                                autoFocus
-                                                            />
-                                                            <div className="flex gap-2 mt-2">
-                                                                <button
-                                                                    onClick={() => handleSaveEdit(ws.id)}
-                                                                    className="px-3 py-1 bg-accentGreen hover:bg-green-600 text-white text-xs rounded transition-colors"
-                                                                >
-                                                                    Lưu
-                                                                </button>
-                                                                <button
-                                                                    onClick={handleCancelEdit}
-                                                                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                                                                >
-                                                                    Hủy
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-gray-400 text-xs">Tên:</span>
-                                                            <span className="text-white text-sm truncate">{ws.workspaceName}</span>
-                                                        </div>
-                                                    )}
-                                                    {ws.shareCode && (
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-gray-400 text-xs">Code:</span>
-                                                            <span className="text-accentGreen text-xs font-mono">{ws.shareCode}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col gap-1">
-                                                    {editingWorkspaceId !== ws.id && ws.id !== 1 && (
-                                                        <button
-                                                            onClick={(e) => handleStartEdit(e, ws)}
-                                                            className="flex-shrink-0 p-2 bg-gray-700 hover:bg-blue-600 rounded-lg transition-colors"
-                                                            title="Đổi tên workspace"
-                                                        >
-                                                            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                            </svg>
-                                                        </button>
-                                                    )}
-                                                    {ws.shareCode && editingWorkspaceId !== ws.id && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleCopyShareCode(ws.shareCode!);
-                                                            }}
-                                                            className="flex-shrink-0 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                                                            title="Copy share code"
-                                                        >
-                                                            {copiedShareCode === ws.shareCode ? (
-                                                                <Check className="w-4 h-4 text-accentGreen" />
-                                                            ) : (
-                                                                <Copy className="w-4 h-4 text-gray-300" />
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column - Layout Preview */}
-                    <div className="flex-1 bg-moduleBackground overflow-y-auto p-8">
-                        {/* Controls Section */}
-                        <h3 className="text-white font-semibold mb-4">Tạo giao diện mới</h3>
-                        <div className="mb-6 flex items-center justify-between gap-4 pb-4 border-b border-gray-700">
-                            <div className="flex items-center gap-4 flex-1">
-                                {/* Dropdown Button */}
-                                <div className="relative flex-shrink-0">
-                                    <button
-                                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                        className="px-5 py-2.5 bg-transparent hover:bg-gray-900 text-white text-sm font-medium rounded-lg border border-gray-700 transition-colors flex items-center gap-2 whitespace-nowrap"
-                                    >
-                                        {selectedLayout}
-                                        <ChevronDown className="w-4 h-4" />
-                                    </button>
-                                    
-                                    {/* Dropdown Menu */}
-                                    {isDropdownOpen && (
-                                        <div className="absolute top-full mt-2 left-0 min-w-max bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-xl overflow-hidden z-10">
-                                            {layoutOptions.map((option) => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => {
-                                                        setSelectedLayout(option);
-                                                        setIsDropdownOpen(false);
-                                                    }}
-                                                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-gray-800 transition-colors flex items-center justify-between whitespace-nowrap"
-                                                >
-                                                    {option}
-                                                    {selectedLayout === option && (
-                                                        <svg className="w-4 h-4 text-accentGreen ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Name Input */}
-                                <div className="flex items-center gap-2 px-4 py-2 bg-transparent rounded-lg border border-accentGreen flex-shrink-0">
+                    {mode === 'create' && (
+                    <div>
+                        <h3 className="text-white text-sm font-semibold mb-3">Tên giao diện mới</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-transparent rounded-lg border border-accentGreen flex-1">
                                     <LayoutGrid className="w-4 h-4 text-accentGreen flex-shrink-0" />
                                     <input
                                         type="text"
                                         value={pageName}
                                         onChange={(e) => setPageName(e.target.value)}
                                         placeholder="Nhập tên giao diện mới"
-                                        className="bg-transparent border-none outline-none text-white placeholder-gray-500 text-sm w-52"
+                                        className="bg-transparent border-none outline-none text-white placeholder-gray-500 text-sm flex-1 min-w-0"
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleSave();
-                                            }
+                                            if (e.key === 'Enter') handleSave();
                                         }}
                                     />
                                 </div>
-                            </div>
 
                             {/* Save Button */}
                             <button
                                 onClick={handleSave}
                                 disabled={!pageName.trim()}
-                                className="p-3 bg-white hover:bg-gray-200 disabled:bg-gray-700 disabled:cursor-not-allowed text-black rounded-lg transition-colors flex-shrink-0"
+                                className="p-2.5 bg-white hover:bg-gray-200 disabled:bg-gray-700 disabled:cursor-not-allowed text-black rounded-lg transition-colors flex-shrink-0"
                             >
-                                <Save className="w-5 h-5" />
+                                <Save className="w-4 h-4" />
                             </button>
                         </div>
-
-                        <h3 className="text-white font-medium mb-4">Xem trước giao diện</h3>
-                    {selectedLayout === 'Giao diện mặc định' && (
-                        <div className="grid grid-cols-12 gap-4">
-                            {/* Row 1: Large module (8 cols) + Small module (4 cols) */}
-                            <div className="col-span-8 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-65">
-                                <div className="flex gap-4 mb-4">
-                                    <div className="w-16 h-16 bg-skeletonLine rounded-lg"></div>
-                                    <div className="flex-1">
-                                        {[...Array(3)].map((_, i) => (
-                                            <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                        ))}
-                                    </div>
-                                </div>
-                                {[...Array(8)].map((_, i) => (
-                                    <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                ))}
+                        {error && (
+                            <div className="mt-2 text-red-400 text-xs flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                {error}
                             </div>
-                            <div className="col-span-4 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-65">
-                                {[...Array(12)].map((_, i) => (
-                                    <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                ))}
-                            </div>
-
-                            {/* Row 2: 3 equal modules */}
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`row2-${idx}`} className="col-span-4 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-32">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-
-                            {/* Row 3: 3 equal modules */}
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`row3-${idx}`} className="col-span-4 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-32">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {selectedLayout === 'Giao diện nâng cao' && (
-                        <div className="grid grid-cols-3 gap-6">
-                            {/* Original advanced layout */}
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`top-${idx}`} className="bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-
-                            <div className="col-span-3 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-3">
-                                <div className="flex gap-4 mb-4">
-                                    <div className="w-20 h-20 bg-skeletonLine rounded-lg"></div>
-                                    <div className="flex-1">
-                                        {[...Array(4)].map((_, i) => (
-                                            <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                        ))}
-                                    </div>
-                                </div>
-                                {[...Array(6)].map((_, i) => (
-                                    <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                ))}
-                            </div>
-
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`bottom-${idx}`} className="bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {selectedLayout === 'Giao diện đơn giản' && (
-                        <div className="grid grid-cols-12 gap-4">
-                            {/* Row 1: Full width large module */}
-                            <div className="col-span-12 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-65">
-                                <div className="flex gap-4 mb-4">
-                                    <div className="w-16 h-16 bg-skeletonLine rounded-lg"></div>
-                                    <div className="flex-1">
-                                        {[...Array(3)].map((_, i) => (
-                                            <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                        ))}
-                                    </div>
-                                </div>
-                                {[...Array(8)].map((_, i) => (
-                                    <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                ))}
-                            </div>
-
-                            {/* Row 2: 3 equal modules */}
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`simple-row2-${idx}`} className="col-span-4 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-32">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-
-                            {/* Row 3: 3 equal modules */}
-                            {[...Array(3)].map((_, idx) => (
-                                <div key={`simple-row3-${idx}`} className="col-span-4 bg-moduleBackground rounded-2xl border-2 border-gray-700/40 p-4 h-32">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-3 bg-skeletonLine rounded mb-2"></div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                        )}
                     </div>
+                    )}
                 </div>
             </div>
 
@@ -569,10 +200,10 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                                 <h3 className="text-white font-semibold mb-2">Xác nhận Áp dụng Giao diện</h3>
                                 <p className="text-gray-300 text-sm">
                                     Việc áp dụng giao diện được share này tương đương với việc bạn tạo 1 giao diện mới. 
-                                    Vui lòng đảm bảo rằng số giao diện không vượt quá cho phép (tối đa 6 giao diện).
+                                    Vui lòng đảm bảo rằng số giao diện không vượt quá cho phép (tối đa {maxWorkspaces} giao diện).
                                 </p>
                                 <p className="text-gray-400 text-xs mt-2">
-                                    Hiện tại: {workspaceCount}/6 giao diện
+                                    Hiện tại: {workspaceCount}/{maxWorkspaces} giao diện
                                 </p>
                             </div>
                         </div>

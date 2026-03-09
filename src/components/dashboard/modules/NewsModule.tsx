@@ -284,58 +284,15 @@ export default function NewsModule() {
     <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm ${
       isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
     }`}>
-      {/* Header with "Tin Tức" badge */}
-      <div className="flex justify-center mb-2 pt-3">
-        <div className="flex items-center relative text-sm">
-          {/* Left edge */}
-          <svg
-            className="flex-none transform scale-x-[-1]"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            width="30"
-            height="32"
-            viewBox="0 0 30 32"
-          >
-            <path
-              d="M30,32C32.56273,31.7585,37.31779,31.219,40.7812,28C44.2447,24.781,46.875,18.1176,47.9297,15.8824C48.846599999999995,13.939,51.3281,8.47059,53.3163,4.94118C55.3347,1.35811,59.145399999999995,0,59.9781,0L30,0L30,32Z"
-              fill="currentColor"
-              style={{ color: '#34C85E' }}
-            />
+      {/* Badge title */}
+      <div className="flex-none flex items-center justify-center pt-1.5 pb-1">
+        <div className="relative flex items-center justify-center">
+          <svg width="150" height="25" viewBox="0 0 136 22" className="block">
+            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
           </svg>
-
-          {/* Center rectangle */}
-          <div className="relative overflow-hidden -mx-0.5">
-            <svg
-              className="absolute inset-0"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              <rect width="100%" height="100%" fill="currentColor" style={{ color: '#34C85E' }} />
-            </svg>
-            <div
-              className="text-center font-semibold leading-8 text-[1.25rem] relative z-1 px-3"
-              style={{ color: '#282832' }}
-            >
-              Tin Tức
-            </div>
-          </div>
-
-          {/* Right edge */}
-          <svg
-            className="flex-none"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            width="30"
-            height="32"
-            viewBox="0 0 30 32"
-          >
-            <path
-              d="M0,32C2.56273,31.7585,7.31779,31.219,10.7812,28C14.2447,24.781,16.875,18.1176,17.9297,15.8824C18.8466,13.939,21.3281,8.47059,23.3163,4.94118C25.3347,1.35811,29.1454,0,29.9781,0L0,0L0,32Z"
-              fill="currentColor"
-              style={{ color: '#34C85E' }}
-            />
-          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-black tracking-wide">
+            Tin Tức
+          </span>
         </div>
       </div>
 

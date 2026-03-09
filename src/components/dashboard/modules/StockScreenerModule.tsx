@@ -25,7 +25,6 @@ import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
 import { SaveLayoutModal, LayoutSelector } from '@/components/dashboard/layout';
 import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
-import { HEADER_GREEN } from '@/constants/colors';
 import type { ModuleLayoutSummary, ModuleLayoutDetail, ColumnConfig } from '@/types/layout';
 import type { WatchListSummary, WatchListDetail } from '@/types/watchList';
 import * as layoutService from '@/services/layoutService';
@@ -894,19 +893,15 @@ export default function StockScreenerModule() {
           isLoading={isSaving}
         />
         
-        {/* Module Header - Trapezoid Design */}
-        <div className="module-header flex items-center justify-center px-4 pt-0 pb-2 relative">
-          {/* Trapezoid Title Container - Only this part has green background and is draggable */}
-          <div 
-            className="drag-handle relative px-8 py-1.5 flex items-center gap-2 cursor-move select-none"
-            style={{
-              backgroundColor: HEADER_GREEN,
-              clipPath: 'polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%)',
-              minWidth: '400px',
-              justifyContent: 'center'
-            }}
-          >
-            <span className="text-borderDark font-semibold text-md">Bảng giá</span>
+        {/* Badge title (drag zone) */}
+        <div className="module-header flex items-center justify-center pt-1.5 pb-1">
+          <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
+            <svg width="220" height="34" viewBox="0 0 136 22" className="block">
+              <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-black tracking-wide">
+              Bảng giá
+            </span>
           </div>
         </div>
         

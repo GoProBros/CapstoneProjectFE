@@ -42,11 +42,6 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
 
   const modules = [
     { 
-      id: 'overview-chart', 
-      title: 'Biểu đồ tổng quan',
-      preview: '/assets/Dashboard/ModulePreviews/overview-chart.png'
-    },
-    { 
       id: 'vn-stock-chart', 
       title: 'Biểu đồ chứng khoán việt nam',
       preview: '/assets/Dashboard/ModulePreviews/vn-stock-chart.png'
@@ -81,16 +76,16 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
       title: 'Khớp lệnh',
       preview: '/assets/Dashboard/ModulePreviews/order-matching.png'
     },
-    { 
-      id: 'fa-advisor', 
-      title: 'Tư trụ F A',
-      preview: '/assets/Dashboard/ModulePreviews/fa-advisor.png'
-    },
-    { 
-      id: 'ta-advisor', 
-      title: 'Tư trụ T A',
-      preview: '/assets/Dashboard/ModulePreviews/ta-advisor.png'
-    },
+    // { 
+    //   id: 'fa-advisor', 
+    //   title: 'Tư trụ F A',
+    //   preview: '/assets/Dashboard/ModulePreviews/fa-advisor.png'
+    // },
+    // { 
+    //   id: 'ta-advisor', 
+    //   title: 'Tư trụ T A',
+    //   preview: '/assets/Dashboard/ModulePreviews/ta-advisor.png'
+    // },
     { 
       id: 'canslim', 
       title: 'Canslim',
@@ -98,13 +93,8 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
     },
     { 
       id: 'stock-screener', 
-      title: 'Bộ lọc cổ phiếu',
+      title: 'Bảng điện chứng khoán',
       preview: '/assets/Dashboard/ModulePreviews/stock-screener.png'
-    },
-    { 
-      id: 'trading-map', 
-      title: 'Trading Map',
-      preview: '/assets/Dashboard/ModulePreviews/trading-map.png'
     },
     { 
       id: 'heatmap', 
@@ -120,6 +110,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
 
   const handleAddModule = (moduleId: string, moduleTitle: string) => {
     addModule(moduleId, moduleTitle);
+    // Keep modal open so user can add multiple modules
   };
 
   return (

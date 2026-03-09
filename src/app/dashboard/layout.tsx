@@ -10,6 +10,7 @@ import { DashboardContext } from "@/contexts/DashboardContext";
 import { SignalRProvider } from "@/contexts/SignalRContext";
 import { useAuth } from "@/contexts/AuthContext";
 import * as workspaceService from "@/services/workspaceService";
+import { useSubscriptionStore } from "@/stores/subscriptionStore";
 
 interface Module {
   id: string;
@@ -102,10 +103,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated } = useAuth();
+  const maxWorkspaces = useSubscriptionStore((s) => s.maxWorkspaces);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [pages, setPages] = useState<PageData[]>([DEFAULT_PAGE]);
+  const [pages, setPages] = useState<PageData[]>([]);
   const [currentPageId, setCurrentPageId] = useState("default");
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -213,10 +215,10 @@ export default function DashboardLayout({
             console.log('[Dashboard] Loaded workspaces from localStorage:', migratedPages.length);
           } catch (error) {
             console.error('[Dashboard] Error parsing localStorage:', error);
-            setPages([DEFAULT_PAGE]);
+            setPages([]);
           }
         } else {
-          setPages([DEFAULT_PAGE]);
+          setPages([]);
         }
         
         if (savedCurrentPageId) {
@@ -277,15 +279,24 @@ export default function DashboardLayout({
               }
             });
             
-            // Ensure default page exists
-            const hasDefault = apiWorkspaces.some(w => w.id === 'default');
-            if (!hasDefault) {
-              apiWorkspaces.unshift(DEFAULT_PAGE);
+            // Use exactly what the server returns — do not inject a local
+            // fallback workspace. If the user has 0 workspaces, show empty.
+            if (apiWorkspaces.length === 0) {
+              setPages([]);
+              localStorage.removeItem('dashboard-pages');
+              localStorage.removeItem('dashboard-current-page');
+              return;
             }
             
             // Save to localStorage
             localStorage.setItem('dashboard-pages', JSON.stringify(apiWorkspaces));
-            
+
+            // After API sync, if the currently selected page no longer exists
+            // in the new list switch to first available.
+            setCurrentPageId((prev) =>
+              apiWorkspaces.some((w) => w.id === prev) ? prev : (apiWorkspaces[0]?.id ?? '')
+            );
+
             // Update UI
             setPages(apiWorkspaces);
             console.log('[Dashboard] Synced workspaces from API:', apiWorkspaces.length);
@@ -310,10 +321,10 @@ export default function DashboardLayout({
   // Note: localStorage is saved manually only when user makes changes
   // This prevents unnecessary saves during load/switch operations
 
-  // Get current page data
-  const currentPage = pages.find((p) => p.id === currentPageId) || pages[0];
-  const modules = currentPage.modules;
-  const layout = currentPage.layout;
+  // Get current page data (pages may be empty while loading)
+  const currentPage = pages.find((p) => p.id === currentPageId) ?? pages[0] ?? null;
+  const modules = currentPage?.modules ?? [];
+  const layout = currentPage?.layout ?? [];
 
   const handleOpenModal = () => {
     console.log("Opening modal...");
@@ -336,9 +347,9 @@ export default function DashboardLayout({
   const handleAddPage = async (pageName: string, layoutType: string) => {
     console.log("handleAddPage called with:", { pageName, layoutType });
 
-    // Check giao diện limit (maximum 6 giao diện)
-    if (pages.length >= 6) {
-      setNotification('Bạn đã đạt giới hạn giao diện. Vui lòng xóa giao diện cũ hoặc nâng cấp gói đăng kí để tạo mới.');
+    // Check workspace limit from subscription
+    if (pages.length >= maxWorkspaces) {
+      setNotification(`Bạn đã đạt giới hạn ${maxWorkspaces} giao diện. Vui lòng xóa giao diện cũ hoặc nâng cấp gói đăng kí để tạo mới.`);
       setTimeout(() => setNotification(null), 3000);
       return;
     }
@@ -708,8 +719,7 @@ export default function DashboardLayout({
       }
     }
 
-    setNotification(`Đã thêm "${moduleTitle}" thành công!`);
-    handleCloseModal();
+    setNotification(`Đã thêm ${moduleTitle}`);
 
     setTimeout(() => {
       setNotification(null);
@@ -882,6 +892,15 @@ export default function DashboardLayout({
                 currentPageId={currentPageId}
                 onSwitchPage={handleSwitchPage}
                 onDeletePage={handleDeletePage}
+                onRenamePage={(pageId, newName) =>
+                  setPages((prev) =>
+                    prev.map((p) =>
+                      p.id === pageId
+                        ? { ...p, name: newName, initial: newName.charAt(0).toUpperCase() }
+                        : p
+                    )
+                  )
+                }
                 workspaceCount={pages.length}
               />
               <main className="flex-1 overflow-y-auto relative">
@@ -890,9 +909,9 @@ export default function DashboardLayout({
                 {/* Success Notification */}
                 {notification && (
                   <div className="fixed top-4 right-4 z-[10000] animate-in slide-in-from-top">
-                    <div className="bg-buttonGreen text-black px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                    <div className="bg-gray-900/90 backdrop-blur-sm border border-gray-600 text-gray-100 px-5 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5">
                       <svg
-                        className="w-5 h-5"
+                        className="w-4 h-4 text-green-400 flex-shrink-0"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -904,7 +923,7 @@ export default function DashboardLayout({
                           d="M5 13l4 4L19 7"
                         />
                       </svg>
-                      <span className="font-medium">{notification}</span>
+                      <span className="text-sm font-medium">{notification}</span>
                     </div>
                   </div>
                 )}
