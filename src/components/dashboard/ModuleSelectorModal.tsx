@@ -109,7 +109,7 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
     { 
       id: 'ai-chat', 
       title: 'Trợ lý AI',
-      preview: '/assets/Dashboard/ModulePreviews/analysis-report.png'
+      preview: '/assets/Dashboard/ModulePreviews/AIAssistantModule.jpg'
     },
   ];
 
