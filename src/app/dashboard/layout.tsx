@@ -303,9 +303,13 @@ export default function DashboardLayout({
             // workspace before getMyWorkspaces returned).
             const mergedPages = (prev: PageData[]): PageData[] => {
               const apiIds = new Set(apiWorkspaces.map((w) => w.id));
-              // Keep locally-added pages that have a real workspaceId (created via API)
-              // but aren't in this GET response yet.
-              const recentLocal = prev.filter((p) => p.workspaceId && !apiIds.has(p.id));
+              // Keep locally-added pages that are:
+              //   1. Fully created (have workspaceId) but not yet in this API snapshot
+              //   2. Temp pages (page-* prefix) waiting for API confirmation
+              const recentLocal = prev.filter((p) =>
+                (p.workspaceId && !apiIds.has(p.id)) ||
+                (!p.workspaceId && p.id.startsWith('page-'))
+              );
               const merged = [...apiWorkspaces, ...recentLocal];
               localStorage.setItem('dashboard-pages', JSON.stringify(merged));
               return merged;
@@ -317,9 +321,9 @@ export default function DashboardLayout({
               const apiIds = new Set(apiWorkspaces.map((w) => w.id));
               // If still in API list, keep it
               if (apiIds.has(prev)) return prev;
-              // If it looks like a recently-created workspace (workspace-* prefix),
-              // keep it — it will be preserved in the merged pages above.
-              if (prev.startsWith('workspace-')) return prev;
+              // Keep recently-created workspaces (workspace-* prefix) or temp pages
+              // (page-* prefix) — both are preserved in mergedPages above.
+              if (prev.startsWith('workspace-') || prev.startsWith('page-')) return prev;
               return apiWorkspaces[0]?.id ?? '';
             });
 
@@ -379,16 +383,28 @@ export default function DashboardLayout({
     }
 
     const timestamp = Date.now();
+    const tempId = `page-${timestamp}`;
+
+    // Add to state immediately so the user sees the new empty workspace right away
+    // (no waiting for the API call to complete).
     const newPage: PageData = {
-      id: `page-${timestamp}`,
+      id: tempId,
       name: pageName,
       initial: pageName.charAt(0).toUpperCase(),
       modules: [],
       layout: [],
     };
 
+    setPages(prev => {
+      const updatedPages = [...prev, newPage];
+      localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+      return updatedPages;
+    });
+    localStorage.setItem('dashboard-current-page', tempId);
+    setCurrentPageId(tempId); // Switch to new page immediately
+
     try {
-      // Save to API if authenticated
+      // Persist to API in the background and promote temp page to a real workspace
       if (isAuthenticated) {
         const layoutJson = convertToBackendFormat(newPage);
         
@@ -399,27 +415,51 @@ export default function DashboardLayout({
         });
         
         if (response.isSuccess && response.data) {
-          newPage.id = `workspace-${response.data.id}`;
-          newPage.workspaceId = response.data.id;
-          console.log('[Dashboard] Workspace created in API:', response.data.id);
+          const wsId = `workspace-${response.data.id}`;
+          const wsData = response.data;
+
+          // Parse layoutJson returned by the server (may contain a default layout)
+          let resolvedModules: Module[] = [];
+          let resolvedLayout: LayoutItem[] = [];
+          const layoutData = wsData.layoutJson;
+          if (layoutData?.modules && Array.isArray(layoutData.modules) && layoutData.modules.length > 0) {
+            layoutData.modules.forEach((item: any) => {
+              resolvedModules.push({
+                id: item.i,
+                type: item.type,
+                title: item.title,
+                ...(item.activeLayoutId != null && { layoutId: item.activeLayoutId }),
+              });
+              resolvedLayout.push({ i: item.i, x: item.x, y: item.y, w: item.w, h: item.h });
+            });
+          }
+
+          // Promote the temp page: assign real ID, workspaceId, and any server layout
+          setPages(prev => {
+            const updatedPages = prev.map(p =>
+              p.id === tempId
+                ? {
+                    ...p,
+                    id: wsId,
+                    workspaceId: wsData.id,
+                    modules: resolvedModules.length > 0 ? resolvedModules : p.modules,
+                    layout: resolvedModules.length > 0 ? normalizeLayout(resolvedModules, resolvedLayout) : p.layout,
+                  }
+                : p
+            );
+            localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+            return updatedPages;
+          });
+          localStorage.setItem('dashboard-current-page', wsId);
+          setCurrentPageId(wsId);
+
+          console.log('[Dashboard] Workspace created in API:', wsData.id);
         }
       }
     } catch (error) {
       console.error('[Dashboard] Error creating workspace in API:', error);
-      // Continue with local-only workspace
+      // Temp page remains local-only; user can still use it this session
     }
-
-    setPages(prev => {
-      const updatedPages = [...prev, newPage];
-      localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
-      return updatedPages;
-    });
-
-    localStorage.setItem('dashboard-current-page', newPage.id);
-    
-    setCurrentPageId(newPage.id); // Auto switch to new page
-
-    console.log("New page:", newPage);
 
     setNotification(`Đã tạo page "${pageName}" thành công!`);
 
