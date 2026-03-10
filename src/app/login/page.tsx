@@ -416,7 +416,7 @@ export default function LoginPage() {
       <BackgroundEffects />
 
       {/* Error Popup - Outside all content */}
-      {error && (
+      {/* {error && (
         <motion.div
           initial={{ opacity: 0, x: 100, y: -20 }}
           animate={{ opacity: 1, x: 0, y: 0 }}
@@ -446,7 +446,7 @@ export default function LoginPage() {
             </div>
           </div>
         </motion.div>
-      )}
+      )} */}
 
       <div className="min-h-screen flex items-center justify-center px-4 py-4">
         <div className="w-full max-w-7xl flex items-center justify-center gap-8 lg:gap-16">
