@@ -16,9 +16,10 @@ interface SectorFilterProps {
   onSectorChange: (sector: Sector | null) => void;
   isLoading?: boolean;
   selectedSector?: Sector | null;
+  showAllOption?: boolean;
 }
 
-export default function SectorFilter({ onSectorChange, isLoading, selectedSector = null }: SectorFilterProps) {
+export default function SectorFilter({ onSectorChange, isLoading, selectedSector = null, showAllOption = false }: SectorFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -145,7 +146,20 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
               Không có ngành nào
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 p-3">
+            <>
+              {showAllOption && (
+                <button
+                  onClick={() => { onSectorChange(null); setIsOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm border-b transition-all ${
+                    selectedSector === null
+                      ? 'bg-blue-600 text-white'
+                      : isDark ? 'text-gray-300 hover:bg-gray-700 border-gray-700' : 'text-gray-700 hover:bg-gray-100 border-gray-200'
+                  }`}
+                >
+                  Tất cả ngành
+                </button>
+              )}
+              <div className="grid grid-cols-2 gap-2 p-3">
               {level2Sectors.map((sector) => (
                 <button
                   key={sector.id}
@@ -167,7 +181,8 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
                   </div>
                 </button>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}

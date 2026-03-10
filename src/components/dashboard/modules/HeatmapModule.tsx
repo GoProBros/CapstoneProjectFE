@@ -7,15 +7,13 @@ import { HeatmapItem } from '@/types/heatmap';
 import { heatmapService } from '@/services/heatmapService';
 import { watchListService } from '@/services/watchListService';
 import SignalRService from '@/services/signalRService';
-import { ExchangeCode, SymbolData, SymbolType } from '@/types/symbol';
+import { ExchangeCode, SymbolData } from '@/types/symbol';
 import { Sector } from '@/types/sector';
 import { WatchListSummary } from '@/types/watchList';
 import * as echarts from 'echarts';
 import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
 import ExchangeFilter from './StockScreener/ExchangeFilter';
 import SectorFilter from './StockScreener/SectorFilter';
-import IndexFilter, { type IndexType } from './StockScreener/IndexFilter';
-import SymbolTypeFilter from './StockScreener/SymbolTypeFilter';
 
 interface MarketStats {
   index: string;
@@ -38,8 +36,6 @@ export default function HeatmapModule() {
     return (saved === 'HSX' || saved === 'HNX' || saved === 'UPCOM') ? saved as ExchangeCode : 'HSX';
   });
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<IndexType | null>(null);
-  const [selectedSymbolType, setSelectedSymbolType] = useState<SymbolType | null>(null);
   const [customTickers, setCustomTickers] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -764,10 +760,8 @@ export default function HeatmapModule() {
             backgroundColor: 'rgba(0,0,0,0.7)',
             borderColor: 'rgba(255,255,255,0.2)',
             borderWidth: 1,
-            formatter: (params: any) => {
-              const stockCount = params.data.children?.length || 0;
-              return `${params.name} (${stockCount})`;
-            },
+            padding: [0, 10],
+            formatter: (params: any) => params.name,
           },
           itemStyle: {
             borderColor: isDark ? '#000' : '#1a1a1a',
@@ -788,6 +782,7 @@ export default function HeatmapModule() {
                 fontSize: 16,
                 fontWeight: 'bold',
                 color: '#fff',
+                padding: [0, 10],
               },
               label: { show: false },
             },
@@ -837,20 +832,12 @@ export default function HeatmapModule() {
   }, [heatmapData, isDark]); // Update when data or theme changes
 
   // Filter event handlers
-  const handleExchangeChange = (ex: ExchangeCode) => {
-    setSelectedExchange(prev => prev === ex ? null : ex);
+  const handleExchangeChange = (ex: ExchangeCode | null) => {
+    setSelectedExchange(ex);
   };
 
-  const handleSectorChange = (sector: Sector) => {
-    setSelectedSector(prev => prev?.id === sector.id ? null : sector);
-  };
-
-  const handleIndexChange = (index: IndexType | null) => {
-    setSelectedIndex(index);
-  };
-
-  const handleSymbolTypeChange = (type: SymbolType | null) => {
-    setSelectedSymbolType(type);
+  const handleSectorChange = (sector: Sector | null) => {
+    setSelectedSector(sector);
   };
 
   const fetchWatchLists = async () => {
@@ -895,47 +882,37 @@ export default function HeatmapModule() {
           onRefresh={fetchWatchLists}
         />
 
-        {/* Index Filter */}
-        <IndexFilter
-          onIndexChange={handleIndexChange}
-          selectedIndex={selectedIndex}
-        />
-
-        {/* Symbol Type Filter */}
-        <SymbolTypeFilter
-          onSymbolTypeChange={handleSymbolTypeChange}
-          selectedType={selectedSymbolType}
-        />
-
         {/* Exchange Filter */}
         <ExchangeFilter
           onExchangeChange={handleExchangeChange}
           selectedExchange={selectedExchange}
+          variant="dropdown"
         />
 
         {/* Sector Filter */}
         <SectorFilter
           onSectorChange={handleSectorChange}
           selectedSector={selectedSector}
+          showAllOption
         />
 
         {/* Connection Status */}
-        <div className={`ml-auto flex items-center justify-center w-8 h-8 rounded-full ${
+        {/* <div className={`ml-auto flex items-center justify-center w-8 h-8 rounded-full ${
           isConnected ? 'bg-green-500/20' : 'bg-red-500/20'
         }`}>
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
             title={isConnected ? 'Đang kết nối' : 'Ngắt kết nối'} />
-        </div>
+        </div> */}
       </div>
 
       {/* Connection Status Message */}
-      {!isConnected && (
+      {/* {!isConnected && (
         <div className="px-4 py-3 bg-yellow-500/10 border-l-4 border-yellow-500">
           <p className="text-sm text-yellow-500">
             Đang kết nối tới SignalR...
           </p>
         </div>
-      )}
+      )} */}
 
       {/* Market Overview */}
       {/* <div className={`px-4 py-4 ${isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'}`}>
