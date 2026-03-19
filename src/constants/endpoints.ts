@@ -40,6 +40,8 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/market-indices',
     BY_CODE: (code: string) => `/api/v1/market-indices/${code}`,
     CONSTITUENTS: (code: string) => `/api/v1/market-indices/${code}/constituents`,
+    LIVE: '/api/v1/market-indices/live',
+    INTRADAY: (code: string) => `/api/v1/market-indices/${code}/intraday`,
   },
   
   // Financial Report endpoints (in development)
@@ -120,6 +122,11 @@ export const API_ENDPOINTS = {
   // Heatmap endpoints
   HEATMAP: {
     BASE: '/api/heatmap',
+  },
+
+  // Market general endpoints (Smart Market Board etc.)
+  MARKET: {
+    AVG_VOLUME: '/api/v1/market/avg-volume',
   },
   
   // Legacy endpoints (to be removed)
