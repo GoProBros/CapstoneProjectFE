@@ -25,6 +25,8 @@ const moduleComponents: Record<string, React.ComponentType> = {
   'heatmap': Modules.HeatmapModule,
   'analysis-report': Modules.AnalysisReportModule,
   'ai-chat': Modules.AiChatModule,
+  'index': Modules.IndexModule,
+  'smart-board': Modules.SmartBoardModule,
 };
 
 export default function DashboardPage() {
