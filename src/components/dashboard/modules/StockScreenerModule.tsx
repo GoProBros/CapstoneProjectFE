@@ -642,7 +642,7 @@ export default function StockScreenerModule() {
               </div>
             </div>
         
-            {/* Action Buttons */}
+          {/* Action Buttons */}
             <div className="flex items-center gap-2">
               {/* Loading indicator when fetching workspace layout */}
               {!isWorkspaceLayoutIdLoaded && (
@@ -663,12 +663,26 @@ export default function StockScreenerModule() {
                 onRefresh={fetchLayouts}
                 onCreateNew={handleCreateNewLayout}
               />
+
+              {/* Column Manager Button — same style as FinancialReportPro */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                title="Quản lý cột"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isDark
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                }`}
+              >
+                <Table2 size={15} />
+                <span>Quản lý Cột</span>
+              </button>
             </div>
           </div>
       
           {/* Column Sidebar */}
           <ColumnSidebar />
-      
+
           {/* Loading Overlay - Hide content until layout is ready */}
           {!isLayoutReady && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-[#282832]/80 backdrop-blur-sm">
@@ -680,21 +694,7 @@ export default function StockScreenerModule() {
               </div>
             </div>
           )}
-      
-          {/* Floating Column Manager Button - Sticky vertical button like scrollbar */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            title="Quản lý cột"
-            className={`fixed right-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center justify-center gap-1 py-8 px-2 rounded-l-lg shadow-lg transition-all hover:px-3 ${
-              isDark 
-                ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-gray-900/50' 
-                : 'bg-white hover:bg-gray-50 text-gray-900 shadow-gray-300/50 border border-r-0 border-gray-200'
-            }`}
-          >
-            <Table2 size={16} />
-            <span className="text-[10px] font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Cột</span>
-          </button>
-      
+
           <div className={`flex-1 min-h-0 ${isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'}`}>
             <AgGridReact
               rowData={undefined}
