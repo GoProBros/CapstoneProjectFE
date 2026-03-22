@@ -1,6 +1,8 @@
 'use client';
 
-import { Dispatch, SetStateAction } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export type StaffFeature = 
@@ -11,15 +13,11 @@ export type StaffFeature =
     | 'news'
     | 'data';
 
-interface StaffSidebarProps {
-    activeFeature: StaffFeature;
-    setActiveFeature: Dispatch<SetStateAction<StaffFeature>>;
-}
-
-const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
+const menuItems: { id: StaffFeature; label: string; href: string; icon: JSX.Element }[] = [
     {
         id: 'dashboard',
         label: 'Dashboard',
+        href: '/staff',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -29,6 +27,7 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     {
         id: 'users',
         label: 'Quản Lí Người Dùng',
+        href: '/staff/users',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -38,6 +37,7 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     {
         id: 'financial-reports',
         label: 'Quản Lí Báo Cáo Tài Chính',
+        href: '/staff/financial-reports',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -47,6 +47,7 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     {
         id: 'analysis-reports',
         label: 'Quản Lí Báo Cáo Phân Tích',
+        href: '/staff/analysis-reports',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -56,6 +57,7 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     {
         id: 'news',
         label: 'Quản Lí Tin Tức',
+        href: '/staff/news',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -65,6 +67,7 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     {
         id: 'data',
         label: 'Quản Lí Dữ Liệu',
+        href: '/staff/data',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
@@ -73,16 +76,50 @@ const menuItems: { id: StaffFeature; label: string; icon: JSX.Element }[] = [
     },
 ];
 
-export default function StaffSidebar({ activeFeature, setActiveFeature }: StaffSidebarProps) {
+export default function StaffSidebar() {
     const { theme, toggleTheme } = useTheme();
+    const pathname = usePathname();
+    const [activeFeature, setActiveFeature] = useState<StaffFeature>('dashboard');
+
+    useEffect(() => {
+        if (pathname === '/staff') {
+            setActiveFeature('dashboard');
+            return;
+        }
+
+        if (pathname.startsWith('/staff/users')) {
+            setActiveFeature('users');
+            return;
+        }
+
+        if (pathname.startsWith('/staff/financial-reports')) {
+            setActiveFeature('financial-reports');
+            return;
+        }
+
+        if (pathname.startsWith('/staff/analysis-reports')) {
+            setActiveFeature('analysis-reports');
+            return;
+        }
+
+        if (pathname.startsWith('/staff/news')) {
+            setActiveFeature('news');
+            return;
+        }
+
+        if (pathname.startsWith('/staff/data')) {
+            setActiveFeature('data');
+            return;
+        }
+    }, [pathname]);
 
     return (
-        <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-            <nav className="flex-1 p-4 space-y-2">
+        <aside className="w-64 min-w-64 max-w-64 shrink-0 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+            <nav className="flex-1 overflow-y-auto p-4 space-y-2">
                 {menuItems.map((item) => (
-                    <button
+                    <Link
                         key={item.id}
-                        onClick={() => setActiveFeature(item.id)}
+                        href={item.href}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                             activeFeature === item.id
                                 ? 'bg-green-300 text-gray-900'
@@ -91,7 +128,7 @@ export default function StaffSidebar({ activeFeature, setActiveFeature }: StaffS
                     >
                         {item.icon}
                         <span className="text-sm font-medium">{item.label}</span>
-                    </button>
+                    </Link>
                 ))}
             </nav>
             
