@@ -47,11 +47,32 @@ const periodFormatter = (params: any) => {
  * Column definitions cho Financial Report with expand/collapse groups
  * Uses flattened data structure from FinancialReportTableRow type
  */
-export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
-  // ===== KỲ BÁO CÁO (Always visible - Pinned) =====
-  {
-    headerName: 'KỲ BÁO CÁO',
-    children: [
+export const getColumnDefs = (
+  visibleGroups?: Record<string, boolean>,
+  visibleFields?: Record<string, boolean>,
+): (ColDef | ColGroupDef)[] => {
+  /**
+   * Returns true when a group should be shown.
+   * If visibleGroups is undefined (no store connected), all groups are shown.
+   */
+  const isVisible = (groupId: string) =>
+    visibleGroups ? (visibleGroups[groupId] ?? true) : true;
+
+  /**
+   * Returns true when a column field should be HIDDEN.
+   * visibleFields[field] === false → hide.
+   * Missing entry (undefined) → show.
+   */
+  const fieldHide = (field: string): boolean =>
+    visibleFields ? visibleFields[field] === false : false;
+
+  // Build the full column definitions array, filtering out hidden groups
+  const defs: (ColDef | ColGroupDef)[] = [
+    // ===== KỲ BÁO CÁO (Always visible - Pinned) =====
+    {
+      headerName: 'KỲ BÁO CÁO',
+      groupId: 'kyBaoCao',
+      children: [
       { 
         field: 'ticker', 
         headerName: 'Mã', 
@@ -70,6 +91,7 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
         headerName: 'Năm', 
         width: 80, 
         pinned: 'left',
+        hide: fieldHide('year'),
         cellRenderer: (params: any) => {
           if (params.data?.isTickerHeader) return '';
           return params.value;
@@ -80,6 +102,7 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
         headerName: 'Kỳ', 
         width: 100, 
         pinned: 'left',
+        hide: fieldHide('periodLabel'),
         valueFormatter: periodFormatter,
         cellRenderer: (params: any) => {
           if (params.data?.isTickerHeader) return '';
@@ -90,6 +113,7 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
   },
 
   // ===== 1. BALANCE SHEET =====
+  ...(!isVisible('balanceSheet') ? [] : [
   {
     headerName: 'CÂN ĐỐI KẾ TOÁN',
     groupId: 'balanceSheet',
@@ -459,8 +483,10 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
       },
     ]
   },
+  ] as (ColDef | ColGroupDef)[]),
 
   // ===== 2. INCOME STATEMENT =====
+  ...(!isVisible('incomeStatement') ? [] : [
   {
     headerName: 'KẾT QUẢ KINH DOANH',
     groupId: 'incomeStatement',
@@ -834,8 +860,10 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
       },
     ]
   },
+  ] as (ColDef | ColGroupDef)[]),
 
   // ===== 3. CASH FLOW STATEMENT =====
+  ...(!isVisible('cashFlowStatement') ? [] : [
   {
     headerName: 'LƯU CHUYỂN TIỀN TỆ',
     groupId: 'cashFlowStatement',
@@ -884,10 +912,13 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
       },
     ]
   },
+  ] as (ColDef | ColGroupDef)[]),
 
   // ===== FILE DOWNLOAD =====
+  ...(!isVisible('documents') ? [] : [
   {
     headerName: 'TÀI LIỆU',
+    groupId: 'documents',
     children: [
       { 
         field: 'fileUrl', 
@@ -911,7 +942,50 @@ export const getColumnDefs = (): (ColDef | ColGroupDef)[] => [
       },
     ],
   },
-];
+  ] as (ColDef | ColGroupDef)[]),
+  ];
+
+  // ── Filter hidden sub-groups out of defs (removes column group headers) ────
+  // This must run BEFORE applyHide so field-level hide is applied on survivors.
+  const applyGroupFilter = (columns: (ColDef | ColGroupDef)[]): (ColDef | ColGroupDef)[] =>
+    columns
+      .filter((col) => {
+        const groupId = (col as ColGroupDef).groupId;
+        // Keep columns with no groupId; keep groups whose groupId is visible
+        return !groupId || isVisible(groupId);
+      })
+      .map((col) => {
+        if ('children' in col && Array.isArray((col as ColGroupDef).children)) {
+          return {
+            ...col,
+            children: applyGroupFilter(
+              (col as ColGroupDef).children as (ColDef | ColGroupDef)[]
+            ),
+          };
+        }
+        return col;
+      });
+
+  const filteredDefs = visibleGroups ? applyGroupFilter(defs) : defs;
+
+  // ── Apply per-field hide after building the full defs ─────────────────────
+  if (visibleFields) {
+    const applyHide = (columns: (ColDef | ColGroupDef)[]): (ColDef | ColGroupDef)[] =>
+      columns.map((col) => {
+        if ('children' in col) {
+          return { ...col, children: applyHide(col.children as (ColDef | ColGroupDef)[]) };
+        }
+        const c = col as ColDef;
+        if (c.field && visibleFields[c.field] === false) {
+          return { ...c, hide: true };
+        }
+        return c;
+      });
+    return applyHide(filteredDefs);
+  }
+
+  return filteredDefs;
+};
 
 /**
  * Default column definition

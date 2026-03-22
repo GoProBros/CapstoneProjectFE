@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFinancialReportQuery } from '@/hooks/useFinancialReportQuery';
 import HeaderSection from './FinancialReportPro/HeaderSection';
 import FinancialReportTable from './FinancialReportPro/FinancialReportTable';
+import { FinancialReportColumnSidebar } from './FinancialReportPro/FinancialReportColumnSidebar';
 
 // Optimized QueryClient for non-realtime data with extended caching
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
 
   return (
     <div className="rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-between">
+      <FinancialReportColumnSidebar />
       <HeaderSection />
       <FinancialReportTable 
         data={data?.items || []} 

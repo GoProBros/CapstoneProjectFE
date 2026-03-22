@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { FolderOpen, ChevronDown, Check, Trash2, Loader2, Plus } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
-import type { ModuleLayoutSummary } from '@/types/layout';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  FolderOpen,
+  ChevronDown,
+  Check,
+  Trash2,
+  Loader2,
+  Plus,
+} from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import type { ModuleLayoutSummary } from "@/types/layout";
 
 interface LayoutSelectorProps {
   layouts: ModuleLayoutSummary[];
@@ -27,20 +34,23 @@ export default function LayoutSelector({
   onCreateNew, // NEW: callback
 }: LayoutSelectorProps) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = theme === "dark";
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Load layouts when dropdown opens
@@ -77,35 +87,39 @@ export default function LayoutSelector({
         onClick={handleToggle}
         disabled={isLoading}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
-          isDark 
-            ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50' 
-            : 'bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300'
+          isDark
+            ? "bg-green-600 hover:bg-green-700 text-white disabled:bg-green-800 disabled:opacity-50"
+            : "bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300"
         }`}
       >
         {isLoading ? (
-          <Loader2 size={18} className="animate-spin" />
+          <Loader2 size={14} className="animate-spin" />
         ) : (
-          <FolderOpen size={18} />
+          <FolderOpen size={14} />
         )}
-        <span className="text-sm max-w-[150px] truncate">{currentLayoutName}</span>
-        <ChevronDown 
-          size={16} 
-          className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        <span className="text-sm max-w-[150px] truncate">
+          {currentLayoutName}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div 
+        <div
           className={`absolute top-full right-0 mt-2 w-64 rounded-lg shadow-lg border z-50 overflow-hidden ${
-            isDark 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
+            isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
           }`}
         >
           {/* Header */}
-          <div className={`px-3 py-2 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-            <span className={`text-xs font-medium uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div
+            className={`px-3 py-2 border-b ${isDark ? "border-gray-700" : "border-gray-200"}`}
+          >
+            <span
+              className={`text-xs font-medium uppercase ${isDark ? "text-gray-400" : "text-gray-500"}`}
+            >
               Chọn bố cục
             </span>
           </div>
@@ -115,9 +129,9 @@ export default function LayoutSelector({
             <button
               onClick={handleCreateNew}
               className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors border-b ${
-                isDark 
-                  ? 'hover:bg-blue-900/30 text-blue-400 border-gray-700' 
-                  : 'hover:bg-blue-50 text-blue-600 border-gray-200'
+                isDark
+                  ? "hover:bg-blue-900/30 text-blue-400 border-gray-700"
+                  : "hover:bg-blue-50 text-blue-600 border-gray-200"
               }`}
             >
               <Plus size={16} />
@@ -130,61 +144,75 @@ export default function LayoutSelector({
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 size={20} className="animate-spin text-gray-400" />
-                <span className={`ml-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <span
+                  className={`ml-2 text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                >
                   Đang tải...
                 </span>
               </div>
             ) : layouts.length === 0 ? (
-              <div className={`px-3 py-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div
+                className={`px-3 py-4 text-center text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+              >
                 Không có bố cục nào
               </div>
             ) : (
               // Sort layouts by id ascending
-              [...layouts].sort((a, b) => a.id - b.id).map((layout) => (
-                <div
-                  key={layout.id}
-                  onClick={() => handleSelect(layout)}
-                  className={`flex items-center justify-between px-3 py-2.5 cursor-pointer transition-colors ${
-                    currentLayoutId === layout.id
-                      ? isDark 
-                        ? 'bg-green-900/30 text-green-400' 
-                        : 'bg-green-50 text-green-600'
-                      : isDark 
-                        ? 'hover:bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {currentLayoutId === layout.id && (
-                      <Check size={16} className="flex-shrink-0 text-green-500" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {layout.layoutName}
-                      </div>
-                      <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {layout.isSystemDefault ? 'Mặc định hệ thống' : 
-                         layout.isPersonal ? 'Cá nhân' : 'Chia sẻ'}
+              [...layouts]
+                .sort((a, b) => a.id - b.id)
+                .map((layout) => (
+                  <div
+                    key={layout.id}
+                    onClick={() => handleSelect(layout)}
+                    className={`flex items-center justify-between px-3 py-2.5 cursor-pointer transition-colors ${
+                      currentLayoutId === layout.id
+                        ? isDark
+                          ? "bg-green-900/30 text-green-400"
+                          : "bg-green-50 text-green-600"
+                        : isDark
+                          ? "hover:bg-gray-700 text-gray-200"
+                          : "hover:bg-gray-50 text-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {currentLayoutId === layout.id && (
+                        <Check
+                          size={16}
+                          className="flex-shrink-0 text-green-500"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {layout.layoutName}
+                        </div>
+                        <div
+                          className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}
+                        >
+                          {layout.isSystemDefault
+                            ? "Mặc định hệ thống"
+                            : layout.isPersonal
+                              ? "Cá nhân"
+                              : "Chia sẻ"}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Delete button - only for non-system layouts */}
+                    {onDelete && !layout.isSystemDefault && (
+                      <button
+                        onClick={(e) => handleDelete(e, layout)}
+                        className={`p-1 rounded transition-colors flex-shrink-0 ${
+                          isDark
+                            ? "hover:bg-red-900/50 text-gray-500 hover:text-red-400"
+                            : "hover:bg-red-50 text-gray-400 hover:text-red-500"
+                        }`}
+                        title="Xóa bố cục"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
-                  
-                  {/* Delete button - only for non-system layouts */}
-                  {onDelete && !layout.isSystemDefault && (
-                    <button
-                      onClick={(e) => handleDelete(e, layout)}
-                      className={`p-1 rounded transition-colors flex-shrink-0 ${
-                        isDark 
-                          ? 'hover:bg-red-900/50 text-gray-500 hover:text-red-400' 
-                          : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
-                      }`}
-                      title="Xóa bố cục"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))
+                ))
             )}
           </div>
         </div>
