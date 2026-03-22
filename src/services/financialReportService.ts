@@ -430,3 +430,27 @@ export async function fetchFinancialReportsByTicker(
     return { items: [], totalCount: 0 };
   }
 }
+
+/**
+ * Fetch paginated financial reports for dashboard listing
+ * @param pageIndex - Page index (1-based)
+ * @param pageSize - Number of records per page
+ */
+export async function fetchRecentFinancialReports(
+  pageIndex: number = 1,
+  pageSize: number = 5
+): Promise<PaginatedData<FinancialReport>> {
+  const params = new URLSearchParams({
+    PageIndex: pageIndex.toString(),
+    PageSize: pageSize.toString(),
+  });
+
+  const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.FINANCIAL_REPORTS}?${params.toString()}`;
+  const response = await get<PaginatedData<FinancialReport>>(endpoint);
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể tải dữ liệu báo cáo tài chính');
+  }
+
+  return response.data;
+}
