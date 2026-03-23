@@ -3,12 +3,12 @@
 export default function FinancialReportsFeature() {
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                        Quản Lí Báo Cáo Tài Chính
+                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 font-headline mb-2">
+                        Quản lý Báo Cáo Tài Chính
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
                         Quản lý và kiểm duyệt các báo cáo tài chính doanh nghiệp
                     </p>
                 </div>

@@ -130,6 +130,17 @@ export default function DashboardFeature() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+        <div>
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 font-headline mb-2">
+            Tổng quan hệ thống
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
+            Theo dõi nhanh các chỉ số chính, xu hướng người dùng và doanh thu hệ thống.
+          </p>
+        </div>
+      </div>
+
       {/* Dashboard Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
@@ -328,7 +339,7 @@ export default function DashboardFeature() {
               Quản lý báo cáo tài chính gần đây
             </h3>
             <button
-              onClick={() => router.push("/staff/financial-reports")}
+              onClick={() => router.push("/SystemManager/financial-reports")}
               className="text-slate-900 dark:text-slate-100 text-[11px] font-bold whitespace-nowrap"
             >
               Xem tất cả báo cáo
@@ -426,7 +437,7 @@ export default function DashboardFeature() {
               Báo cáo phân tích gần đây
             </h3>
             <button
-              onClick={() => router.push("/staff/analysis-reports")}
+              onClick={() => router.push("/SystemManager/analysis-reports")}
               className="text-slate-900 dark:text-slate-100 text-[11px] font-bold whitespace-nowrap"
             >
               Xem tất cả phân tích
