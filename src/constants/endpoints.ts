@@ -104,6 +104,13 @@ export const API_ENDPOINTS = {
     MOMO_SYNC: (orderCode: number) => `/api/v1/payments/momo/sync/${orderCode}`,
   },
 
+  // User Management endpoints
+  USER_MANAGEMENT: {
+    BASE: '/api/v1/users',
+    BY_ID: (id: string) => `/api/v1/users/${id}`,
+    CREATE_STAFF: '/api/v1/users/staff',
+  },
+
   // SignalR Hub
   HUBS: {
     MARKET_DATA: '/hubs/marketdata',
