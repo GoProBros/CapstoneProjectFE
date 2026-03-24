@@ -17,6 +17,8 @@ export interface SmartBoardFilters {
   volumePeriod: VolumePeriod;
   /** If set, restrict displayed tickers to those in this watchlist */
   watchlistId: number | null;
+  /** If true, hide tickers with volume === 0 (not yet traded today) */
+  hideNoTrading: boolean;
 }
 
 /** Average daily volume for one ticker (from backend) */

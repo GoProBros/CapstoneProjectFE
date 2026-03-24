@@ -1,18 +1,10 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useIndexSignalR } from '@/hooks/useIndexSignalR';
 import IndexMiniChart from './IndexModule/IndexMiniChart';
+import { getMarketIndices } from '@/services/marketIndexService';
 import type { LiveIndexData, IndexHistoryPoint } from '@/types/marketIndex';
-
-// Only indices that SSI actually streams via MI channel in real-time
-const ALL_CODES = [
-  'VNINDEX', 'VN30', 'VN100', 'VNSI', 'VNDIAMOND',
-  'VNCOND', 'VNCONS', 'VNENE', 'VNFIN', 'VNFINLEAD', 'VNFINSELECT',
-  'VNHEAL', 'VNIND', 'VNIT', 'VNMAT', 'VNREAL', 'VNUTI',
-  'VNX50',
-  'HNXINDEX', 'HNX30', 'HNXUPCOMINDEX',
-] as const;
 
 const DEFAULT_CHART = ['VNINDEX', 'VN30', 'HNX30', 'HNXINDEX'];
 const LS_KEY        = 'index-module-chart-codes';
@@ -89,7 +81,19 @@ function TableRow({ d, isCharted, onToggle }: TableRowProps) {
 
 export default function IndexModule() {
   const [chartCodes, setChartCodes] = useState<string[]>(loadSavedCodes);
-  const { indexData, historyData, isLoading } = useIndexSignalR([...ALL_CODES]);
+  const [allCodes, setAllCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    getMarketIndices({ status: 1, pageSize: 100 })
+      .then((res) => {
+        if (res.data?.items && res.data.items.length > 0) {
+          setAllCodes(res.data.items.map((i) => i.code));
+        }
+      })
+      .catch((err) => console.error('[IndexModule] Failed to load index codes:', err));
+  }, []);
+
+  const { indexData, historyData, isLoading } = useIndexSignalR(allCodes);
 
   const toggleChart = useCallback((code: string) => {
     setChartCodes(prev => {
@@ -101,7 +105,7 @@ export default function IndexModule() {
     });
   }, []);
 
-  if (isLoading && indexData.size === 0) {
+  if (allCodes.length === 0 || (isLoading && indexData.size === 0)) {
     return (
       <div className="flex items-center justify-center h-full">
         <span className="text-xs text-gray-500">Đang tải dữ liệu chỉ số…</span>
@@ -114,8 +118,8 @@ export default function IndexModule() {
       {/* Badge title — same style as HeatmapModule / SmartBoardModule */}
       <div className="flex-none flex items-center justify-center pt-1.5 pb-0.5">
         <div className="relative flex items-center justify-center cursor-move drag-handle select-none">
-          <svg width="200" height="28" viewBox="0 0 136 22" className="block">
-            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          <svg width="320" height="28" viewBox="0 0 200 22" className="block whitespace-nowrap">
+            <path d="M198 0C215 0 -15 0 2 0C19 0 27 22 46 22H156C175 22 181 0 198 0Z" fill="#4ADE80"/>
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
             Chỉ số thị trường
@@ -164,7 +168,7 @@ export default function IndexModule() {
             </tr>
           </thead>
           <tbody>
-            {ALL_CODES.map(code => {
+            {allCodes.map(code => {
               const d = indexData.get(code);
               if (d) {
                 return <TableRow key={code} d={d} isCharted={chartCodes.includes(code)} onToggle={toggleChart} />;
