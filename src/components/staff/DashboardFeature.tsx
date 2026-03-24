@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Award, CreditCard, MoreHorizontal } from "lucide-react";
 import analysisReportService from "@/services/analysisReportService";
 import { fetchRecentFinancialReports } from "@/services/financialReportService";
+import statisticService from "@/services/statisticService";
+import DashboardStatsCards from "@/components/staff/dashboard/DashboardStatsCards";
+import NewUsersChart from "@/components/staff/dashboard/NewUsersChart";
+import RevenueChart from "@/components/staff/dashboard/RevenueChart";
 import type {
   AnalysisReport,
   AnalysisReportCategory,
 } from "@/types/analysisReport";
 import { CommonStatus } from "@/types/file";
 import { FinancialReportStatus, type FinancialReport } from "@/types/financialReport";
+import type { SubscriptionStatisticsDto } from "@/types/subscription";
 
 function formatDate(date?: string) {
   if (!date) return "--";
@@ -62,8 +66,39 @@ function getFinancialStatusClass(status: FinancialReportStatus) {
   }
 }
 
+function formatTrend(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
+  if (safeValue > 0) {
+    return {
+      icon: "↗",
+      className: "text-emerald-600",
+      text: `+${safeValue.toFixed(2)}%`,
+    };
+  }
+
+  if (safeValue < 0) {
+    return {
+      icon: "↘",
+      className: "text-red-600",
+      text: `${safeValue.toFixed(2)}%`,
+    };
+  }
+
+  return {
+    icon: "→",
+    className: "text-slate-500 dark:text-slate-400",
+    text: "0.00%",
+  };
+}
+
 export default function DashboardFeature() {
   const router = useRouter();
+  const [statistics, setStatistics] = useState<SubscriptionStatisticsDto | null>(
+    null
+  );
+  const [isLoadingStatistics, setIsLoadingStatistics] = useState(true);
+  const [statisticsError, setStatisticsError] = useState<string | null>(null);
   const [financialReports, setFinancialReports] = useState<FinancialReport[]>([]);
   const [isLoadingFinancial, setIsLoadingFinancial] = useState(true);
   const [financialError, setFinancialError] = useState<string | null>(null);
@@ -74,7 +109,60 @@ export default function DashboardFeature() {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  const totalUsers = statistics?.totalUsers ?? 0;
+  const totalRevenue = statistics?.totalRevenue ?? 0;
+  const paidCustomers = (statistics?.currentUsersByVipLevel ?? []).reduce(
+    (total, current) => total + current.userCount,
+    0
+  );
+
+  const latestNewUserGrowth =
+    statistics?.newUsersGrowthPercentageByMonth.at(-1) ?? 0;
+  const latestRevenueGrowth =
+    statistics?.revenueGrowthPercentageByMonth.at(-1) ?? 0;
+  const paidUserRatioGrowth =
+    totalUsers > 0 ? (paidCustomers * 100) / totalUsers : 0;
+
+  const userTrend = formatTrend(latestNewUserGrowth);
+  const paidTrend = formatTrend(paidUserRatioGrowth);
+  const revenueTrend = formatTrend(latestRevenueGrowth);
+  const shouldShowStatisticsValue = !isLoadingStatistics && !statisticsError;
+
+  const monthLabels = statistics?.monthLabels ?? [];
+  const newUsersByMonth = statistics?.newUsersByMonth ?? [];
+  const revenueByMonth = statistics?.revenueByMonth ?? [];
+
+  const chartDataLength = Math.max(
+    monthLabels.length,
+    newUsersByMonth.length,
+    revenueByMonth.length
+  );
+
+  const monthlyChartData = Array.from({ length: chartDataLength }, (_, index) => ({
+    label: monthLabels[index] ?? `${String(index + 1).padStart(2, "0")}/--`,
+    newUsers: newUsersByMonth[index] ?? 0,
+    revenue: revenueByMonth[index] ?? 0,
+  }));
+
+  const userChartData = monthlyChartData;
+  const revenueChartData = monthlyChartData;
+
   useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setIsLoadingStatistics(true);
+        setStatisticsError(null);
+
+        const data = await statisticService.getSubscriptionStatistics();
+        setStatistics(data);
+      } catch {
+        setStatisticsError("Không thể tải dữ liệu thống kê");
+        setStatistics(null);
+      } finally {
+        setIsLoadingStatistics(false);
+      }
+    };
+
     const fetchFinancialTable = async () => {
       try {
         setIsLoadingFinancial(true);
@@ -124,6 +212,7 @@ export default function DashboardFeature() {
       }
     };
 
+    fetchStatistics();
     fetchFinancialTable();
     fetchAnalysisReports();
   }, []);
@@ -141,194 +230,25 @@ export default function DashboardFeature() {
         </div>
       </div>
 
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-              <Users className="w-5 h-5 text-slate-900 dark:text-slate-100" />
-            </div>
-            <div className="flex items-center gap-1 text-emerald-600 font-bold text-sm">
-              <span className="text-sm">↗</span>
-              <span>+12.5%</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-              Tổng số User
-            </p>
-            <h3 className="text-3xl font-extrabold font-headline text-slate-900 dark:text-slate-100">
-              1,284,502
-            </h3>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-              <Award className="w-5 h-5 text-slate-900 dark:text-slate-100" />
-            </div>
-            <div className="flex items-center gap-1 text-emerald-600 font-bold text-sm">
-              <span className="text-sm">↗</span>
-              <span>+4.2%</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-              Customer trả phí
-            </p>
-            <h3 className="text-3xl font-extrabold font-headline text-slate-900 dark:text-slate-100">
-              84,210
-            </h3>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-              <CreditCard className="w-5 h-5 text-slate-900 dark:text-slate-100" />
-            </div>
-            <div className="flex items-center gap-1 text-red-600 font-bold text-sm">
-              <span className="text-sm">↘</span>
-              <span>-1.8%</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-              Doanh thu
-            </p>
-            <h3 className="text-3xl font-extrabold font-headline text-slate-900 dark:text-slate-100">
-              $4.2M
-            </h3>
-          </div>
-        </div>
-      </div>
+      <DashboardStatsCards
+        totalUsers={totalUsers}
+        paidCustomers={paidCustomers}
+        totalRevenue={totalRevenue}
+        userTrend={userTrend}
+        paidTrend={paidTrend}
+        revenueTrend={revenueTrend}
+        shouldShowStatisticsValue={shouldShowStatisticsValue}
+      />
+      {statisticsError && (
+        <p className="text-sm text-red-600 dark:text-red-400">{statisticsError}</p>
+      )}
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* User Signups Chart */}
-        <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-lg font-bold font-headline text-slate-900 dark:text-slate-100">
-              Biểu đồ người dùng mới theo tháng
-            </h3>
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <span className="w-3 h-3 rounded-full bg-emerald-700"></span>{" "}
-              Người dùng mới
-            </div>
-          </div>
-
-          <div className="relative h-64 w-full flex items-end justify-between px-2">
-            <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-              <div className="border-b border-slate-200 dark:border-slate-700 w-full"></div>
-              <div className="border-b border-slate-200 dark:border-slate-700 w-full"></div>
-              <div className="border-b border-slate-200 dark:border-slate-700 w-full"></div>
-              <div className="border-b border-slate-200 dark:border-slate-700 w-full"></div>
-            </div>
-
-            <svg
-              className="absolute inset-0 w-full h-full"
-              preserveAspectRatio="none"
-            >
-              <path
-                d="M0,200 Q100,180 200,120 T400,140 T600,60 T800,90"
-                fill="none"
-                stroke="#047857"
-                strokeLinecap="round"
-                strokeWidth="3"
-              ></path>
-              <path
-                d="M0,200 Q100,180 200,120 T400,140 T600,60 T800,90 L800,256 L0,256 Z"
-                fill="url(#gradient-green)"
-                opacity="0.1"
-              ></path>
-              <defs>
-                <linearGradient id="gradient-green" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#047857"></stop>
-                  <stop offset="100%" stopColor="transparent"></stop>
-                </linearGradient>
-              </defs>
-            </svg>
-
-            <div className="absolute left-[60%] top-[25%] group cursor-pointer">
-              <div className="w-4 h-4 bg-emerald-700 border-2 border-white rounded-full shadow-lg"></div>
-              <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-24 p-2 bg-slate-900 text-white text-[10px] rounded backdrop-blur-md z-10 text-center">
-                <b>+14,203</b> người dùng trong T6
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-between mt-4 px-2 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter">
-            <span>T1</span>
-            <span>T2</span>
-            <span>T3</span>
-            <span>T4</span>
-            <span>T5</span>
-            <span>T6</span>
-            <span>T7</span>
-            <span>T8</span>
-          </div>
+      <div className="space-y-8">
+        <div>
+          <NewUsersChart data={userChartData} />
         </div>
-        {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-lg font-bold font-headline text-slate-900 dark:text-slate-100">
-              Biểu đồ doanh thu theo tháng
-            </h3>
-            <MoreHorizontal className="text-slate-400 dark:text-slate-500 w-5 h-5" />
-          </div>
-
-          <div className="h-64 flex items-end justify-between gap-3 pt-4">
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-200 rounded-t-sm h-[40%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                T4
-              </span>
-            </div>
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-200 rounded-t-sm h-[65%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                T5
-              </span>
-            </div>
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-900 rounded-t-sm h-[90%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-900 dark:text-slate-100 font-bold">
-                T6
-              </span>
-            </div>
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-200 rounded-t-sm h-[55%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                T7
-              </span>
-            </div>
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-200 rounded-t-sm h-[75%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                T8
-              </span>
-            </div>
-            <div className="w-full flex flex-col items-center gap-2 group">
-              <div className="w-full bg-slate-200 rounded-t-sm h-[82%] group-hover:bg-slate-900 transition-colors"></div>
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                T9
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
-                ✓
-              </div>
-              <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium">
-                Tháng có doanh thu cao nhất là tháng 6/2024.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              Chi tiết →
-            </span>
-          </div>
+        <div>
+          <RevenueChart data={revenueChartData} />
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
