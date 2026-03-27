@@ -42,6 +42,16 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
 
   const modules = [
     { 
+      id: 'smart-board', 
+      title: 'Bảng Điện Thông Minh',
+      preview: '/assets/Dashboard/ModulePreviews/heatmap.png'
+    },
+    { 
+      id: 'index', 
+      title: 'Chỉ số thị trường',
+      preview: '/assets/Dashboard/ModulePreviews/heatmap.png'
+    },
+    { 
       id: 'vn-stock-chart', 
       title: 'Biểu đồ chứng khoán việt nam',
       preview: '/assets/Dashboard/ModulePreviews/vn-stock-chart.png'

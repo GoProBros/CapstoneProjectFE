@@ -167,9 +167,57 @@ export function useStockScreener() {
   const activeSectorIdRef = useRef<string | null>(null);
 
   /**
+   * Shared helper: fetch symbols with combined filters (Exchange + Type + Sector)
+   * then unsubscribe old tickers and subscribe to new ones.
+   * This is the single source of truth for filter-driven subscription changes.
+   */
+  const fetchAndSubscribeWithFilters = async (opts: {
+    exchange: ExchangeCode | null;
+    symbolType: SymbolType | null;
+    sector: Sector | null;
+  }) => {
+    const { exchange, symbolType, sector } = opts;
+    const currentTickers = Array.from(marketData.keys());
+
+    // Clear grid immediately for visual feedback
+    if (gridApi) {
+      const allRows: any[] = [];
+      gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
+      if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
+    }
+
+    // All 3 filters are now combinable; build query params from whatever is active
+    const params: Parameters<typeof fetchSymbols>[0] = { PageSize: 5000, PageIndex: 1 };
+    if (exchange) params.Exchange = exchange;
+    if (symbolType !== null) params.Type = symbolType;
+    if (sector) params.Sector = sector.id;
+
+    // If NO filter is selected, fall back to entire HSX list (cheap exchange-only endpoint)
+    const tickerPromise: Promise<string[]> =
+      !exchange && symbolType === null && !sector
+        ? fetchSymbolsByExchange('HSX')
+        : fetchSymbols(params).then((symbols) => {
+            // When Type filter is active, ensure server-side type matches
+            const filtered =
+              symbolType !== null
+                ? symbols.filter((s) => s.type === symbolType)
+                : symbols;
+            return filtered.map((s) => s.ticker);
+          });
+
+    const [newTickers] = await Promise.all([
+      tickerPromise,
+      currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
+    ]);
+
+    if (!newTickers || newTickers.length === 0) return;
+    await subscribeToSymbols(newTickers);
+  };
+
+  /**
    * Handle exchange filter change.
-   * Exchange and SymbolType can be combined — selecting one does NOT clear the other.
-   * Sector and Index are exclusive filters and are cleared when Exchange/SymbolType changes.
+   * Now COMBINABLE with SymbolType and Sector — selecting Exchange does NOT clear other filters.
+   * Only Index (which needs a dedicated API) is cleared because it is incompatible.
    */
   const handleExchangeChange = async (exchange: ExchangeCode | null) => {
     if (!isConnected) return;
@@ -178,49 +226,30 @@ export function useStockScreener() {
     setSelectedExchange(exchange);
     gridApi?.showLoadingOverlay();
 
-    const currentTickers = Array.from(marketData.keys());
-
-    if (gridApi) {
-      const allRows: any[] = [];
-      gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
-      if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
-    }
-
-    // Clear exclusive filters (sector, index, watchlist) but KEEP selectedSymbolType
+    // Exchange changing clears Index (incompatible data source) and WatchList,
+    // but KEEPS SymbolType and Sector so they can combine.
     setCurrentWatchListId(null);
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
-    setSelectedSector(null);
-    activeSectorIdRef.current = null;
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
 
     try {
-      const exchangeToLoad = exchange ?? 'HSX';
-      // Combine with current SymbolType if one is active
-      let tickerPromise: Promise<string[]>;
-      if (selectedSymbolType !== null) {
-        tickerPromise = fetchSymbols({ Exchange: exchangeToLoad, Type: selectedSymbolType, PageSize: 5000, PageIndex: 1 })
-          .then(symbols => symbols.filter(s => s.type === selectedSymbolType).map(s => s.ticker));
-      } else {
-        tickerPromise = fetchSymbolsByExchange(exchangeToLoad);
+      await fetchAndSubscribeWithFilters({
+        exchange,
+        symbolType: selectedSymbolType,
+        sector: selectedSector,
+      });
+      if (!exchange && selectedSymbolType === null && !selectedSector) {
+        hasLoadedDefaultSymbols.current = true;
       }
-
-      const [newTickers] = await Promise.all([
-        tickerPromise,
-        currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
-      ]);
-
-      if (!newTickers || newTickers.length === 0) return;
-
-      await subscribeToSymbols(newTickers);
-      if (!exchange && selectedSymbolType === null) hasLoadedDefaultSymbols.current = true;
     } catch (error) {
-      console.error(`[StockScreener] Error changing to ${exchange ?? 'default'}:`, error);
+      console.error(`[StockScreener] Error changing exchange to ${exchange ?? 'default'}:`, error);
     } finally {
       setIsLoadingExchange(false);
     }
   };
+
 
   /**
    * Handle index filter change
@@ -277,21 +306,34 @@ export function useStockScreener() {
   };
 
   /**
-   * Handle sector filter change
-   * Full sequential unsub → sub to avoid race conditions and overlapping symbol sets
+   * Handle sector filter change.
+   * Now COMBINABLE with Exchange and SymbolType — selecting Sector does NOT clear other filters.
+   * Index is cleared because it uses a different data source (market-indices API).
    */
   const handleSectorChange = async (sector: Sector | null) => {
     if (!isConnected) return;
 
-    // Null means deselect → reset to HSX default
+    // Deselect (null) → keep Exchange + SymbolType but remove Sector
     if (sector === null) {
       activeSectorIdRef.current = null;
       setSelectedSector(null);
-      await handleExchangeChange('HSX');
+      setIsLoadingSector(true);
+      gridApi?.showLoadingOverlay();
+      try {
+        await fetchAndSubscribeWithFilters({
+          exchange: selectedExchange,
+          symbolType: selectedSymbolType,
+          sector: null,
+        });
+      } catch (error) {
+        console.error('[StockScreener] Error deselecting sector:', error);
+      } finally {
+        setIsLoadingSector(false);
+      }
       return;
     }
 
-    // Prevent re-subscribing when the same sector is already active
+    // Prevent re-subscribing the same sector
     if (activeSectorIdRef.current === sector.id) return;
     activeSectorIdRef.current = sector.id;
 
@@ -299,52 +341,33 @@ export function useStockScreener() {
     setSelectedSector(sector);
     gridApi?.showLoadingOverlay();
 
-    // Use subscribedSymbols as the authoritative list (includes symbols subscribed but
-    // not yet received data — more reliable than marketData.keys())
-    const currentTickers = subscribedSymbols;
-    const sectorSymbols = sector.symbols;
-
-    // Clear grid immediately for instant visual feedback
-    if (gridApi) {
-      const allRows: any[] = [];
-      gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
-      if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
-    }
-
-    // Reset filter state
+    // Sector changes clear Index and WatchList, but KEEP Exchange and SymbolType
     setCurrentWatchListId(null);
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
-    setSelectedExchange(null);
-    setSelectedSymbolType(null);
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
 
-    if (!sectorSymbols || sectorSymbols.length === 0) {
-      if (currentTickers.length > 0) await unsubscribeFromSymbols(currentTickers);
-      setIsLoadingSector(false);
-      return;
-    }
-
     try {
-      // Sequential: unsubscribe ALL current symbols first, then subscribe to sector symbols.
-      // Running in parallel caused race conditions where the server processed subscribe
-      // before unsubscribe, resulting in sector symbols being immediately removed.
-      if (currentTickers.length > 0) await unsubscribeFromSymbols(currentTickers);
-      await subscribeToSymbols(sectorSymbols);
+      // Use the shared helper so Exchange + SymbolType are automatically combined
+      await fetchAndSubscribeWithFilters({
+        exchange: selectedExchange,
+        symbolType: selectedSymbolType,
+        sector,
+      });
     } catch (error) {
       console.error(`[StockScreener] Error changing to sector ${sector.viName}:`, error);
-      // Allow retry on error
       activeSectorIdRef.current = null;
     } finally {
       setIsLoadingSector(false);
     }
   };
 
+
   /**
    * Handle symbol type filter change.
-   * SymbolType and Exchange can be combined — selecting one does NOT clear the other.
-   * Sector and Index are exclusive filters and are cleared when SymbolType changes.
+   * Now COMBINABLE with Exchange and Sector — selecting SymbolType does NOT clear other filters.
+   * Index is cleared because it uses a different data source.
    */
   const handleSymbolTypeChange = async (type: SymbolType | null) => {
     if (!isConnected) return;
@@ -353,62 +376,29 @@ export function useStockScreener() {
     setSelectedSymbolType(type);
     gridApi?.showLoadingOverlay();
 
-    const currentTickers = Array.from(marketData.keys());
-
-    // Clear grid immediately
-    if (gridApi) {
-      const allRows: any[] = [];
-      gridApi.forEachNode((node: any) => { if (node.data) allRows.push(node.data); });
-      if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
-    }
-
-    // Clear exclusive filters (sector, index, watchlist) but KEEP selectedExchange
+    // SymbolType changes clear Index and WatchList, but KEEP Exchange and Sector
     setCurrentWatchListId(null);
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
-    setSelectedSector(null);
-    activeSectorIdRef.current = null;
     setSelectedIndex(null);
     hasLoadedDefaultSymbols.current = false;
 
     try {
-      if (type === null) {
-        // Deselect type: fall back to exchange-only filter or HSX default
-        const exchangeToLoad = selectedExchange ?? 'HSX';
-        const [tickers] = await Promise.all([
-          fetchSymbolsByExchange(exchangeToLoad),
-          currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
-        ]);
-        if (!tickers || tickers.length === 0) return;
-        await subscribeToSymbols(tickers);
-        if (!selectedExchange) hasLoadedDefaultSymbols.current = true;
-        return;
+      await fetchAndSubscribeWithFilters({
+        exchange: selectedExchange,
+        symbolType: type,
+        sector: selectedSector,
+      });
+      if (!selectedExchange && type === null && !selectedSector) {
+        hasLoadedDefaultSymbols.current = true;
       }
-
-      // Combine with current Exchange filter if one is active
-      let symbolsPromise: ReturnType<typeof fetchSymbols>;
-      if (selectedExchange !== null) {
-        symbolsPromise = fetchSymbols({ Exchange: selectedExchange, Type: type, PageSize: 5000, PageIndex: 1 });
-      } else {
-        symbolsPromise = fetchSymbols({ Type: type, PageSize: 5000, PageIndex: 1 });
-      }
-
-      const [symbols] = await Promise.all([
-        symbolsPromise,
-        currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
-      ]);
-
-      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) return;
-
-      // Filter to exact type and subscribe
-      const newTickers = symbols.filter(s => s.type === type).map(s => s.ticker);
-      await subscribeToSymbols(newTickers);
     } catch (error) {
-      console.error(`[StockScreener] Error changing symbol type:`, error);
+      console.error('[StockScreener] Error changing symbol type:', error);
     } finally {
       setIsLoadingSymbolType(false);
     }
   };
+
 
   // Subscribe to default symbols when connected - default is VN30 index
   useEffect(() => {

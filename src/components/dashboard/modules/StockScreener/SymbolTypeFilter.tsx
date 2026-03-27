@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
-import { SymbolType } from '@/types/symbol';
-import { ChevronDown } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { SymbolType } from "@/types/symbol";
+import { ChevronDown } from "lucide-react";
 
 interface SymbolTypeFilterProps {
   onSymbolTypeChange: (type: SymbolType | null) => void;
@@ -12,19 +12,24 @@ interface SymbolTypeFilterProps {
 }
 
 const SYMBOL_TYPE_OPTIONS = [
-  { value: SymbolType.Stock, label: 'Cổ phiếu' },
-  { value: SymbolType.ETF, label: 'ETF' },
+  { value: SymbolType.Stock, label: "Cổ phiếu" },
+  { value: SymbolType.ETF, label: "ETF" },
 ];
 
-export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false, selectedType = null }: SymbolTypeFilterProps) {
+export default function SymbolTypeFilter({
+  onSymbolTypeChange,
+  isLoading = false,
+  selectedType = null,
+}: SymbolTypeFilterProps) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = theme === "dark";
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const selectedOption = SYMBOL_TYPE_OPTIONS.find(opt => opt.value === selectedType) ?? null;
+  const selectedOption =
+    SYMBOL_TYPE_OPTIONS.find((opt) => opt.value === selectedType) ?? null;
 
   const handleSelect = (value: SymbolType | null) => {
     // Re-click selected type to deselect
@@ -42,7 +47,7 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
       clearTimeout(leaveTimeoutRef.current);
       leaveTimeoutRef.current = null;
     }
-    
+
     // Open dropdown after short delay
     hoverTimeoutRef.current = setTimeout(() => {
       setIsOpen(true);
@@ -55,7 +60,7 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    
+
     // Close dropdown after short delay
     leaveTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
@@ -73,17 +78,20 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
-    <div 
+    <div
       className="relative w-[140px]"
       ref={dropdownRef}
       onMouseEnter={handleMouseEnter}
@@ -95,17 +103,17 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
         className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
           selectedType !== null
             ? isDark
-              ? 'bg-blue-600 text-white border border-blue-500'
-              : 'bg-blue-500 text-white border border-blue-500'
+              ? "bg-blue-600 text-white border border-blue-500"
+              : "bg-blue-500 text-white border border-blue-500"
             : isDark
-              ? 'bg-gray-700 text-white border border-gray-600 hover:bg-gray-600'
-              : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
+              ? "bg-gray-700 text-white border border-gray-600 hover:bg-gray-600"
+              : "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
         }`}
       >
-        <span className="truncate">{selectedOption?.label ?? 'Loại'}</span>
-        <ChevronDown 
-          size={16} 
-          className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        <span className="truncate">{selectedOption?.label ?? "Loại"}</span>
+        <ChevronDown
+          size={14}
+          className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -113,24 +121,22 @@ export default function SymbolTypeFilter({ onSymbolTypeChange, isLoading = false
       {isOpen && !isLoading && (
         <div
           className={`absolute top-full left-0 mt-1 w-full rounded-lg shadow-lg border z-50 overflow-hidden ${
-            isDark
-              ? 'bg-gray-700 border-gray-600'
-              : 'bg-white border-gray-300'
+            isDark ? "bg-gray-700 border-gray-600" : "bg-white border-gray-300"
           }`}
         >
           {SYMBOL_TYPE_OPTIONS.map((option) => (
             <button
-              key={option.value ?? 'default'}
+              key={option.value ?? "default"}
               type="button"
               onClick={() => handleSelect(option.value)}
               className={`w-full px-3 py-2 text-sm text-left transition-colors ${
                 selectedType === option.value
                   ? isDark
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
+                    ? "bg-blue-600 text-white"
+                    : "bg-blue-500 text-white"
                   : isDark
-                    ? 'text-white hover:bg-gray-600'
-                    : 'text-gray-900 hover:bg-gray-100'
+                    ? "text-white hover:bg-gray-600"
+                    : "text-gray-900 hover:bg-gray-100"
               }`}
             >
               {option.label}
