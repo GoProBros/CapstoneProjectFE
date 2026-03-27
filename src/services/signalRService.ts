@@ -11,6 +11,7 @@
 
 import * as signalR from '@microsoft/signalr';
 import { MarketSymbolDto, ConnectionState } from '@/types/market';
+import type { LiveIndexData } from '@/types/marketIndex';
 
 /**
  * Callback type cho việc nhận dữ liệu market real-time
@@ -69,6 +70,9 @@ export interface PriceDepthDto {
 }
 export type PriceDepthCallback = (depth: PriceDepthDto) => void;
 
+/** Callback type for receiving real-time index snapshots. */
+export type IndexDataCallback = (data: LiveIndexData) => void;
+
 /**
  * Callback type cho việc thay đổi trạng thái connection
  */
@@ -119,12 +123,18 @@ class SignalRService {
 
   /** Danh sách callbacks nhận price depth (3 bước giá) */
   private priceDepthCallbacks: Set<PriceDepthCallback> = new Set();
+
+  /** Callbacks for live index data (ReceiveIndexData). */
+  private indexDataCallbacks: Set<IndexDataCallback> = new Set();
   
   /** Danh sách callbacks theo dõi trạng thái connection */
   private connectionStateCallbacks: Set<ConnectionStateCallback> = new Set();
   
   /** Danh sách symbols đang subscribe */
   private subscribedSymbols: Set<string> = new Set();
+
+  /** Index codes currently subscribed via SignalR. */
+  private subscribedIndices: Set<string> = new Set();
   
   /** Configuration */
   private config: SignalRConfig = {
@@ -248,6 +258,16 @@ class SignalRService {
       this.recentTradesCallbacks.forEach(cb => { try { cb(trades); } catch {} });
     });
 
+    // Handler: live index snapshot from INDEX:{code} group
+    // Server sends: await Clients.Group("INDEX:{code}").SendAsync("ReceiveIndexData", dto)
+    this.connection.on('ReceiveIndexData', (rawData: any) => {
+      if (!rawData || typeof rawData !== 'object') return;
+      const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
+      const data: any = {};
+      Object.keys(rawData).forEach(k => { data[toCamelCase(k)] = (rawData as any)[k]; });
+      this.indexDataCallbacks.forEach(cb => { try { cb(data as LiveIndexData); } catch {} });
+    });
+
     // Handler: price depth snapshot from DEPTH:{ticker} group
     // Server gọi: await Clients.Group("DEPTH:{ticker}").SendAsync("ReceivePriceDepth", depth)
     this.connection.on('ReceivePriceDepth', (rawData: any) => {
@@ -282,6 +302,10 @@ class SignalRService {
       // Tự động subscribe lại các symbols đã subscribe trước đó
       if (this.subscribedSymbols.size > 0) {
         await this.subscribeToSymbols(Array.from(this.subscribedSymbols));
+      }
+      // Re-subscribe to index groups
+      if (this.subscribedIndices.size > 0) {
+        await this.subscribeToIndices(Array.from(this.subscribedIndices));
       }
     });
   }
@@ -470,6 +494,31 @@ class SignalRService {
   public async unsubscribeFromTradeUpdates(ticker: string): Promise<void> {
     if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
     await this.connection.invoke('UnsubscribeFromTradeUpdates', ticker.toUpperCase());
+  }
+
+  /** Subscribe to live index data for the given codes. Server joins INDEX:{code} groups. */
+  public async subscribeToIndices(codes: string[]): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    const upper = codes.map(c => c.toUpperCase());
+    await this.connection.invoke('SubscribeToIndices', upper);
+    upper.forEach(c => this.subscribedIndices.add(c));
+  }
+
+  /** Unsubscribe from live index data for the given codes. */
+  public async unsubscribeFromIndices(codes: string[]): Promise<void> {
+    if (!this.connection || this.connectionState !== ConnectionState.Connected) return;
+    const upper = codes.map(c => c.toUpperCase());
+    await this.connection.invoke('UnsubscribeFromIndices', upper);
+    upper.forEach(c => this.subscribedIndices.delete(c));
+  }
+
+  /**
+   * Register a callback for ReceiveIndexData events.
+   * Returns an unsubscribe function.
+   */
+  public onIndexDataReceived(callback: IndexDataCallback): () => void {
+    this.indexDataCallbacks.add(callback);
+    return () => this.indexDataCallbacks.delete(callback);
   }
 
   /**

@@ -1,12 +1,39 @@
 /**
- * Index Service - Symbol Index Management
- * 
- * TODO: Implement when API endpoints are available
- * This file contains placeholder functions for fetching symbols by market indices
+ * Index Service - Market Index Data
+ * Provides REST access to live index snapshots and intraday history.
  */
 
 import { get } from './api';
 import { API_ENDPOINTS } from '@/constants';
+import type { LiveIndexData, IndexHistoryPoint } from '@/types/marketIndex';
+
+/** Default codes shown in the Index Module (order matters for display). */
+export const DEFAULT_INDEX_CODES = ['VNINDEX', 'VN30', 'HNX30', 'HNXINDEX', 'HNXUPCOMINDEX', 'VNALL'] as const;
+
+/**
+ * Fetch live snapshots for the given index codes from Redis.
+ * Endpoint: GET /api/v1/market-indices/live?codes=VNINDEX&codes=VN30&...
+ */
+export async function fetchLiveIndices(codes: string[] = [...DEFAULT_INDEX_CODES]): Promise<LiveIndexData[]> {
+  const params = new URLSearchParams();
+  codes.forEach(c => params.append('codes', c));
+  const response = await get<LiveIndexData[]>(`${API_ENDPOINTS.MARKET_INDICES.LIVE}?${params.toString()}`);
+  if (response.isSuccess && response.data) return response.data;
+  throw new Error(response.message || 'Không thể tải dữ liệu chỉ số');
+}
+
+/**
+ * Fetch today's intraday history for a single index code from Redis.
+ * Endpoint: GET /api/v1/market-indices/{code}/intraday
+ * Returns points in chronological order (oldest first).
+ */
+export async function fetchIndexIntraday(code: string): Promise<IndexHistoryPoint[]> {
+  // Request 4000 points — covers full trading day (9:00-11:30 + 13:00-15:00) at 5s intervals ≈ 3,240 pts
+  const response = await get<IndexHistoryPoint[]>(`${API_ENDPOINTS.MARKET_INDICES.INTRADAY(code)}?maxPoints=4000`);
+  if (response.isSuccess && response.data) return response.data;
+  throw new Error(response.message || `Không thể tải lịch sử ${code}`);
+}
+
 
 /**
  * Index types supported by the system

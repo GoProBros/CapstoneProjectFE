@@ -16,3 +16,5 @@ export { default as HeatmapModule } from './HeatmapModule';
 export { default as AnalysisReportModule } from './AnalysisReportModule';
 export { default as TradingViewWidget } from './TradingViewWidget';
 export { default as AiChatModule } from './AiChatModule';
+export { default as IndexModule } from './IndexModule';
+export { default as SmartBoardModule } from './SmartBoardModule';

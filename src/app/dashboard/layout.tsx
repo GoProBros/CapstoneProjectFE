@@ -623,6 +623,18 @@ export default function DashboardLayout({
       height = 22; // 22 units = 440px
     }
 
+    // Index Module - full width, just enough height for 6 index rows + chart header
+    else if (moduleType === "index") {
+      width = 96;  // 100% width
+      height = 7; // 12 units = 240px (thead + 6 rows × ~27px + module chrome)
+    }
+
+    // Smart Market Board - full width, tall for sector columns + filter bar
+    else if (moduleType === "smart-board") {
+      width = 96;  // 100% width
+      height = 28; // 28 units = 560px (enough for sector columns + filter bar)
+    }
+
     const newLayoutItem: LayoutItem = {
       i: newModule.id,
       x: 0,
