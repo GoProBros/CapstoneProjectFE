@@ -1,5 +1,5 @@
 import { FinancialPeriodType } from '@/types/financialReport';
-import { QuarterOption } from './types';
+import { QuarterOption, JsonRecord } from './types';
 
 export const DONG_PER_BILLION = 1_000_000_000;
 
@@ -89,3 +89,111 @@ export const QUARTER_OPTIONS: QuarterOption[] = [
   { value: FinancialPeriodType.FourthQuarter, label: 'Quý 4' },
   { value: FinancialPeriodType.YearToDate, label: 'Cả năm' },
 ];
+
+export const DEFAULT_FINANCIAL_REPORT_DATA_TEMPLATE: JsonRecord = {
+  balanceSheet: {
+    shortTermAssets: {
+      cash: null,
+      financialInvestments: null,
+      receivables: null,
+      inventories: null,
+      otherAssets: null,
+      totalShortTermAssets: null,
+    },
+    longTermAssets: {
+      receivables: null,
+      fixedAssets: null,
+      investmentProperty: null,
+      longTermAssetsInProgress: null,
+      financialInvestments: null,
+      otherAssets: null,
+      totalLongTermAssets: null,
+      totalLongtTermAssets: null,
+    },
+    bankAssets: {
+      depositsAtCentralBank: null,
+      depositsAtOtherCreditInstitutions: null,
+      tradingSecurities: null,
+      loansToCustomers: null,
+      investmentSecurities: null,
+      otherAssets: null,
+    },
+    shortTermFinancialAssets: {
+      cash: null,
+      loans: null,
+      other: null,
+    },
+    tradingAndCapitalAssets: {
+      heldToMaturity: null,
+      availableForSale: null,
+      fvtpl: null,
+    },
+    liabilities: {
+      shortTerm: null,
+      longTerm: null,
+    },
+    borrowings: {
+      shortTermBorrowings: null,
+      longTermBorrowings: null,
+    },
+    equity: {
+      contributedCapital: null,
+      retainedEarnings: null,
+      treasuryShares: null,
+      otherCapital: null,
+    },
+  },
+  incomeStatement: {
+    bankOperatingIncome: {
+      netInterestIncome: null,
+      serviceFeeIncome: null,
+      tradingIncome: null,
+      otherIncome: null,
+    },
+    insuranceBusiness: {
+      operatingProfit: null,
+      netOperatingRevenue: null,
+      operatingExpenses: null,
+    },
+    securitiesRevenue: {
+      brokerageAndCustodyRevenue: null,
+      lendingRevenue: null,
+      tradingAndCapitalRevenue: null,
+      investmentBankingRevenue: null,
+    },
+    grossProfit: {
+      netRevenue: null,
+      costOfGoodsSold: null,
+      grossProfit: null,
+    },
+    expenses: {
+      interestExpenses: null,
+      sellingExpenses: null,
+      financialExpenses: null,
+      managementExpenses: null,
+    },
+    profitBeforeTax: {
+      operatingProfit: null,
+      financialProfit: null,
+      shareProfitOfAssociatesAndJoint: null,
+      otherProfit: null,
+      profitBeforeTax: null,
+    },
+    profitAfterTaxAndAFS: {
+      profitAfterTaxAndAfs: null,
+      afsGains: null,
+    },
+    parentCompanyNetProfit: {
+      profitBeforeTax: null,
+      corporateIncomeTax: null,
+      minorityInterests: null,
+      parentCompanyNetProfit: null,
+    },
+  },
+  cashFlowStatement: {
+    netCashFlow: null,
+    operatingActivities: null,
+    investingActivities: null,
+    financingActivities: null,
+  },
+};

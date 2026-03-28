@@ -3,7 +3,7 @@
  * API calls for financial data from backend
  */
 
-import { get, post, put } from './api';
+import { del, get, post, put } from './api';
 import { API_ENDPOINTS } from '@/constants';
 import type { PaginatedData } from '@/types';
 import type {
@@ -23,7 +23,6 @@ export interface FetchSpecificFinancialReportRequest {
 export interface CreateFinancialReportRequest {
   ticker: string;
   year: number;
-  quarter: FinancialPeriodType;
   period: FinancialPeriodType;
   reportData: Record<string, unknown>;
 }
@@ -552,9 +551,16 @@ export async function fetchSpecificFinancialReportData(
 export async function createFinancialReport(
   payload: CreateFinancialReportRequest
 ): Promise<FinancialReport> {
+  const requestBody = {
+    ticker: payload.ticker,
+    year: payload.year,
+    period: payload.period,
+    reportData: payload.reportData,
+  };
+
   const response = await post<FinancialReport>(
     API_ENDPOINTS.FINANCIAL_REPORTS.FINANCIAL_REPORTS,
-    payload
+    requestBody
   );
 
   if (!response.isSuccess || !response.data) {
@@ -581,4 +587,19 @@ export async function updateFinancialReport(
   }
 
   return response.data;
+}
+
+/**
+ * Delete financial report by id.
+ */
+export async function deleteFinancialReport(
+  reportId: string
+): Promise<void> {
+  const response = await del<null>(
+    API_ENDPOINTS.FINANCIAL_REPORTS.BY_ID(reportId)
+  );
+
+  if (!response.isSuccess) {
+    throw new Error(response.message || 'Không thể xóa báo cáo tài chính');
+  }
 }

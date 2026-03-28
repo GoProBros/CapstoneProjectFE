@@ -53,7 +53,7 @@ export function buildEditableRows(data: JsonRecord): EditableMetricRow[] {
     Object.entries(node).forEach(([key, value]) => {
       const nextPath = [...path, key];
 
-      if (typeof value === 'number') {
+      if (typeof value === 'number' || value === null) {
         const groupLabel = humanizeKey(nextPath[0] ?? key);
         const subGroupLabel = nextPath[1] ? humanizeKey(nextPath[1]) : '-';
         const detailPath = nextPath.slice(2);
@@ -67,8 +67,8 @@ export function buildEditableRows(data: JsonRecord): EditableMetricRow[] {
           groupLabel,
           subGroupLabel,
           metricLabel,
-          valueInDong: value,
-          inputValueInBillion: formatBillionFromDong(value),
+          valueInDong: typeof value === 'number' ? value : 0,
+          inputValueInBillion: typeof value === 'number' ? formatBillionFromDong(value) : '',
         });
 
         return;
@@ -86,7 +86,7 @@ export function cloneDeep<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export function setNestedValue(obj: JsonRecord, path: string[], value: number): void {
+export function setNestedValue(obj: JsonRecord, path: string[], value: unknown): void {
   let current: JsonRecord = obj;
 
   for (let i = 0; i < path.length - 1; i += 1) {

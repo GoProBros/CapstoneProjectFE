@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchFinancialReportsList } from '@/services/financialReportService';
 import { FinancialPeriodType, FinancialReport, FinancialReportStatus } from '@/types/financialReport';
-import CreateFinancialReportModal from './financial-reports/CreateFinancialReportModal';
-import FinancialReportDetailModal from './financial-reports/FinancialReportDetailModal';
-import FinancialReportsList from './financial-reports/FinancialReportsList';
+import {
+    CreateFinancialReportModal,
+    FinancialReportDetailModal,
+    FinancialReportsList,
+} from './financial-reports';
 
 export default function FinancialReportsFeature() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -71,6 +73,36 @@ export default function FinancialReportsFeature() {
             setLoading(false);
         }
     }, [pageIndex, selectedPeriod, selectedStatus, selectedYear]);
+
+    const handleCreatedReport = useCallback(async () => {
+        setPageIndex(1);
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetchFinancialReportsList({
+                pageIndex: 1,
+                pageSize: 10,
+                period: selectedPeriod === '' ? undefined : selectedPeriod,
+                status: selectedStatus === '' ? undefined : selectedStatus,
+                year: selectedYear === '' ? undefined : selectedYear,
+            });
+
+            setReports(response.items ?? []);
+            setTotalPages(response.totalPages || 1);
+            setHasPreviousPage(response.hasPreviousPage);
+            setHasNextPage(response.hasNextPage);
+        } catch (err) {
+            setReports([]);
+            setTotalPages(1);
+            setHasPreviousPage(false);
+            setHasNextPage(false);
+            setError(err instanceof Error ? err.message : 'Không thể tải danh sách báo cáo tài chính.');
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedPeriod, selectedStatus, selectedYear]);
 
     useEffect(() => {
         setPageIndex(1);
@@ -183,7 +215,7 @@ export default function FinancialReportsFeature() {
             <CreateFinancialReportModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onCreated={loadReports}
+                onCreated={handleCreatedReport}
             />
 
             <FinancialReportDetailModal

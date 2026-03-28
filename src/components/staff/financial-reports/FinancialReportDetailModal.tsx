@@ -1,11 +1,13 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, RefreshCw, X } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Download, RefreshCw, Upload, X } from 'lucide-react';
 import {
   fetchFinancialReportById,
   updateFinancialReport,
 } from '@/services/financialReportService';
+import fileService from '@/services/fileService';
+import { FileCategory } from '@/types/file';
 import { FinancialReport } from '@/types/financialReport';
 import { formatDateTime, getPeriodLabel, getStatusClass, getStatusLabel } from './reportPresentation';
 import {
@@ -29,8 +31,12 @@ export default function FinancialReportDetailModal({
   onClose,
   onUpdated,
 }: FinancialReportDetailModalProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [downloadingFile, setDownloadingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
@@ -104,6 +110,10 @@ export default function FinancialReportDetailModal({
     const invalidIds = new Set<string>();
 
     rows.forEach((row) => {
+      if (!row.inputValueInBillion.trim()) {
+        return;
+      }
+
       if (parseBillionToDong(row.inputValueInBillion) === null) {
         invalidIds.add(row.id);
       }
@@ -150,6 +160,11 @@ export default function FinancialReportDetailModal({
     const payloadReportData = cloneDeep(report.reportData) as unknown as JsonRecord;
 
     for (const row of rows) {
+      if (!row.inputValueInBillion.trim()) {
+        setNestedValue(payloadReportData, row.path, null);
+        continue;
+      }
+
       const parsedInDong = parseBillionToDong(row.inputValueInBillion);
 
       if (parsedInDong === null) {
@@ -203,6 +218,79 @@ export default function FinancialReportDetailModal({
     onClose();
   }, [hasUnsavedChanges, onClose, updating]);
 
+  const onUploadFileClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const onUploadFile = useCallback(async (file: File) => {
+    if (!reportId) {
+      setUpdateError('Không tìm thấy báo cáo để upload file.');
+      return;
+    }
+
+    setUploadingFile(true);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+
+    try {
+      await fileService.uploadFile({
+        file,
+        category: FileCategory.FinancialReport,
+        relatedEntityId: reportId,
+        description: `Financial report source file for ${report?.ticker ?? reportId}`,
+      });
+
+      setUpdateSuccess('Upload file thành công.');
+      onUpdated?.();
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Không thể upload file.');
+    } finally {
+      setUploadingFile(false);
+    }
+  }, [onUpdated, report?.ticker, reportId]);
+
+  const onFileInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      return;
+    }
+
+    await onUploadFile(selectedFile);
+
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [onUploadFile]);
+
+  const onDownloadFile = useCallback(async () => {
+    if (!reportId) {
+      setUpdateError('Không tìm thấy báo cáo để download file.');
+      return;
+    }
+
+    setDownloadingFile(true);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+
+    try {
+      const fileName = `${report?.ticker ?? 'financial-report'}-${report?.year ?? 'report'}`;
+
+      await fileService.downloadFileToDevice(
+        {
+          category: FileCategory.FinancialReport,
+          entityId: reportId,
+        },
+        fileName
+      );
+
+      setUpdateSuccess('Đã tải file về máy.');
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Không thể download file.');
+    } finally {
+      setDownloadingFile(false);
+    }
+  }, [report?.ticker, report?.year, reportId]);
+
   useEffect(() => {
     if (!isOpen || !reportId) {
       return;
@@ -251,14 +339,43 @@ export default function FinancialReportDetailModal({
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onRequestClose}
-            className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Đóng"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onUploadFileClick}
+              disabled={!reportId || uploadingFile || downloadingFile || updating}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {uploadingFile ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploadingFile ? 'Đang upload...' : 'Upload file'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onDownloadFile}
+              disabled={!reportId || downloadingFile || uploadingFile || updating}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {downloadingFile ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {downloadingFile ? 'Đang tải...' : 'Download file'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onRequestClose}
+              className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Đóng"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.xlsx,.xls,.csv"
+            className="hidden"
+            onChange={onFileInputChange}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
