@@ -58,6 +58,8 @@ export default function Sidebar({
     const [renameError, setRenameError] = useState<string | null>(null);
     const [copiedCode, setCopiedCode] = useState(false);
     const workspaceMenuRef = useRef<HTMLDivElement>(null);
+    const role = user?.role?.trim();
+    const canAccessSystemManagement = role === 'Nhân viên' || role === 'Admin' || role === 'Quản trị viên';
 
     const handleAddModuleClick = () => {
         console.log('Add module button clicked in Sidebar!');
@@ -492,12 +494,12 @@ export default function Sidebar({
                                                 Quản lí tài khoản
                                             </button>
                                             
-                                            {/* System Management - Only for "Nhân viên" role */}
-                                            {user?.role === 'Nhân viên' && (
+                                            {/* System Management - for Staff and Admin roles */}
+                                            {canAccessSystemManagement && (
                                                 <button
                                                     onClick={() => {
                                                         setIsOptionsMenuOpen(false);
-                                                        router.push('/staff');
+                                                        router.push('/SystemManager');
                                                     }}
                                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                                 >

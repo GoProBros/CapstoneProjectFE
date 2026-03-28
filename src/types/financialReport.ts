@@ -23,9 +23,11 @@ export enum FinancialPeriodType {
  * Status of financial report
  */
 export enum FinancialReportStatus {
-  Draft = 0,
-  Published = 1,
-  Archived = 2,
+  Pending = 0,
+  Processing = 1,
+  Completed = 2,
+  Failed = 3,
+  Archived = 4,
 }
 
 // ===========================
