@@ -47,6 +47,12 @@ export const API_ENDPOINTS = {
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
     FINANCIAL_REPORTS: `/api/v1/financial-reports`,
+    BY_ID: (id: string) => `/api/v1/financial-reports/${id}`,
+  },
+
+  // Data fetching endpoints
+  DATA_FETCHING: {
+    FINANCIAL_REPORT_SPECIFIC: '/api/v1/data-fetching/financial-reports/specific',
   },
   
   // Analysis Report endpoints

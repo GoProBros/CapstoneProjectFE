@@ -46,23 +46,35 @@ function getFinancialPeriodLabel(year: number, period: number) {
 
 function getFinancialStatusLabel(status: FinancialReportStatus) {
   switch (status) {
-    case FinancialReportStatus.Published:
-      return "Đã xuất bản";
+    case FinancialReportStatus.Pending:
+      return "Chờ xử lý";
+    case FinancialReportStatus.Processing:
+      return "Đang xử lý";
+    case FinancialReportStatus.Completed:
+      return "Hoàn thành";
+    case FinancialReportStatus.Failed:
+      return "Thất bại";
     case FinancialReportStatus.Archived:
       return "Lưu trữ";
     default:
-      return "Bản nháp";
+      return "Không xác định";
   }
 }
 
 function getFinancialStatusClass(status: FinancialReportStatus) {
   switch (status) {
-    case FinancialReportStatus.Published:
+    case FinancialReportStatus.Pending:
+      return "bg-amber-100 text-amber-800";
+    case FinancialReportStatus.Processing:
+      return "bg-sky-100 text-sky-800";
+    case FinancialReportStatus.Completed:
       return "bg-emerald-100 text-emerald-800";
+    case FinancialReportStatus.Failed:
+      return "bg-red-100 text-red-800";
     case FinancialReportStatus.Archived:
       return "bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200";
     default:
-      return "bg-amber-100 text-amber-800";
+      return "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
   }
 }
 
