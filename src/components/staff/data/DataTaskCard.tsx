@@ -1,5 +1,5 @@
 import { RefreshCw } from 'lucide-react';
-import type { DataFetchTaskType } from '@/services/systemDataService';
+import type { DataFetchTaskType } from '@/types/systemData';
 import type { DataTask, TaskStatus } from './types';
 import { getStatusClass, getStatusLabel } from './utils';
 

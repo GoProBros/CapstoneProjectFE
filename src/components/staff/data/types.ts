@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { DataFetchTaskType } from '@/services/systemDataService';
+import type { DataFetchTaskType } from '@/types/systemData';
 
 export type TaskStatus = 'idle' | 'loading' | 'success' | 'failed';
 

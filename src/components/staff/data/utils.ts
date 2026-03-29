@@ -1,4 +1,4 @@
-import type { SystemLogItem } from '@/services/systemDataService';
+import type { SystemLogItem } from '@/types/systemData';
 import type { TaskStatus } from './types';
 
 export function getStatusLabel(status: TaskStatus) {

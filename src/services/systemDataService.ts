@@ -1,29 +1,7 @@
 import { get, post } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
 import type { PaginatedData } from '@/types';
-
-export type DataFetchTaskType =
-  | 'import-sectors'
-  | 'import-symbols'
-  | 'map-symbols-sectors'
-  | 'import-index-constituents';
-
-export interface SystemLogItem {
-  timestamp?: string;
-  level?: string;
-  message?: string;
-  exception?: string;
-  source?: string;
-  [key: string]: unknown;
-}
-
-export interface GetSystemLogsParams {
-  date?: string;
-  pageIndex?: number;
-  pageSize?: number;
-  searchTerm?: string;
-  level?: string;
-}
+import type { DataFetchTaskType, GetSystemLogsParams, SystemLogItem } from '@/types/systemData';
 
 const endpointByTask: Record<DataFetchTaskType, string> = {
   'import-sectors': API_ENDPOINTS.DATA_FETCHING.IMPORT_SECTORS_FROM_SSI,

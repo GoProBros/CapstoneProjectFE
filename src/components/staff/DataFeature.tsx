@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import type { DataFetchTaskType, SystemLogItem } from '@/services/systemDataService';
+import type { DataFetchTaskType, SystemLogItem } from '@/types/systemData';
 import systemDataService from '@/services/systemDataService';
 import DataTaskCard from '@/components/staff/data/DataTaskCard';
 import LogsPanel from '@/components/staff/data/LogsPanel';

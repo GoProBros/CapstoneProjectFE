@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Search, TableProperties } from 'lucide-react';
-import type { SystemLogItem } from '@/services/systemDataService';
+import type { SystemLogItem } from '@/types/systemData';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { FetchLogsArgs } from './types';
 import { formatUtcToSystemTime, readLogValue } from './utils';
