@@ -127,6 +127,7 @@ export const API_ENDPOINTS = {
   USER_MANAGEMENT: {
     BASE: '/api/v1/users',
     BY_ID: (id: string) => `/api/v1/users/${id}`,
+    UPDATE_STATUS: (id: string) => `/api/v1/users/${id}/status`,
     CREATE_STAFF: '/api/v1/users/staff',
   },
 

@@ -12,12 +12,23 @@ interface UsersTableProps {
     totalPages: number;
     totalCount: number;
     onViewDetail: (userId: string) => void;
+    onToggleStatus: (user: UserManagementListItem) => void;
+    statusActionUserId: string | null;
     onPrevPage: () => void;
     onNextPage: () => void;
 }
 
+const isActiveStatus = (status: string): boolean => {
+    const normalizedStatus = status.trim().toLowerCase();
+    return normalizedStatus === 'active' || normalizedStatus === '1';
+};
+
+const getStatusLabel = (status: string): string => {
+    return isActiveStatus(status) ? 'Hoạt động' : 'Tạm khoá';
+};
+
 const getStatusBadgeClass = (status: string) => {
-    if (status.toLowerCase() === 'active') {
+    if (isActiveStatus(status)) {
         return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
     }
 
@@ -33,6 +44,8 @@ export default function UsersTable({
     totalPages,
     totalCount,
     onViewDetail,
+    onToggleStatus,
+    statusActionUserId,
     onPrevPage,
     onNextPage,
 }: UsersTableProps) {
@@ -92,16 +105,29 @@ export default function UsersTable({
                                     <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{user.role}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(user.status)}`}>
-                                            {user.status}
+                                                {getStatusLabel(user.status)}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => onViewDetail(user.id)}
-                                            className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                                        >
-                                            Xem chi tiết
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => onViewDetail(user.id)}
+                                                className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                            >
+                                                Xem chi tiết
+                                            </button>
+                                            <button
+                                                onClick={() => onToggleStatus(user)}
+                                                disabled={statusActionUserId === user.id}
+                                                className="px-3 py-1.5 text-xs border border-blue-300 text-blue-700 dark:text-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                                            >
+                                                {statusActionUserId === user.id
+                                                    ? 'Đang cập nhật...'
+                                                    : isActiveStatus(user.status)
+                                                        ? 'Khoá'
+                                                        : 'Mở khoá'}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
