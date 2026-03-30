@@ -128,7 +128,7 @@ export default function IndexMiniChart({ data, history, onRemove }: IndexMiniCha
   }, []);
 
   useEffect(() => {
-    ecRef.current?.setOption(buildOption(), { notMerge: false, silent: true });
+    ecRef.current?.setOption(buildOption(), { notMerge: true, silent: true });
   });
 
   const valT = (data.totalMatchVal / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
