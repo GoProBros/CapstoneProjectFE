@@ -22,6 +22,7 @@ const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 const EXPIRES_AT_KEY = 'expiresAt';
+const AUTH_REDIRECT_SILENT_KEY = 'auth_redirect_silent';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -169,6 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
       const accessToken = localStorage.getItem(TOKEN_KEY);
+
+      // Mark redirect as intentional logout so login page won't show auth warning.
+      sessionStorage.setItem(AUTH_REDIRECT_SILENT_KEY, '1');
       
       if (refreshToken && accessToken) {
         await authService.logout({

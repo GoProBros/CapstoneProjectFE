@@ -111,7 +111,13 @@ export default function DashboardLayout({
   // Guard: redirect to login when auth check completes and user is not authenticated
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
-      sessionStorage.setItem('auth_redirect_message', 'Vui lòng đăng nhập / đăng ký để sử dụng');
+      const isSilentLogoutRedirect = sessionStorage.getItem('auth_redirect_silent') === '1';
+      if (isSilentLogoutRedirect) {
+        sessionStorage.removeItem('auth_redirect_silent');
+        sessionStorage.removeItem('auth_redirect_message');
+      } else {
+        sessionStorage.setItem('auth_redirect_message', 'Vui lòng đăng nhập / đăng ký để sử dụng');
+      }
       router.replace('/login');
     }
   }, [isAuthLoading, isAuthenticated, router]);

@@ -21,3 +21,36 @@ export interface UserSubscriptionDto {
   status: string | null;
   isActive: boolean;
 }
+
+export interface VipCurrentUserCountDto {
+  subscriptionId: number;
+  subscriptionName: string;
+  levelOrder: number;
+  levelDisplayName: string;
+  userCount: number;
+}
+
+export interface VipPackageUsageDto {
+  subscriptionId: number;
+  subscriptionName: string;
+  levelOrder: number;
+  levelDisplayName: string;
+  registrationCount: number;
+  uniqueUserCount: number;
+  totalRevenue: number;
+}
+
+export interface SubscriptionStatisticsDto {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  totalRevenue: number;
+  monthLabels: string[];
+  newUsersByMonth: number[];
+  revenueByMonth: number[];
+  revenueGrowthPercentageByMonth: number[];
+  revenuePercentageOfTotalByMonth: number[];
+  newUsersGrowthPercentageByMonth: number[];
+  currentUsersByVipLevel: VipCurrentUserCountDto[];
+  vipPackageUsages: VipPackageUsageDto[];
+}

@@ -3,7 +3,7 @@
  * API calls for financial data from backend
  */
 
-import { get } from './api';
+import { del, get, post, put } from './api';
 import { API_ENDPOINTS } from '@/constants';
 import type { PaginatedData } from '@/types';
 import type {
@@ -11,7 +11,34 @@ import type {
   FinancialReportFilters,
   FinancialReportTableRow,
   FinancialPeriodType,
+  FinancialReportStatus,
 } from '@/types/financialReport';
+
+export interface FetchSpecificFinancialReportRequest {
+  ticker: string;
+  year: number;
+  quarter: FinancialPeriodType;
+}
+
+export interface CreateFinancialReportRequest {
+  ticker: string;
+  year: number;
+  period: FinancialPeriodType;
+  reportData: Record<string, unknown>;
+}
+
+export interface UpdateFinancialReportRequest {
+  reportData?: Record<string, unknown>;
+  status?: FinancialReportStatus;
+}
+
+export interface FetchFinancialReportsListParams {
+  pageIndex?: number;
+  pageSize?: number;
+  period?: FinancialPeriodType;
+  status?: FinancialReportStatus;
+  year?: number;
+}
 
 /**
  * Convert FinancialReport to flattened table row
@@ -428,5 +455,151 @@ export async function fetchFinancialReportsByTicker(
   } catch (error) {
     console.error(`Error fetching financial reports for ${ticker}:`, error);
     return { items: [], totalCount: 0 };
+  }
+}
+
+/**
+ * Fetch paginated financial reports for dashboard listing
+ * @param pageIndex - Page index (1-based)
+ * @param pageSize - Number of records per page
+ */
+export async function fetchRecentFinancialReports(
+  pageIndex: number = 1,
+  pageSize: number = 5
+): Promise<PaginatedData<FinancialReport>> {
+  const response = await fetchFinancialReportsList({ pageIndex, pageSize });
+
+  return response;
+}
+
+/**
+ * Fetch financial reports with optional filters.
+ * Query params follow backend naming: PageIndex, PageSize, Period, Status, Year.
+ */
+export async function fetchFinancialReportsList(
+  filters: FetchFinancialReportsListParams = {}
+): Promise<PaginatedData<FinancialReport>> {
+  const params = new URLSearchParams({
+    PageIndex: (filters.pageIndex ?? 1).toString(),
+    PageSize: (filters.pageSize ?? 10).toString(),
+  });
+
+  if (typeof filters.period === 'number') {
+    params.set('Period', filters.period.toString());
+  }
+
+  if (typeof filters.status === 'number') {
+    params.set('Status', filters.status.toString());
+  }
+
+  if (typeof filters.year === 'number') {
+    params.set('Year', filters.year.toString());
+  }
+
+  const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.FINANCIAL_REPORTS}?${params.toString()}`;
+  const response = await get<PaginatedData<FinancialReport>>(endpoint);
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể tải dữ liệu báo cáo tài chính');
+  }
+
+  return response.data;
+}
+
+/**
+ * Fetch financial report detail by id.
+ */
+export async function fetchFinancialReportById(
+  reportId: string
+): Promise<FinancialReport> {
+  const response = await get<FinancialReport>(
+    API_ENDPOINTS.FINANCIAL_REPORTS.BY_ID(reportId)
+  );
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể tải chi tiết báo cáo tài chính');
+  }
+
+  return response.data;
+}
+
+/**
+ * Fetch financial report data from DNSE for a specific ticker and period.
+ */
+export async function fetchSpecificFinancialReportData(
+  payload: FetchSpecificFinancialReportRequest
+): Promise<Record<string, unknown>> {
+  const response = await post<Record<string, unknown>>(
+    API_ENDPOINTS.DATA_FETCHING.FINANCIAL_REPORT_SPECIFIC,
+    {
+      ticker: payload.ticker,
+      year: payload.year,
+      quarter: payload.quarter,
+    }
+  );
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể lấy dữ liệu báo cáo tài chính');
+  }
+
+  return response.data;
+}
+
+/**
+ * Create financial report from edited data.
+ */
+export async function createFinancialReport(
+  payload: CreateFinancialReportRequest
+): Promise<FinancialReport> {
+  const requestBody = {
+    ticker: payload.ticker,
+    year: payload.year,
+    period: payload.period,
+    reportData: payload.reportData,
+  };
+
+  const response = await post<FinancialReport>(
+    API_ENDPOINTS.FINANCIAL_REPORTS.FINANCIAL_REPORTS,
+    requestBody
+  );
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể tạo báo cáo tài chính');
+  }
+
+  return response.data;
+}
+
+/**
+ * Update financial report by id.
+ */
+export async function updateFinancialReport(
+  reportId: string,
+  payload: UpdateFinancialReportRequest
+): Promise<FinancialReport> {
+  const response = await put<FinancialReport>(
+    API_ENDPOINTS.FINANCIAL_REPORTS.BY_ID(reportId),
+    payload
+  );
+
+  if (!response.isSuccess || !response.data) {
+    throw new Error(response.message || 'Không thể cập nhật báo cáo tài chính');
+  }
+
+  return response.data;
+}
+
+/**
+ * Delete financial report by id.
+ */
+export async function deleteFinancialReport(
+  reportId: string
+): Promise<void> {
+  const response = await del<null>(
+    API_ENDPOINTS.FINANCIAL_REPORTS.BY_ID(reportId)
+  );
+
+  if (!response.isSuccess) {
+    throw new Error(response.message || 'Không thể xóa báo cáo tài chính');
   }
 }

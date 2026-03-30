@@ -40,7 +40,8 @@ export function useStockScreener() {
     // Layout id = 1 là system default
     if (layoutId === 1) {
       // Chỉ admin mới được sửa
-      return user?.role?.toLowerCase() === 'admin';
+      const role = user?.role?.trim().toLowerCase();
+      return role === 'admin' || role === 'quản trị viên';
     }
     
     // Các layout khác thì được phép sửa
