@@ -14,6 +14,7 @@ import { useSignalR } from '@/contexts/SignalRContext';
 import SmartBoardFilterBar from '@/components/dashboard/modules/SmartBoard/SmartBoardFilterBar';
 import { smartBoardService } from '@/services/smartBoardService';
 import { watchListService } from '@/services/watchListService';
+import { getIndexConstituents } from '@/services/marketIndexService';
 import { SMART_BOARD_LS_FILTERS, SMART_BOARD_VOLUME_THRESHOLD } from '@/constants/smartBoard';
 import type { SmartBoardFilters, VolumePeriod } from '@/types/smartBoard';
 import type { HeatmapItem } from '@/types/heatmap';
@@ -25,7 +26,15 @@ const DEFAULT_FILTERS: SmartBoardFilters = {
   watchlistId: null,
   volumeThreshold: null,
   volumePeriod: '1d',
+  hideNoTrading: true,
 };
+
+/** Fallback VN30 constituent tickers if API is unavailable */
+const VN30_FALLBACK = new Set([
+  'ACB','BCM','BID','BVH','CTG','FPT','GAS','GVR','HDB','HPG',
+  'MBB','MSN','MWG','PLX','POW','SAB','SHB','SSB','SSI','STB',
+  'TCB','TPB','VCB','VHM','VIB','VIC','VJC','VNM','VPB','VRE',
+]);
 
 function loadSavedFilters(): SmartBoardFilters {
   if (typeof window === 'undefined') return DEFAULT_FILTERS;
@@ -39,10 +48,15 @@ function loadSavedFilters(): SmartBoardFilters {
     return DEFAULT_FILTERS;
   }
 }
-/** Format a large number as compact string: 1,500,000 → "1.5M" */
+/** Format price: raw value in VND units → display in thousands (26700 → "26.70") */
+function fmtPrice(price: number): string {
+  return (price / 1000).toFixed(2);
+}
+
+/** Format volume with Vietnamese units: triệu (tr) / nghìn (ng) */
 function fmtVol(vol: number): string {
-  if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(1)}M`;
-  if (vol >= 1_000) return `${(vol / 1_000).toFixed(0)}K`;
+  if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(1)}tr`;
+  if (vol >= 1_000) return `${(vol / 1_000).toFixed(0)}ng`;
   return String(vol);
 }
 
@@ -71,7 +85,7 @@ function TickerRow({ item }: TickerRowProps) {
     >
       <span className="font-bold truncate">{item.ticker}</span>
       <span className="text-right tabular-nums">
-        {item.currentPrice.toLocaleString('vi-VN')}
+        {fmtPrice(item.currentPrice)}
       </span>
       <span className="text-right tabular-nums">
         {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
@@ -159,6 +173,19 @@ export default function SmartBoardModule() {
   const [filters, setFilters] = useState<SmartBoardFilters>(loadSavedFilters);
   const [items, setItems] = useState<HeatmapItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // VN30 constituent tickers (fetched once on mount)
+  const [vn30Tickers, setVn30Tickers] = useState<Set<string>>(VN30_FALLBACK);
+
+  useEffect(() => {
+    getIndexConstituents('VN30', { isActive: true, pageSize: 500 })
+      .then((res) => {
+        if (res.data?.items && res.data.items.length > 0) {
+          setVn30Tickers(new Set(res.data.items.map((s) => s.ticker.toUpperCase())));
+        }
+      })
+      .catch(() => { /* fallback set already in state */ });
+  }, []);
 
   // Watchlist state
   const [watchLists, setWatchLists] = useState<WatchListSummary[]>([]);
@@ -321,6 +348,11 @@ export default function SmartBoardModule() {
   const sectorColumns = useMemo(() => {
     let filtered = items;
 
+    // Hide not-yet-trading tickers (volume === 0)
+    if (filters.hideNoTrading) {
+      filtered = filtered.filter((i) => i.volume > 0);
+    }
+
     // Watchlist filter — restrict to tickers in the selected watchlist
     if (watchlistTickers !== null) {
       filtered = filtered.filter((i) => watchlistTickers.has(i.ticker.toUpperCase()));
@@ -355,14 +387,21 @@ export default function SmartBoardModule() {
       groups.get(key)!.push(item);
     }
 
-    // Sort sectors alphabetically, items within each by abs(changePercent) desc
+    // Sort sectors alphabetically, items within each by changePercent desc (gain → loss)
     return Array.from(groups.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'vi'))
       .map(([sectorName, sectorItems]) => ({
         sectorName,
-        items: sectorItems.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent)),
+        items: sectorItems.sort((a, b) => b.changePercent - a.changePercent),
       }));
   }, [items, filters, avgVolMap, watchlistTickers]);
+
+  // VN30 column — all VN30 tickers from current items, sorted gain → loss
+  const vn30Column = useMemo(() => {
+    return items
+      .filter((i) => vn30Tickers.has(i.ticker.toUpperCase()))
+      .sort((a, b) => b.changePercent - a.changePercent);
+  }, [items, vn30Tickers]);
 
   const handleFiltersChange = useCallback((f: SmartBoardFilters) => {
     setFilters(f);
@@ -375,8 +414,8 @@ export default function SmartBoardModule() {
       {/* Badge title — same pattern as HeatmapModule / StockScreenerModule */}
       <div className="flex-none flex items-center justify-center pt-1.5 pb-0.5">
         <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
-          <svg width="220" height="28" viewBox="0 0 136 22" className="block">
-            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
+          <svg width="360" height="28" viewBox="0 0 222 22" className="block">
+            <path d="M220 0C237 0 -15 0 2 0C19 0 27 22 46 22H178C197 22 203 0 220 0Z" fill="#4ADE80"/>
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
             Bảng Điện Thông Minh
@@ -441,6 +480,10 @@ export default function SmartBoardModule() {
           </div>
         ) : (
           <div className="flex gap-2 h-full">
+            {/* Pinned VN30 column */}
+            <SectorColumn key="VN30" sectorName="VN30" items={vn30Column} />
+            {/* Vertical divider */}
+            <div className={`w-px flex-shrink-0 self-stretch ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`} />
             {sectorColumns.map(({ sectorName, items: colItems }) => (
               <SectorColumn key={sectorName} sectorName={sectorName} items={colItems} />
             ))}

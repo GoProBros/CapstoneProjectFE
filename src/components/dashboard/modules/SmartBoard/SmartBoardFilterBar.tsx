@@ -13,9 +13,8 @@ import SectorFilter from '@/components/dashboard/modules/StockScreener/SectorFil
 import WatchListSelector from '@/components/dashboard/layout/WatchListSelector';
 import {
   SMART_BOARD_VOLUME_THRESHOLD,
-  VOLUME_PERIOD_OPTIONS,
 } from '@/constants/smartBoard';
-import type { SmartBoardFilters, VolumePeriod } from '@/types/smartBoard';
+import type { SmartBoardFilters } from '@/types/smartBoard';
 import type { ExchangeCode } from '@/types/symbol';
 import type { Sector } from '@/types/sector';
 import type { WatchListSummary } from '@/types/watchList';
@@ -63,22 +62,20 @@ export default function SmartBoardFilterBar({
     [filters, onFiltersChange]
   );
 
-  /** Toggle the volume filter on/off. When toggled on, default period is '1d'. */
+  /** Toggle the volume filter on/off. */
   const handleVolumeToggle = useCallback(() => {
     const active = filters.volumeThreshold !== null;
     onFiltersChange({
       ...filters,
       volumeThreshold: active ? null : SMART_BOARD_VOLUME_THRESHOLD,
-      volumePeriod: active ? filters.volumePeriod : '1d',
+      volumePeriod: '1d',
     });
   }, [filters, onFiltersChange]);
 
-  const handlePeriodChange = useCallback(
-    (period: VolumePeriod) => {
-      onFiltersChange({ ...filters, volumePeriod: period });
-    },
-    [filters, onFiltersChange]
-  );
+  /** Toggle hide-no-trading filter */
+  const handleHideNoTradingToggle = useCallback(() => {
+    onFiltersChange({ ...filters, hideNoTrading: !filters.hideNoTrading });
+  }, [filters, onFiltersChange]);
 
   const volumeActive = filters.volumeThreshold !== null;
 
@@ -92,7 +89,7 @@ export default function SmartBoardFilterBar({
         selectedExchange={filters.exchange}
         onExchangeChange={handleExchangeChange}
         isLoading={isLoading}
-        variant="pills"
+        variant="dropdown"
       />
 
       {/* Divider */}
@@ -109,6 +106,28 @@ export default function SmartBoardFilterBar({
         onSelect={handleWatchListSelect}
         onRefresh={onRefreshWatchLists}
       />
+
+      {/* Divider */}
+      <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
+
+      {/* Hide not-yet-trading toggle */}
+      <button
+        onClick={handleHideNoTradingToggle}
+        disabled={isLoading}
+        title={filters.hideNoTrading ? 'Hiển thị tất cả mã (kể cả chưa GD)' : 'Chỉ hiển thị mã đang giao dịch'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${filters.hideNoTrading
+            ? isDark
+              ? 'bg-green-700 text-white shadow-lg'
+              : 'bg-green-500 text-white shadow-lg'
+            : isDark
+              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+      >
+        <span>Đang GD</span>
+      </button>
 
       {/* Divider */}
       <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
@@ -150,44 +169,6 @@ export default function SmartBoardFilterBar({
           </svg>
           <span>KL ≥ 500K</span>
         </button>
-
-        {/* Period selector — only visible when filter is active */}
-        {volumeActive && (
-          <div
-            className={`flex items-center rounded-lg overflow-hidden border
-              ${isDark ? 'border-gray-600' : 'border-gray-300'}`}
-          >
-            {VOLUME_PERIOD_OPTIONS.map((opt) => {
-              const selected = filters.volumePeriod === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => handlePeriodChange(opt.value)}
-                  disabled={isLoading}
-                  className={`px-2.5 py-1.5 text-xs font-medium transition-all
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    ${selected
-                      ? isDark
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-amber-500 text-white'
-                      : isDark
-                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Active period hint text */}
-        {volumeActive && (
-          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            trung bình/{filters.volumePeriod === '1d' ? 'ngày' : filters.volumePeriod === '7d' ? 'tuần' : 'tháng'}
-          </span>
-        )}
       </div>
 
       {/* Right-side: active filter summary chips */}
@@ -235,6 +216,7 @@ export default function SmartBoardFilterBar({
                 watchlistId: null,
                 volumeThreshold: null,
                 volumePeriod: '1d',
+                hideNoTrading: true,
               })
             }
             className={`text-xs px-2 py-0.5 rounded-full transition-colors
