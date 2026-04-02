@@ -228,6 +228,32 @@ export interface FinancialReportQueryParams {
   pageSize?: number;
 }
 
+export interface FetchSpecificFinancialReportRequest {
+  ticker: string;
+  year: number;
+  quarter: FinancialPeriodType;
+}
+
+export interface CreateFinancialReportRequest {
+  ticker: string;
+  year: number;
+  period: FinancialPeriodType;
+  reportData: Record<string, unknown>;
+}
+
+export interface UpdateFinancialReportRequest {
+  reportData?: Record<string, unknown>;
+  status?: FinancialReportStatus;
+}
+
+export interface FetchFinancialReportsListParams {
+  pageIndex?: number;
+  pageSize?: number;
+  period?: FinancialPeriodType;
+  status?: FinancialReportStatus;
+  year?: number;
+}
+
 // ===========================
 // UI Helper Types
 // ===========================

@@ -9,9 +9,22 @@ import type {
     CreateStaffUserRequest,
     UserManagementDetail,
     UserManagementListItem,
+    UserManagementRoleFilter,
+    UserManagementStatusValue,
 } from '@/types/userManagement';
 
 const PAGE_SIZE = 10;
+
+const ROLE_FILTER_OPTIONS: Array<{ value: '' | '1' | '2'; label: string }> = [
+    { value: '', label: 'Tất cả vai trò' },
+    { value: '1', label: 'Người dùng' },
+    { value: '2', label: 'Nhân viên' },
+];
+
+const isActiveStatus = (status: string): boolean => {
+    const normalizedStatus = status.trim().toLowerCase();
+    return normalizedStatus === 'active' || normalizedStatus === '1';
+};
 
 export default function UsersFeature() {
     const [users, setUsers] = useState<UserManagementListItem[]>([]);
@@ -20,8 +33,11 @@ export default function UsersFeature() {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
 
+    const [searchInput, setSearchInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
+    const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
+    const [statusActionError, setStatusActionError] = useState<string | null>(null);
 
     const [selectedUser, setSelectedUser] = useState<UserManagementDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -42,6 +58,22 @@ export default function UsersFeature() {
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+    const selectedRoleFilter = useMemo<UserManagementRoleFilter | undefined>(() => {
+        if (roleFilter === '1') {
+            return 1;
+        }
+
+        if (roleFilter === '2') {
+            return 2;
+        }
+
+        if (roleFilter === '3') {
+            return 3;
+        }
+
+        return undefined;
+    }, [roleFilter]);
+
     const fetchUsers = useCallback(async (page: number) => {
         setLoading(true);
         setFetchError(null);
@@ -49,6 +81,8 @@ export default function UsersFeature() {
             const result = await userManagementService.getUsers({
                 pageIndex: page,
                 pageSize: PAGE_SIZE,
+                role: selectedRoleFilter,
+                search: searchQuery,
             });
 
             setUsers(result.items ?? []);
@@ -60,28 +94,25 @@ export default function UsersFeature() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [searchQuery, selectedRoleFilter]);
 
     useEffect(() => {
         fetchUsers(pageIndex);
     }, [fetchUsers, pageIndex]);
 
-    const roleOptions = useMemo(() => {
-        return Array.from(new Set(users.map(user => user.role).filter(Boolean))).sort();
-    }, [users]);
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setSearchQuery(searchInput.trim());
+        }, 350);
 
-    const filteredUsers = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-        return users.filter(user => {
-            const matchSearch =
-                query.length === 0 ||
-                user.name.toLowerCase().includes(query) ||
-                user.email.toLowerCase().includes(query) ||
-                user.phone.toLowerCase().includes(query);
-            const matchRole = roleFilter === '' || user.role === roleFilter;
-            return matchSearch && matchRole;
-        });
-    }, [users, searchQuery, roleFilter]);
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [searchInput]);
+
+    useEffect(() => {
+        setPageIndex(1);
+    }, [searchQuery, roleFilter]);
 
     const handleViewDetail = async (userId: string) => {
         setIsDetailModalOpen(true);
@@ -104,6 +135,27 @@ export default function UsersFeature() {
         setDetailError(null);
         setDetailLoading(false);
         setSelectedUser(null);
+    };
+
+    const handleToggleUserStatus = async (user: UserManagementListItem) => {
+        const nextStatus: UserManagementStatusValue = isActiveStatus(user.status) ? 0 : 1;
+
+        setStatusActionUserId(user.id);
+        setStatusActionError(null);
+
+        try {
+            await userManagementService.updateUserStatus(user.id, { status: nextStatus });
+
+            if (selectedUser?.id === user.id) {
+                setSelectedUser(prev => (prev ? { ...prev, status: nextStatus === 1 ? 'Active' : 'InActive' } : prev));
+            }
+
+            await fetchUsers(pageIndex);
+        } catch (error) {
+            setStatusActionError(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái người dùng');
+        } finally {
+            setStatusActionUserId(null);
+        }
     };
 
     const handleStaffFieldChange = <K extends keyof CreateStaffUserRequest>(
@@ -194,8 +246,8 @@ export default function UsersFeature() {
                     <input
                         type="text"
                         placeholder="Tìm kiếm người dùng..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
                         className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                     <select
@@ -203,15 +255,23 @@ export default function UsersFeature() {
                         onChange={e => setRoleFilter(e.target.value)}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">Tất cả vai trò</option>
-                        {roleOptions.map(role => (
-                            <option key={role} value={role}>
-                                {role}
+                        {ROLE_FILTER_OPTIONS.map(option => (
+                            <option key={option.value || 'all'} value={option.value}>
+                                {option.label}
                             </option>
                         ))}
                     </select>
                 </div>
             </div>
+
+            {statusActionError && (
+                <div className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center justify-between">
+                    <span>{statusActionError}</span>
+                    <button onClick={() => setStatusActionError(null)} className="ml-4 underline text-sm shrink-0">
+                        Đóng
+                    </button>
+                </div>
+            )}
 
             {fetchError && (
                 <div className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm flex items-center justify-between">
@@ -224,13 +284,15 @@ export default function UsersFeature() {
 
             <UsersTable
                 loading={loading}
-                users={filteredUsers}
+                users={users}
                 searchQuery={searchQuery}
                 roleFilter={roleFilter}
                 pageIndex={pageIndex}
                 totalPages={totalPages}
                 totalCount={totalCount}
                 onViewDetail={handleViewDetail}
+                onToggleStatus={handleToggleUserStatus}
+                statusActionUserId={statusActionUserId}
                 onPrevPage={() => setPageIndex(prev => Math.max(1, prev - 1))}
                 onNextPage={() => setPageIndex(prev => Math.min(totalPages, prev + 1))}
             />
