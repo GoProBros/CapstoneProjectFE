@@ -53,6 +53,16 @@ export const API_ENDPOINTS = {
   // Data fetching endpoints
   DATA_FETCHING: {
     FINANCIAL_REPORT_SPECIFIC: '/api/v1/data-fetching/financial-reports/specific',
+    IMPORT_SECTORS_FROM_SSI: '/api/v1/data-fetching/import-sectors-from-ssi',
+    IMPORT_SYMBOLS_FROM_SSI: '/api/v2/data-fetching/import-symbols-from-ssi',
+    MAP_SYMBOLS_SECTORS_FROM_SSI: '/api/v1/data-fetching/map-symbols-sector-from-ssi',
+    IMPORT_INDEX_CONSTITUENTS_FROM_SSI: '/api/v1/data-fetching/import-index-constituents-from-ssi',
+  },
+
+  // System log endpoints
+  LOGS: {
+    DATES: '/api/v1/logs/dates',
+    BASE: '/api/v1/logs',
   },
   
   // Analysis Report endpoints
@@ -117,6 +127,7 @@ export const API_ENDPOINTS = {
   USER_MANAGEMENT: {
     BASE: '/api/v1/users',
     BY_ID: (id: string) => `/api/v1/users/${id}`,
+    UPDATE_STATUS: (id: string) => `/api/v1/users/${id}/status`,
     CREATE_STAFF: '/api/v1/users/staff',
   },
 
