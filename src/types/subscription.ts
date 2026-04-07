@@ -1,3 +1,5 @@
+export type SubscriptionActiveFlag = 0 | 1 | boolean;
+
 export interface SubscriptionDto {
   id: number;
   name: string;
@@ -6,6 +8,7 @@ export interface SubscriptionDto {
   price: number;
   durationInDays: number;
   allowedModules: unknown;
+  isActive?: SubscriptionActiveFlag;
 }
 
 export interface UserSubscriptionDto {
@@ -19,7 +22,7 @@ export interface UserSubscriptionDto {
   startDate: string | null;
   endDate: string | null;
   status: string | null;
-  isActive: boolean;
+  isActive: SubscriptionActiveFlag;
 }
 
 export interface VipCurrentUserCountDto {

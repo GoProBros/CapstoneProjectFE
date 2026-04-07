@@ -11,6 +11,7 @@ interface MonthlyChartData {
 
 interface RevenueChartProps {
   data: MonthlyChartData[];
+  showDetailsAction?: boolean;
 }
 
 function formatMonthLabel(label: string) {
@@ -67,7 +68,10 @@ function buildRevenueLinePath(values: number[]) {
   return { linePath, points, width, height };
 }
 
-export default function RevenueChart({ data }: RevenueChartProps) {
+export default function RevenueChart({
+  data,
+  showDetailsAction = true,
+}: RevenueChartProps) {
   const router = useRouter();
   const maxRevenue = Math.max(...data.map((item) => item.revenue), 0);
   const { linePath, points, width, height } = buildRevenueLinePath(
@@ -207,7 +211,7 @@ export default function RevenueChart({ data }: RevenueChartProps) {
         </div>
       </div>
 
-      <div className="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-between">
+      <div className="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
             ✓
@@ -220,13 +224,15 @@ export default function RevenueChart({ data }: RevenueChartProps) {
               : "Chưa có dữ liệu doanh thu theo tháng."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push("/SystemManager/revenue")}
-          className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline"
-        >
-          Chi tiết →
-        </button>
+        {showDetailsAction && (
+          <button
+            type="button"
+            onClick={() => router.push("/SystemManager/revenue")}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline whitespace-nowrap"
+          >
+            Chi tiết →
+          </button>
+        )}
       </div>
     </div>
   );
