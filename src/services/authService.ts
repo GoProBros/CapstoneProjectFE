@@ -4,6 +4,7 @@
 
 import { post, get } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
+import { clearAuthStorageItems } from '@/lib/authStorage';
 import type { ApiResponse } from '@/types';
 import type {
   LoginRequest,
@@ -94,18 +95,12 @@ export async function logout(data: LogoutRequest): Promise<void> {
       accessToken: data.accessToken
     });
     
-    // Clear all user-related data from localStorage
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('expiresAt');
-    localStorage.removeItem('user');
+    // Clear all user-related data from browser storage
+    clearAuthStorageItems();
   } catch (error) {
     console.error('[AuthService] Logout error:', error);
-    // Even if API call fails, clear local storage
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('expiresAt');
-    localStorage.removeItem('user');
+    // Even if API call fails, clear browser storage
+    clearAuthStorageItems();
     throw error;
   }
 }

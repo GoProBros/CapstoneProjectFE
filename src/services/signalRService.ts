@@ -12,6 +12,7 @@
 import * as signalR from '@microsoft/signalr';
 import { MarketSymbolDto, ConnectionState } from '@/types/market';
 import type { LiveIndexData } from '@/types/marketIndex';
+import signalRDebugLogService from '@/services/signalRDebugLogService';
 
 /**
  * Callback type cho việc nhận dữ liệu market real-time
@@ -108,6 +109,9 @@ class SignalRService {
   
   /** HubConnection instance từ SignalR client */
   private connection: signalR.HubConnection | null = null;
+
+  /** In-flight connect promise để tránh gọi start() trùng */
+  private connectPromise: Promise<void> | null = null;
   
   /** Trạng thái kết nối hiện tại */
   private connectionState: ConnectionState = ConnectionState.Disconnected;
@@ -142,6 +146,119 @@ class SignalRService {
     automaticReconnect: true,
     reconnectDelays: [0, 2000, 5000, 10000, 30000], // 0s, 2s, 5s, 10s, 30s
   };
+
+  /** Counters for sampled debug logging. */
+  private marketDataDebugCount = 0;
+  private batchMarketDataDebugCount = 0;
+
+  /** Runtime switch for temporary StockScreener realtime debugging. */
+  private isStockScreenerDebugEnabled(): boolean {
+    if (process.env.NEXT_PUBLIC_STOCK_SCREENER_DEBUG === '1') {
+      return true;
+    }
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      return window.localStorage.getItem('debug:stockscreener') === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  /** Keep logs readable by sampling high-frequency realtime events. */
+  private shouldLogSample(counter: number): boolean {
+    return counter <= 20 || counter % 100 === 0;
+  }
+
+  private debugLog(message: string, payload?: unknown): void {
+    if (!this.isStockScreenerDebugEnabled()) return;
+    if (payload === undefined) {
+      console.log(`[SignalR][StockScreenerDebug] ${message}`);
+      return;
+    }
+    console.log(`[SignalR][StockScreenerDebug] ${message}`, payload);
+  }
+
+  /** Convert a field key to camelCase (first letter lowercase). */
+  private toCamelCase(key: string): string {
+    if (!key) return key;
+    return key.charAt(0).toLowerCase() + key.slice(1);
+  }
+
+  /** Convert numeric-like values to number while preserving non-numeric values. */
+  private normalizeValue(value: unknown): unknown {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') return value;
+      const parsed = Number(trimmed);
+      if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return value;
+  }
+
+  /** Normalize object keys to camelCase and values to number when possible. */
+  private normalizeObjectPayload(rawData: Record<string, unknown>): Record<string, unknown> {
+    const parsedData: Record<string, unknown> = {};
+    Object.keys(rawData).forEach((key) => {
+      const camelKey = this.toCamelCase(key);
+      parsedData[camelKey] = this.normalizeValue(rawData[key]);
+    });
+    return parsedData;
+  }
+
+  /**
+   * Normalize market payload from SignalR.
+   * Supports:
+   * - plain object payloads (MarketSymbolDto / dictionary)
+   * - array payloads in [{ field, value }] shape
+   */
+  private normalizeMarketData(rawData: unknown): MarketSymbolDto | null {
+    if (!rawData) return null;
+
+    let parsedData: Record<string, unknown> = {};
+
+    if (Array.isArray(rawData)) {
+      // Shape: [{ field: "LastPrice", value: 86500 }, ...]
+      rawData.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const obj = item as Record<string, unknown>;
+        const field = typeof obj.field === 'string' ? obj.field : null;
+        if (!field || obj.value === undefined) return;
+        parsedData[this.toCamelCase(field)] = this.normalizeValue(obj.value);
+      });
+    } else if (typeof rawData === 'object') {
+      parsedData = this.normalizeObjectPayload(rawData as Record<string, unknown>);
+    } else {
+      return null;
+    }
+
+    // Some backends may send `symbol` instead of `ticker`.
+    const tickerCandidate = parsedData.ticker ?? parsedData.symbol;
+    if (typeof tickerCandidate === 'string' && tickerCandidate.trim().length > 0) {
+      parsedData.ticker = tickerCandidate.toUpperCase();
+    }
+
+    if (typeof parsedData.ticker !== 'string' || parsedData.ticker.length === 0) {
+      return null;
+    }
+
+    return parsedData as unknown as MarketSymbolDto;
+  }
+
+  /** Emit a normalized market snapshot to all registered callbacks. */
+  private emitMarketData(data: MarketSymbolDto): void {
+    this.marketDataCallbacks.forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error('[SignalR] Error in market data callback:', error);
+      }
+    });
+  }
   
   /**
    * Private constructor để enforce Singleton pattern
@@ -163,7 +280,49 @@ class SignalRService {
    * Phải gọi trước khi connect
    */
   public initialize(config: Partial<SignalRConfig>): void {
-    this.config = { ...this.config, ...config };
+    const previousConfig = this.config;
+
+    // Do not let an undefined/empty baseUrl override a working previous config.
+    const sanitizedConfig: Partial<SignalRConfig> = { ...config };
+    if (!sanitizedConfig.baseUrl || sanitizedConfig.baseUrl.trim().length === 0) {
+      delete sanitizedConfig.baseUrl;
+    }
+
+    const nextConfig = { ...this.config, ...sanitizedConfig };
+    if (nextConfig.baseUrl) {
+      nextConfig.baseUrl = nextConfig.baseUrl.replace(/\/+$/, '');
+    }
+
+    const isSameBaseUrl = previousConfig.baseUrl === nextConfig.baseUrl;
+    const isSameAutoReconnect = previousConfig.automaticReconnect === nextConfig.automaticReconnect;
+    const isSameReconnectDelays =
+      (previousConfig.reconnectDelays ?? []).join(',') === (nextConfig.reconnectDelays ?? []).join(',');
+
+    // Idempotent initialize: tránh tạo lại connection không cần thiết
+    if (this.connection && isSameBaseUrl && isSameAutoReconnect && isSameReconnectDelays) {
+      this.config = nextConfig;
+      return;
+    }
+
+    this.config = nextConfig;
+    signalRDebugLogService.logState('INITIALIZE', {
+      baseUrl: nextConfig.baseUrl,
+      automaticReconnect: nextConfig.automaticReconnect,
+      reconnectDelays: nextConfig.reconnectDelays,
+    });
+
+    // Nếu config đổi, dừng connection cũ trước khi build connection mới
+    if (this.connection && this.connection.state !== signalR.HubConnectionState.Disconnected) {
+      this.connection.stop().catch((error) => {
+        console.error('[SignalR] Failed to stop previous connection during re-initialize:', error);
+      });
+    }
+
+    this.connection = null;
+    this.connectPromise = null;
+    this.subscribedSymbols.clear();
+    this.subscribedIndices.clear();
+    this.updateConnectionState(ConnectionState.Disconnected);
     
     // Build SignalR connection
     const connectionBuilder = new signalR.HubConnectionBuilder()
@@ -195,49 +354,87 @@ class SignalRService {
 
     // Handler: Nhận dữ liệu market từ server (Channel X Snapshot)
     // Server gọi: await Clients.Group(ticker).SendAsync("ReceiveMarketData", data)
-    this.connection.on('ReceiveMarketData', (rawData: any) => {
-      // Parse data - Backend gửi PascalCase, cần convert thành camelCase
-      let data: MarketSymbolDto;
-
-      const toCamelCase = (str: string): string => {
-        return str.charAt(0).toLowerCase() + str.slice(1);
-      };
-
-      if (Array.isArray(rawData)) {
-        const parsedData: any = {};
-        rawData.forEach((item: any) => {
-          if (item.field && item.value !== undefined) {
-            const fieldName = toCamelCase(item.field);
-            const value = item.value;
-            parsedData[fieldName] = isNaN(value) ? value : parseFloat(value);
-          }
-        });
-        data = parsedData as MarketSymbolDto;
-      } else if (typeof rawData === 'object' && rawData !== null) {
-        const parsedData: any = {};
-        Object.keys(rawData).forEach((key: string) => {
-          const camelKey = toCamelCase(key);
-          const value = (rawData as any)[key];
-          parsedData[camelKey] = (typeof value === 'number') ? value :
-            (typeof value === 'string' && !isNaN(parseFloat(value)) && isFinite(value as any)) ? parseFloat(value) :
-            value;
-        });
-        data = parsedData as MarketSymbolDto;
-      } else {
-        console.error('[SignalR] Invalid data format received:', rawData);
+    this.connection.on('ReceiveMarketData', (rawData: unknown) => {
+      const currentCount = ++this.marketDataDebugCount;
+      signalRDebugLogService.logReceived('ReceiveMarketData', rawData, {
+        sequence: currentCount,
+      });
+      const data = this.normalizeMarketData(rawData);
+      if (!data) {
+        if (this.shouldLogSample(currentCount)) {
+          this.debugLog(`ReceiveMarketData invalid payload #${currentCount}`, rawData);
+        }
         return;
       }
 
-      this.marketDataCallbacks.forEach(callback => {
-        try { callback(data); } catch (error) {
-          console.error('[SignalR] Error in market data callback:', error);
-        }
+      if (this.shouldLogSample(currentCount)) {
+        this.debugLog(`ReceiveMarketData #${currentCount}`, {
+          ticker: data.ticker,
+          lastPrice: data.lastPrice,
+          lastVol: data.lastVol,
+          totalVol: data.totalVol,
+          keys: Object.keys(data),
+        });
+      }
+
+      this.emitMarketData(data);
+    });
+
+    // Optional batch event compatibility:
+    // some backend versions may push multiple snapshots in one event.
+    this.connection.on('ReceiveBatchMarketData', (rawData: unknown) => {
+      const batchCount = ++this.batchMarketDataDebugCount;
+      signalRDebugLogService.logReceived('ReceiveBatchMarketData', rawData, {
+        sequence: batchCount,
       });
+      if (Array.isArray(rawData)) {
+        if (this.shouldLogSample(batchCount)) {
+          this.debugLog(`ReceiveBatchMarketData(array) #${batchCount}`, {
+            count: rawData.length,
+          });
+        }
+        rawData.forEach((item) => {
+          const data = this.normalizeMarketData(item);
+          if (data) this.emitMarketData(data);
+        });
+        return;
+      }
+
+      // Accept wrapper shape: { items: [...] }
+      if (rawData && typeof rawData === 'object') {
+        const wrapper = rawData as Record<string, unknown>;
+        const items = wrapper.items;
+        if (Array.isArray(items)) {
+          if (this.shouldLogSample(batchCount)) {
+            this.debugLog(`ReceiveBatchMarketData(wrapper.items) #${batchCount}`, {
+              count: items.length,
+            });
+          }
+          items.forEach((item) => {
+            const data = this.normalizeMarketData(item);
+            if (data) this.emitMarketData(data);
+          });
+          return;
+        }
+
+        // Fallback: payload is actually a single object
+        const single = this.normalizeMarketData(rawData);
+        if (single) {
+          if (this.shouldLogSample(batchCount)) {
+            this.debugLog(`ReceiveBatchMarketData(single) #${batchCount}`, {
+              ticker: single.ticker,
+              lastPrice: single.lastPrice,
+            });
+          }
+          this.emitMarketData(single);
+        }
+      }
     });
 
     // Handler: single matched order from X-TRADE channel
     // Server gọi: await Clients.Group("TRADE:{ticker}").SendAsync("ReceiveTradeData", trade)
     this.connection.on('ReceiveTradeData', (rawData: any) => {
+      signalRDebugLogService.logReceived('ReceiveTradeData', rawData);
       const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
       const trade: RecentTradeDto = {} as any;
       if (rawData && typeof rawData === 'object') {
@@ -248,6 +445,9 @@ class SignalRService {
 
     // Handler: initial batch of recent trades (sent right after SubscribeToTradeUpdates)
     this.connection.on('ReceiveRecentTrades', (rawData: any[]) => {
+      signalRDebugLogService.logReceived('ReceiveRecentTrades', rawData, {
+        count: Array.isArray(rawData) ? rawData.length : 0,
+      });
       if (!Array.isArray(rawData)) return;
       const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
       const trades: RecentTradeDto[] = rawData.map(item => {
@@ -261,6 +461,7 @@ class SignalRService {
     // Handler: live index snapshot from INDEX:{code} group
     // Server sends: await Clients.Group("INDEX:{code}").SendAsync("ReceiveIndexData", dto)
     this.connection.on('ReceiveIndexData', (rawData: any) => {
+      signalRDebugLogService.logReceived('ReceiveIndexData', rawData);
       if (!rawData || typeof rawData !== 'object') return;
       const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
       const data: any = {};
@@ -271,6 +472,7 @@ class SignalRService {
     // Handler: price depth snapshot from DEPTH:{ticker} group
     // Server gọi: await Clients.Group("DEPTH:{ticker}").SendAsync("ReceivePriceDepth", depth)
     this.connection.on('ReceivePriceDepth', (rawData: any) => {
+      signalRDebugLogService.logReceived('ReceivePriceDepth', rawData);
       const toCamelCase = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
       const depth: PriceDepthDto = {} as any;
       if (rawData && typeof rawData === 'object') {
@@ -281,6 +483,11 @@ class SignalRService {
     
     // Event: Kết nối đã được thiết lập
     this.connection.onclose((error) => {
+      signalRDebugLogService.logState('CONNECTION_CLOSED', {
+        hasError: Boolean(error),
+      }, {
+        errorMessage: error?.message,
+      });
       if (error) {
         console.error('[SignalR] Connection closed with error:', error);
         this.updateConnectionState(ConnectionState.Error);
@@ -291,12 +498,22 @@ class SignalRService {
     
     // Event: Đang reconnecting
     this.connection.onreconnecting((error) => {
+      signalRDebugLogService.logState('CONNECTION_RECONNECTING', {
+        errorMessage: error?.message,
+      });
       console.warn('[SignalR] Connection lost. Reconnecting...', error);
       this.updateConnectionState(ConnectionState.Reconnecting);
     });
     
     // Event: Reconnect thành công
     this.connection.onreconnected(async (connectionId) => {
+      signalRDebugLogService.ensureSession({
+        reason: 'reconnected',
+        connectionId,
+      });
+      signalRDebugLogService.logState('CONNECTION_RECONNECTED', {
+        connectionId,
+      });
       this.updateConnectionState(ConnectionState.Connected);
       
       // Tự động subscribe lại các symbols đã subscribe trước đó
@@ -318,18 +535,89 @@ class SignalRService {
     if (!this.connection) {
       throw new Error('[SignalR] Service not initialized. Call initialize() first.');
     }
-    
-    if (this.connectionState === ConnectionState.Connected) {
+
+    if (this.connection.state === signalR.HubConnectionState.Connected) {
+      signalRDebugLogService.ensureSession({
+        reason: 'connect-called-when-already-connected',
+        connectionId: this.connection.connectionId,
+      });
+      signalRDebugLogService.logState('CONNECT_SKIPPED_ALREADY_CONNECTED');
+      this.updateConnectionState(ConnectionState.Connected);
       return;
+    }
+
+    // Nếu đang có connect in-flight thì chỉ await
+    if (this.connectPromise) {
+      signalRDebugLogService.logState('CONNECT_WAITING_FOR_IN_FLIGHT_PROMISE');
+      await this.connectPromise;
+      return;
+    }
+
+    // Nếu SignalR đang transition state thì không gọi start() lần nữa
+    if (
+      this.connection.state === signalR.HubConnectionState.Connecting ||
+      this.connection.state === signalR.HubConnectionState.Reconnecting
+    ) {
+      signalRDebugLogService.logState('CONNECT_SKIPPED_TRANSITION_STATE', {
+        hubState: this.connection.state,
+      });
+      this.updateConnectionState(ConnectionState.Connecting);
+      return;
+    }
+
+    // Nếu đang Disconnecting, đợi về Disconnected rồi mới start lại.
+    if (this.connection.state === signalR.HubConnectionState.Disconnecting) {
+      await this.waitForDisconnected(5000);
+      const stateAfterWait = this.connection.state as signalR.HubConnectionState;
+      if (stateAfterWait !== signalR.HubConnectionState.Disconnected) {
+        this.updateConnectionState(ConnectionState.Connecting);
+        return;
+      }
     }
     
     try {
       this.updateConnectionState(ConnectionState.Connecting);
-      
-      await this.connection.start();
-      
-      this.updateConnectionState(ConnectionState.Connected);
+      signalRDebugLogService.logState('CONNECT_STARTING', {
+        baseUrl: this.config.baseUrl,
+      });
+
+      this.connectPromise = this.connection.start()
+        .then(() => {
+          signalRDebugLogService.startSession({
+            baseUrl: this.config.baseUrl,
+            connectionId: this.connection?.connectionId,
+          });
+          signalRDebugLogService.logState('CONNECT_SUCCESS', {
+            connectionId: this.connection?.connectionId,
+          });
+          this.updateConnectionState(ConnectionState.Connected);
+        })
+        .finally(() => {
+          this.connectPromise = null;
+        });
+
+      await this.connectPromise;
     } catch (error: any) {
+      signalRDebugLogService.logError('CONNECT_FAILED', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+      });
+      // Race benign: connection đã không còn ở Disconnected do luồng khác xử lý
+      if (
+        typeof error?.message === 'string' &&
+        error.message.includes("not in the 'Disconnected' state") &&
+        this.connection.state !== signalR.HubConnectionState.Disconnected
+      ) {
+        const hubState = this.connection.state as signalR.HubConnectionState;
+        if (hubState === signalR.HubConnectionState.Connected) {
+          this.updateConnectionState(ConnectionState.Connected);
+        } else {
+          this.updateConnectionState(ConnectionState.Connecting);
+        }
+        return;
+      }
+
       console.error('[SignalR] Connection failed:', error);
       console.error('[SignalR] Error details:', {
         message: error?.message,
@@ -350,32 +638,54 @@ class SignalRService {
       throw error;
     }
   }
+
+  /**
+   * Wait until HubConnection reaches Disconnected state (bounded by timeout).
+   */
+  private async waitForDisconnected(timeoutMs: number): Promise<void> {
+    if (!this.connection) return;
+
+    const startedAt = Date.now();
+    while (
+      this.connection &&
+      this.connection.state !== signalR.HubConnectionState.Disconnected &&
+      Date.now() - startedAt < timeoutMs
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
   
   /**
    * Ngắt kết nối khỏi SignalR Hub
    */
   public async disconnect(): Promise<void> {
     if (!this.connection) return;
-    
-    // Không disconnect nếu đang trong quá trình connecting (tránh lỗi negotiation)
-    if (this.connectionState === ConnectionState.Connecting) {
-      return;
+
+    // Nếu connect đang pending thì đợi settle trước khi stop
+    if (this.connectPromise) {
+      try {
+        await this.connectPromise;
+      } catch {
+        // ignore: connect đã fail thì cứ tiếp tục cleanup
+      }
     }
-    
-    // Không cần disconnect nếu đã disconnected
-    if (this.connectionState === ConnectionState.Disconnected) {
+
+    if (this.connection.state === signalR.HubConnectionState.Disconnected) {
+      signalRDebugLogService.logState('DISCONNECT_SKIPPED_ALREADY_DISCONNECTED');
       return;
     }
     
     try {
       // Unsubscribe tất cả symbols trước khi disconnect
-      if (this.subscribedSymbols.size > 0 && this.connectionState === ConnectionState.Connected) {
+      if (this.subscribedSymbols.size > 0 && this.connection.state === signalR.HubConnectionState.Connected) {
         await this.unsubscribeFromSymbols(Array.from(this.subscribedSymbols));
       }
       
       await this.connection.stop();
+      signalRDebugLogService.endSession('disconnect-called');
       this.updateConnectionState(ConnectionState.Disconnected);
     } catch (error) {
+      signalRDebugLogService.logError('DISCONNECT_FAILED', error);
       console.error('[SignalR] Error during disconnect:', error);
       throw error;
     }
@@ -399,9 +709,19 @@ class SignalRService {
       
       // Gọi server method: SubscribeToSymbols
       await this.connection.invoke('SubscribeToSymbols', normalizedSymbols);
+      signalRDebugLogService.ensureSession({ reason: 'subscribe-symbols' });
+      signalRDebugLogService.logAction('SubscribeToSymbols', {
+        count: normalizedSymbols.length,
+        symbols: normalizedSymbols,
+      });
       
       // Lưu vào danh sách subscribed
       normalizedSymbols.forEach(symbol => this.subscribedSymbols.add(symbol));
+
+      this.debugLog('Subscribed symbols', {
+        count: normalizedSymbols.length,
+        sample: normalizedSymbols.slice(0, 10),
+      });
     } catch (error) {
       console.error('[SignalR] Error subscribing to symbols:', error);
       throw error;
@@ -424,9 +744,19 @@ class SignalRService {
       
       // Gọi server method: UnsubscribeFromSymbols
       await this.connection.invoke('UnsubscribeFromSymbols', normalizedSymbols);
+      signalRDebugLogService.ensureSession({ reason: 'unsubscribe-symbols' });
+      signalRDebugLogService.logAction('UnsubscribeFromSymbols', {
+        count: normalizedSymbols.length,
+        symbols: normalizedSymbols,
+      });
       
       // Xóa khỏi danh sách subscribed
       normalizedSymbols.forEach(symbol => this.subscribedSymbols.delete(symbol));
+
+      this.debugLog('Unsubscribed symbols', {
+        count: normalizedSymbols.length,
+        sample: normalizedSymbols.slice(0, 10),
+      });
   
     } catch (error) {
       console.error('[SignalR] Error unsubscribing from symbols:', error);

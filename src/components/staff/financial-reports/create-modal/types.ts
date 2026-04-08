@@ -24,6 +24,16 @@ export interface GroupNode {
   subGroups: SubGroupNode[];
 }
 
+export interface GroupedMetricSubGroup {
+  subGroupLabel: string;
+  metrics: EditableMetricRow[];
+}
+
+export interface GroupedMetricGroup {
+  groupLabel: string;
+  subGroups: GroupedMetricSubGroup[];
+}
+
 export interface QuarterOption {
   value: FinancialPeriodType;
   label: string;
