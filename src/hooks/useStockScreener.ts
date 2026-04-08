@@ -19,6 +19,7 @@ import { ToastType } from '@/components/ui/Toast';
 
 // Module type constant for Stock Screener
 const MODULE_TYPE_STOCK_SCREENER = 1;
+const FILTER_DEFAULT_PAGE_SIZE = 1000;
 
 const isStockScreenerDebugEnabled = (): boolean => {
   if (process.env.NEXT_PUBLIC_STOCK_SCREENER_DEBUG === '1') {
@@ -214,7 +215,10 @@ export function useStockScreener() {
     }
 
     // All 3 filters are now combinable; build query params from whatever is active
-    const params: Parameters<typeof fetchSymbols>[0] = { PageSize: 5000, PageIndex: 1 };
+    const params: Parameters<typeof fetchSymbols>[0] = {
+      PageSize: FILTER_DEFAULT_PAGE_SIZE,
+      PageIndex: 1,
+    };
     if (exchange) params.Exchange = exchange;
     if (symbolType !== null) params.Type = symbolType;
     if (sector) params.Sector = sector.id;
