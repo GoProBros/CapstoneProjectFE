@@ -166,14 +166,9 @@ export function SignalRProvider({
       }
       pendingUpdatesRef.current = new Map();
       
-      // Chỉ disconnect nếu đang connected hoặc đang connecting
-      // Tránh stop connection trong khi đang negotiation (gây lỗi)
-      const currentState = service.getConnectionState();
-      if (currentState === ConnectionState.Connected) {
-        service.disconnect().catch((error) => {
-          console.error('[SignalRContext] Disconnect failed:', error);
-        });
-      }
+      // Không chủ động disconnect ở cleanup để tránh self-disconnect ngay sau connect
+      // khi React remount provider (dev/Strict Mode hoặc layout remount). Kết nối
+      // singleton sẽ được đóng khi browser unload hoặc khi gọi disconnect thủ công.
     };
   }, [apiUrl, autoConnect, autoReconnect]);
   
@@ -276,7 +271,7 @@ export function SignalRProvider({
     disconnect,
     subscribeToSymbols,
     unsubscribeFromSymbols,
-    // getSymbolData is stable (reads from ref), no need in deps
+    getSymbolData,
   ]);
   
   return (

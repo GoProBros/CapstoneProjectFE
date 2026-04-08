@@ -12,6 +12,15 @@ import { SignalRProvider } from "@/contexts/SignalRContext";
 import { useAuth } from "@/contexts/AuthContext";
 import * as workspaceService from "@/services/workspaceService";
 import { useSubscriptionStore } from "@/stores/subscriptionStore";
+import { WorkspaceType } from "@/types";
+import {
+  getDashboardCurrentPageStorage,
+  getDashboardPagesStorage,
+  removeDashboardCurrentPageStorage,
+  removeDashboardPagesStorage,
+  setDashboardCurrentPageStorage,
+  setDashboardPagesStorage,
+} from "@/lib/dashboardStorage";
 
 interface Module {
   id: string;
@@ -191,7 +200,7 @@ export default function DashboardLayout({
         });
         
         await workspaceService.updateWorkspace(page.workspaceId!, {
-          workspaceId: page.workspaceId!.toString(),
+          workspaceId: page.workspaceId!,
           workspaceName: page.name,
           layoutJson,
           isDefault: page.id === 'default',
@@ -216,8 +225,8 @@ export default function DashboardLayout({
       
       try {
         // Always load from localStorage first (fast UI)
-        const savedPages = localStorage.getItem("dashboard-pages");
-        const savedCurrentPageId = localStorage.getItem("dashboard-current-page");
+        const savedPages = getDashboardPagesStorage();
+        const savedCurrentPageId = getDashboardCurrentPageStorage();
         
         if (savedPages) {
           try {
@@ -247,16 +256,25 @@ export default function DashboardLayout({
           const response = await workspaceService.getMyWorkspaces();
           
           if (response.isSuccess && response.data) {
-            const apiWorkspaces: PageData[] = response.data.map((ws) => {
+            const workspaceList = Array.isArray(response.data) ? response.data : [];
+            const apiWorkspaces: PageData[] = workspaceList.map((ws) => {
               try {
                 const layoutData = ws.layoutJson;
                 
                 // Backend structure: modules array contains both layout and module info
                 const modules: Module[] = [];
                 const layout: LayoutItem[] = [];
-                
-                if (layoutData.modules && Array.isArray(layoutData.modules)) {
-                  layoutData.modules.forEach((item: any) => {
+
+                const moduleEntries =
+                  layoutData &&
+                  typeof layoutData === 'object' &&
+                  'modules' in layoutData &&
+                  Array.isArray((layoutData as { modules?: unknown }).modules)
+                    ? ((layoutData as { modules: unknown[] }).modules)
+                    : [];
+
+                if (moduleEntries.length > 0) {
+                  moduleEntries.forEach((item: any) => {
                     modules.push({
                       id: item.i,
                       type: item.type,
@@ -299,8 +317,8 @@ export default function DashboardLayout({
             // fallback workspace. If the user has 0 workspaces, show empty.
             if (apiWorkspaces.length === 0) {
               setPages([]);
-              localStorage.removeItem('dashboard-pages');
-              localStorage.removeItem('dashboard-current-page');
+              removeDashboardPagesStorage();
+              removeDashboardCurrentPageStorage();
               return;
             }
             
@@ -317,7 +335,7 @@ export default function DashboardLayout({
                 (!p.workspaceId && p.id.startsWith('page-'))
               );
               const merged = [...apiWorkspaces, ...recentLocal];
-              localStorage.setItem('dashboard-pages', JSON.stringify(merged));
+              setDashboardPagesStorage(JSON.stringify(merged));
               return merged;
             };
 
@@ -403,10 +421,10 @@ export default function DashboardLayout({
 
     setPages(prev => {
       const updatedPages = [...prev, newPage];
-      localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+      setDashboardPagesStorage(JSON.stringify(updatedPages));
       return updatedPages;
     });
-    localStorage.setItem('dashboard-current-page', tempId);
+    setDashboardCurrentPageStorage(tempId);
     setCurrentPageId(tempId); // Switch to new page immediately
 
     try {
@@ -417,6 +435,7 @@ export default function DashboardLayout({
         const response = await workspaceService.createWorkspace({
           workspaceName: pageName,
           layoutJson,
+          type: WorkspaceType.Web,
           isDefault: false,
         });
         
@@ -453,10 +472,10 @@ export default function DashboardLayout({
                   }
                 : p
             );
-            localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+            setDashboardPagesStorage(JSON.stringify(updatedPages));
             return updatedPages;
           });
-          localStorage.setItem('dashboard-current-page', wsId);
+          setDashboardCurrentPageStorage(wsId);
           setCurrentPageId(wsId);
 
           console.log('[Dashboard] Workspace created in API:', wsData.id);
@@ -478,7 +497,7 @@ export default function DashboardLayout({
     setCurrentPageId(pageId);
     
     // Save current page ID to localStorage
-    localStorage.setItem('dashboard-current-page', pageId);
+    setDashboardCurrentPageStorage(pageId);
     
     setNotification(
       `Đã chuyển sang "${pages.find((p) => p.id === pageId)?.name}"`
@@ -516,12 +535,12 @@ export default function DashboardLayout({
     setPages(updatedPages);
     
     // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setDashboardPagesStorage(JSON.stringify(updatedPages));
 
     // If current page is deleted, switch to default
     if (currentPageId === pageId) {
       setCurrentPageId("default");
-      localStorage.setItem('dashboard-current-page', 'default');
+      setDashboardCurrentPageStorage('default');
     }
 
     setNotification(`Đã xóa page "${pageToDelete?.name}" thành công!`);
@@ -664,7 +683,7 @@ export default function DashboardLayout({
     setPages(updatedPages);
     
     // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setDashboardPagesStorage(JSON.stringify(updatedPages));
 
     // Sync to API (only if authenticated)
     if (isAuthenticated) {
@@ -722,7 +741,7 @@ export default function DashboardLayout({
     setPages(updatedPages);
     
     // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setDashboardPagesStorage(JSON.stringify(updatedPages));
 
     // Sync to API with debounce (1 second) to avoid too many API calls during drag
     if (isAuthenticated) {
@@ -748,7 +767,7 @@ export default function DashboardLayout({
     setPages(updatedPages);
     
     // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setDashboardPagesStorage(JSON.stringify(updatedPages));
 
     // Sync to API (only if authenticated)
     if (isAuthenticated) {
@@ -789,7 +808,7 @@ export default function DashboardLayout({
     setPages(updatedPages);
     
     // Save to localStorage
-    localStorage.setItem('dashboard-pages', JSON.stringify(updatedPages));
+    setDashboardPagesStorage(JSON.stringify(updatedPages));
 
     // Sync to API (only if authenticated)
     if (isAuthenticated) {

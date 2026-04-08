@@ -19,6 +19,30 @@ import { ToastType } from '@/components/ui/Toast';
 
 // Module type constant for Stock Screener
 const MODULE_TYPE_STOCK_SCREENER = 1;
+const FILTER_DEFAULT_PAGE_SIZE = 1000;
+
+const isStockScreenerDebugEnabled = (): boolean => {
+  if (process.env.NEXT_PUBLIC_STOCK_SCREENER_DEBUG === '1') {
+    return true;
+  }
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem('debug:stockscreener') === '1';
+  } catch {
+    return false;
+  }
+};
+
+const stockScreenerDebugLog = (message: string, payload?: unknown): void => {
+  if (!isStockScreenerDebugEnabled()) return;
+  if (payload === undefined) {
+    console.log(`[StockScreenerDebug] ${message}`);
+    return;
+  }
+  console.log(`[StockScreenerDebug] ${message}`, payload);
+};
 
 /**
  * Custom hook chứa toàn bộ logic của StockScreenerModule
@@ -167,6 +191,9 @@ export function useStockScreener() {
    */
   const activeSectorIdRef = useRef<string | null>(null);
 
+  /** Counter for sampled debug logs in high-frequency grid updates. */
+  const gridUpdateDebugCountRef = useRef(0);
+
   /**
    * Shared helper: fetch symbols with combined filters (Exchange + Type + Sector)
    * then unsubscribe old tickers and subscribe to new ones.
@@ -188,7 +215,10 @@ export function useStockScreener() {
     }
 
     // All 3 filters are now combinable; build query params from whatever is active
-    const params: Parameters<typeof fetchSymbols>[0] = { PageSize: 5000, PageIndex: 1 };
+    const params: Parameters<typeof fetchSymbols>[0] = {
+      PageSize: FILTER_DEFAULT_PAGE_SIZE,
+      PageIndex: 1,
+    };
     if (exchange) params.Exchange = exchange;
     if (symbolType !== null) params.Type = symbolType;
     if (sector) params.Sector = sector.id;
@@ -523,6 +553,16 @@ export function useStockScreener() {
       return;
     }
 
+    const updateCount = ++gridUpdateDebugCountRef.current;
+    const shouldDebugLog = isStockScreenerDebugEnabled() && (updateCount <= 20 || updateCount % 100 === 0);
+
+    if (shouldDebugLog) {
+      stockScreenerDebugLog(`Grid sync tick #${updateCount}`, {
+        marketDataSize: marketData.size,
+        currentWatchListId,
+      });
+    }
+
     // CRITICAL: Nếu marketData rỗng nhưng grid vẫn còn rows → Clear grid
     if (marketData.size === 0) {
       const allRows: any[] = [];
@@ -594,6 +634,13 @@ export function useStockScreener() {
 
     if (staleGridRows.length > 0) {
       gridApi.applyTransaction({ remove: staleGridRows });
+
+      if (shouldDebugLog) {
+        stockScreenerDebugLog('Removed stale rows', {
+          count: staleGridRows.length,
+          sampleTickers: staleGridRows.slice(0, 5).map((row) => row.ticker),
+        });
+      }
     }
 
     // PHÂN LOẠI: Rows cần ADD (mới) vs UPDATE (đã tồn tại)
@@ -614,6 +661,15 @@ export function useStockScreener() {
       const transaction: any = {};
       if (rowsToAdd.length > 0) transaction.add = rowsToAdd;
       if (rowsToUpdate.length > 0) transaction.update = rowsToUpdate;
+
+      if (shouldDebugLog) {
+        stockScreenerDebugLog('Applying AG Grid transaction', {
+          add: rowsToAdd.length,
+          update: rowsToUpdate.length,
+          sampleAddTickers: rowsToAdd.slice(0, 5).map((row) => row.ticker),
+          sampleUpdateTickers: rowsToUpdate.slice(0, 5).map((row) => row.ticker),
+        });
+      }
 
       gridApi.applyTransaction(transaction);
       

@@ -13,14 +13,44 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const role = user?.role?.trim();
+  const AUTH_REDIRECT_SILENT_KEY = "auth_redirect_silent";
+  const AUTH_REDIRECT_MESSAGE_KEY = "auth_redirect_message";
   const canAccessSystemManagement =
     role === "Nhân viên" || role === "Admin" || role === "Quản trị viên";
 
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !canAccessSystemManagement)) {
-      router.push("/dashboard");
+    if (isLoading) {
+      return;
     }
-  }, [isAuthenticated, isLoading, canAccessSystemManagement, router]);
+
+    if (!isAuthenticated) {
+      const isSilentLogoutRedirect =
+        sessionStorage.getItem(AUTH_REDIRECT_SILENT_KEY) === "1";
+      if (isSilentLogoutRedirect) {
+        sessionStorage.removeItem(AUTH_REDIRECT_SILENT_KEY);
+        sessionStorage.removeItem(AUTH_REDIRECT_MESSAGE_KEY);
+      } else {
+        sessionStorage.setItem(
+          AUTH_REDIRECT_MESSAGE_KEY,
+          "Vui lòng đăng nhập / đăng ký để sử dụng",
+        );
+      }
+
+      router.replace("/login");
+      return;
+    }
+
+    if (!canAccessSystemManagement) {
+      router.replace("/dashboard");
+    }
+  }, [
+    isAuthenticated,
+    isLoading,
+    canAccessSystemManagement,
+    router,
+    AUTH_REDIRECT_SILENT_KEY,
+    AUTH_REDIRECT_MESSAGE_KEY,
+  ]);
 
   if (isLoading) {
     return (

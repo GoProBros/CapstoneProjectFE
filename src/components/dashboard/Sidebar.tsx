@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import * as workspaceService from '@/services/workspaceService';
 import type { Workspace } from '@/types';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { getDashboardPagesStorage, setDashboardPagesStorage } from '@/lib/dashboardStorage';
 
 interface PageData {
     id: string;
@@ -103,7 +104,7 @@ export default function Sidebar({
 
     const loadCurrentWorkspaceInfo = async (): Promise<Workspace | null> => {
         try {
-            const savedPages = localStorage.getItem('dashboard-pages');
+            const savedPages = getDashboardPagesStorage();
             if (!savedPages) return null;
             const pagesData = JSON.parse(savedPages);
             const currentPage = pagesData.find((p: any) => p.id === currentPageId);
@@ -127,7 +128,7 @@ export default function Sidebar({
         } else {
             // fallback: find from pages list
             const savedPages = (() => {
-                try { return JSON.parse(localStorage.getItem('dashboard-pages') || '[]'); } catch { return []; }
+                try { return JSON.parse(getDashboardPagesStorage() || '[]'); } catch { return []; }
             })();
             const p = savedPages.find((p: any) => p.id === currentPageId);
             if (p) { setRenameValue(p.name ?? ''); }
@@ -160,9 +161,9 @@ export default function Sidebar({
                 return;
             }
             const response = await workspaceService.updateWorkspace(currentWsId, {
-                workspaceId: currentWsId.toString(),
+                workspaceId: currentWsId,
                 workspaceName: renameValue.trim(),
-                layoutJson: ws.layoutJson,
+                layoutJson: ws.layoutJson ?? undefined,
                 isDefault: ws.isDefault,
             });
             if (response.isSuccess) {
@@ -170,13 +171,13 @@ export default function Sidebar({
                 onRenamePage?.(currentPageId, renameValue.trim());
                 // Also update localStorage name
                 try {
-                    const raw = localStorage.getItem('dashboard-pages');
+                    const raw = getDashboardPagesStorage();
                     if (raw) {
                         const ps = JSON.parse(raw);
                         const updated = ps.map((p: any) =>
                             p.workspaceId === currentWsId ? { ...p, name: renameValue.trim() } : p
                         );
-                        localStorage.setItem('dashboard-pages', JSON.stringify(updated));
+                        setDashboardPagesStorage(JSON.stringify(updated));
                     }
                 } catch {}
                 setIsRenameModalOpen(false);

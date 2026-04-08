@@ -6,6 +6,7 @@ import type { DataFetchTaskType, SystemLogItem } from '@/types/systemData';
 import systemDataService from '@/services/systemDataService';
 import DataTaskCard from '@/components/staff/data/DataTaskCard';
 import LogsPanel from '@/components/staff/data/LogsPanel';
+import SignalRLogExportPanel from '@/components/staff/data/SignalRLogExportPanel';
 import { dataTasks, DEFAULT_PAGE_SIZE } from '@/components/staff/data/constants';
 import type { FetchLogsArgs, TaskStatus } from '@/components/staff/data/types';
 
@@ -143,7 +144,7 @@ export default function DataFeature() {
                         Quản lý dữ liệu
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                        Thực thi các API fetch dữ liệu hệ thống và xem lịch sử log theo ngày.
+                        Thực thi các API fetch dữ liệu hệ thống, xem lịch sử log theo ngày và tải log SignalR frontend theo khoảng thời gian.
                     </p>
                 </div>
 
@@ -191,6 +192,8 @@ export default function DataFeature() {
                 onSearch={handleSearchLogs}
                 onFetchLogs={fetchLogs}
             />
+
+            <SignalRLogExportPanel />
         </div>
     );
 }

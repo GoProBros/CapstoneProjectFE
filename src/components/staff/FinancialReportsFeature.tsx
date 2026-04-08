@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { FilePlus } from 'lucide-react';
 import { fetchFinancialReportsList } from '@/services/financialReportService';
 import { FinancialPeriodType, FinancialReport, FinancialReportStatus } from '@/types/financialReport';
 import {
@@ -125,12 +126,10 @@ export default function FinancialReportsFeature() {
                 </div>
                 <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                    className="px-8 py-2.5 rounded-lg bg-[linear-gradient(135deg,#000011_0%,#0d1c32_100%)] text-white text-sm font-bold inline-flex items-center gap-2"
                 >
-                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Thêm Báo Cáo
+                    <FilePlus className="w-4 h-4" />
+                    Thêm báo cáo
                 </button>
             </div>
 

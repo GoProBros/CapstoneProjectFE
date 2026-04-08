@@ -4,6 +4,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter } from 'next/navigation';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
 import * as authService from '@/services/authService';
+import {
+  clearAuthStorageItems,
+  getAuthStorageItem,
+  setAuthStorageItem,
+} from '@/lib/authStorage';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +28,7 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 const EXPIRES_AT_KEY = 'expiresAt';
 const AUTH_REDIRECT_SILENT_KEY = 'auth_redirect_silent';
+const AUTH_REDIRECT_MESSAGE_KEY = 'auth_redirect_message';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -34,10 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Save auth data to localStorage
    */
   const saveAuthData = useCallback((authData: AuthResponse) => {
-    localStorage.setItem(TOKEN_KEY, authData.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, authData.refreshToken);
-    localStorage.setItem(EXPIRES_AT_KEY, authData.expiresAt);
-    localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
+    setAuthStorageItem(TOKEN_KEY, authData.accessToken);
+    setAuthStorageItem(REFRESH_TOKEN_KEY, authData.refreshToken);
+    setAuthStorageItem(EXPIRES_AT_KEY, authData.expiresAt);
+    setAuthStorageItem(USER_KEY, JSON.stringify(authData.user));
     setUser(authData.user);
   }, []);
 
@@ -45,10 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Clear auth data from localStorage
    */
   const clearAuthData = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(EXPIRES_AT_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearAuthStorageItems();
     setUser(null);
     
     // Clear refresh timer
@@ -63,8 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const refreshAccessToken = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      const userStr = localStorage.getItem(USER_KEY);
+      const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
+      const userStr = getAuthStorageItem(USER_KEY);
       
       if (!refreshToken || !userStr) {
         throw new Error('No refresh token or user data found');
@@ -168,11 +171,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      const accessToken = localStorage.getItem(TOKEN_KEY);
+      const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
+      const accessToken = getAuthStorageItem(TOKEN_KEY);
 
       // Mark redirect as intentional logout so login page won't show auth warning.
       sessionStorage.setItem(AUTH_REDIRECT_SILENT_KEY, '1');
+      sessionStorage.removeItem(AUTH_REDIRECT_MESSAGE_KEY);
       
       if (refreshToken && accessToken) {
         await authService.logout({
@@ -194,10 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-        const userStr = localStorage.getItem(USER_KEY);
-        const expiresAt = localStorage.getItem(EXPIRES_AT_KEY);
+        const token = getAuthStorageItem(TOKEN_KEY);
+        const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
+        const userStr = getAuthStorageItem(USER_KEY);
+        const expiresAt = getAuthStorageItem(EXPIRES_AT_KEY);
         
         if (token && userStr && expiresAt) {
           const userData: User = JSON.parse(userStr);

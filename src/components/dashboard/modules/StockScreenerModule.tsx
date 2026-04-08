@@ -193,7 +193,8 @@ export default function StockScreenerModule() {
         width: 80,
         pinned: "left",
         rowDrag: true, // Enable drag & drop để unsubscribe
-        cellClass: "font-bold text-blue-500 cursor-pointer text-xs",
+        cellClass: (params) =>
+          `${getPriceColorClass(params.data?.lastPrice, params.data, "font-bold")} cursor-pointer`,
       },
       {
         field: "ceilingPrice",

@@ -1,6 +1,11 @@
 // API service configuration and helper functions
 import { ApiResponse } from '@/types';
 import { API_ENDPOINTS } from '@/constants';
+import {
+  clearAuthStorageItems,
+  getAuthStorageItem,
+  setAuthStorageItem,
+} from '@/lib/authStorage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7148';
 
@@ -14,7 +19,7 @@ const USER_KEY = 'user';
  */
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return getAuthStorageItem(TOKEN_KEY);
 }
 
 /**
@@ -24,7 +29,7 @@ function getAccessToken(): string | null {
 function isTokenExpired(): boolean {
   if (typeof window === 'undefined') return true;
   
-  const expiresAt = localStorage.getItem(EXPIRES_AT_KEY);
+  const expiresAt = getAuthStorageItem(EXPIRES_AT_KEY);
   if (!expiresAt) return true;
   
   // Parse the expiration time - backend sends UTC time
@@ -41,8 +46,8 @@ function isTokenExpired(): boolean {
  */
 async function refreshAccessToken(): Promise<string | null> {
   try {
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    const userStr = localStorage.getItem(USER_KEY);
+    const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
+    const userStr = getAuthStorageItem(USER_KEY);
     
     if (!refreshToken || !userStr) {
       console.warn('[API] No refresh token or user data for token refresh');
@@ -73,10 +78,10 @@ async function refreshAccessToken(): Promise<string | null> {
     
     if (result.isSuccess && result.data) {
       // Save new tokens
-      localStorage.setItem(TOKEN_KEY, result.data.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, result.data.refreshToken);
-      localStorage.setItem(EXPIRES_AT_KEY, result.data.expiresAt);
-      localStorage.setItem(USER_KEY, JSON.stringify(result.data.user));
+      setAuthStorageItem(TOKEN_KEY, result.data.accessToken);
+      setAuthStorageItem(REFRESH_TOKEN_KEY, result.data.refreshToken);
+      setAuthStorageItem(EXPIRES_AT_KEY, result.data.expiresAt);
+      setAuthStorageItem(USER_KEY, JSON.stringify(result.data.user));
       
       console.log('[API] Token refreshed successfully');
       return result.data.accessToken;
@@ -97,11 +102,8 @@ async function refreshAccessToken(): Promise<string | null> {
  */
 function clearAuthData(): void {
   if (typeof window === 'undefined') return;
-  
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(EXPIRES_AT_KEY);
-  localStorage.removeItem(USER_KEY);
+
+  clearAuthStorageItems();
 }
 
 /**
