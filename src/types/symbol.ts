@@ -65,7 +65,7 @@ export type ExchangeCode = 'HSX' | 'HNX' | 'UPCOM';
 export interface SymbolData {
   isin: string | null;
   exchangeCode: ExchangeCode;
-  sectorId: string;
+  sectorId: string | null;
   type: SymbolType;
   status: SymbolStatus;
   ticker: string;
@@ -83,6 +83,12 @@ export interface PaginatedSymbolData {
   totalCount: number;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
+  Items?: SymbolData[];
+  PageIndex?: number;
+  TotalPages?: number;
+  TotalCount?: number;
+  HasPreviousPage?: boolean;
+  HasNextPage?: boolean;
 }
 
 /**
@@ -93,5 +99,5 @@ export interface SymbolQueryParams {
   Exchange?: ExchangeCode;
   Sector?: string;
   PageIndex?: number;
-  PageSize?: 10 | 20 | 50 | 100 | 1000 | 5000;
+  PageSize?: 10 | 20 | 30 | 50 | 100 | 1000 | 5000;
 }

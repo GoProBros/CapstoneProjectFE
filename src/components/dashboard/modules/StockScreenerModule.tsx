@@ -63,6 +63,26 @@ const formatPrice = (value: number | null | undefined): string => {
  */
 const isZeroSession = (data: any): boolean => {
   if (!data) return false;
+
+  const hasOrderBook =
+    !!data.bidPrice1 ||
+    !!data.bidVol1 ||
+    !!data.askPrice1 ||
+    !!data.askVol1 ||
+    !!data.bidPrice2 ||
+    !!data.bidVol2 ||
+    !!data.askPrice2 ||
+    !!data.askVol2 ||
+    !!data.bidPrice3 ||
+    !!data.bidVol3 ||
+    !!data.askPrice3 ||
+    !!data.askVol3;
+
+  if (hasOrderBook) {
+    // Auction phases (ATO/ATC) can have order-book data while lastPrice/lastVol are 0.
+    return false;
+  }
+
   return (
     (!data.lastPrice || data.lastPrice === 0) &&
     (!data.lastVol || data.lastVol === 0)
@@ -172,6 +192,7 @@ export default function StockScreenerModule() {
     handleCreateWatchList,
     onColumnResized,
     onColumnVisible,
+    handleGridBodyScroll,
     handleRowDragEnter,
     handleRowDragLeave,
 
@@ -210,8 +231,7 @@ export default function StockScreenerModule() {
         width: 80,
         pinned: "left",
         valueFormatter: (params) => formatPrice(params.value),
-        cellClass: "font-semibold text-xs",
-        cellStyle: { color: "#3b82f6" }, // blue-500 - giá sàn màu xanh dương
+        cellClass: "text-blue-500 font-semibold text-xs",
       },
       {
         field: "referencePrice",
@@ -338,6 +358,8 @@ export default function StockScreenerModule() {
             headerName: "+/-",
             width: 80,
             valueFormatter: (params) => {
+              // During auction phases, backend can send synthetic -reference change while no trade is matched yet.
+              if (!params.data?.lastPrice || !params.data?.lastVol) return "";
               if (isZeroSession(params.data)) return "";
               if (params.value == null || params.value === 0) return "";
               const valueInThousands = params.value / 1000;
@@ -357,6 +379,8 @@ export default function StockScreenerModule() {
             headerName: "+/- (%)",
             width: 90,
             valueFormatter: (params) => {
+              // During auction phases, backend can send synthetic -100% while no trade is matched yet.
+              if (!params.data?.lastPrice || !params.data?.lastVol) return "";
               if (isZeroSession(params.data)) return "";
               if (params.value == null || params.value === 0) return "";
               const pct = params.value.toFixed(2);
@@ -655,6 +679,11 @@ export default function StockScreenerModule() {
       enableCellChangeFlash: true,
       // Tắt auto-size để tránh grid resize liên tục
       suppressSizeToFit: true,
+      // Thêm border cho từng cell body để dễ phân tách dữ liệu
+      cellStyle: {
+        borderRight: "1px solid rgba(148, 163, 184, 0.22)",
+        borderBottom: "1px solid rgba(148, 163, 184, 0.22)",
+      },
     }),
     [],
   );
@@ -762,19 +791,6 @@ export default function StockScreenerModule() {
                 isLoading={isLoadingSector}
                 selectedSector={selectedSector}
               />
-
-              {/* Connection Status Indicator - Icon only */}
-              {/* <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                isConnected 
-                  ? 'bg-green-500/20 text-green-500' 
-                  : 'bg-red-500/20 text-red-500'
-              }`}>
-                {isConnected ? (
-                  <Wifi size={16} />
-                ) : (
-                  <WifiOff size={16} />
-                )}
-              </div> */}
             </div>
 
             {/* Action Buttons */}
@@ -837,6 +853,7 @@ export default function StockScreenerModule() {
               rowData={undefined}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
+              rowHeight={36}
               rowSelection="multiple"
               animateRows={true}
               theme="legacy"
@@ -848,6 +865,7 @@ export default function StockScreenerModule() {
               }}
               onColumnResized={onColumnResized}
               onColumnVisible={onColumnVisible}
+              onBodyScroll={handleGridBodyScroll}
               onCellClicked={(params) => {
                 if (params.colDef.field === "ticker" && params.data?.ticker) {
                   useSelectedSymbolStore
