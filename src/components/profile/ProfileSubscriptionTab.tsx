@@ -1,58 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
 import { syncMomoPayment, getPaymentStatus } from '@/services/paymentService';
 import { PaymentProviderType } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
-import { formatPrice } from './helpers';
+import { formatPrice, levelOrderLabel, parseAllowedModules } from './helpers';
 import { Spinner } from './Spinner';
 import { SubscriptionDetailModal } from './SubscriptionDetailModal';
 import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
 import { useProfileTheme } from './useProfileTheme';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
-
-function TransactionHistoryModal({ onClose }: { onClose: () => void }) {
-    const { bgCard, borderCls, textPrimary, textSecondary, textMuted, hoverBg, isDark } = useProfileTheme();
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={onClose}
-        >
-            <div
-                className={`w-full max-w-md rounded-2xl border ${bgCard} ${borderCls} p-6 space-y-4`}
-                onClick={e => e.stopPropagation()}
-            >
-                <div className="flex items-center justify-between">
-                    <h3 className={`text-lg font-bold ${textPrimary}`}>Lịch sử giao dịch</h3>
-                    <button onClick={onClose} className={`p-1.5 rounded-lg ${hoverBg} ${textSecondary}`}>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="flex flex-col items-center gap-3 py-8">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <svg className={`w-7 h-7 ${textMuted}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                    </div>
-                    <p className={`font-medium text-sm ${textPrimary}`}>Coming Soon</p>
-                    <p className={`text-xs text-center ${textSecondary}`}>
-                        Lịch sử giao dịch đang được phát triển. Sẽ hiển thị 10 giao dịch gần nhất.
-                    </p>
-                </div>
-                <button
-                    onClick={onClose}
-                    className="w-full py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors"
-                >
-                    Đóng
-                </button>
-            </div>
-        </div>
-    );
-}
 
 export function ProfileSubscriptionTab() {
     const { isAuthenticated } = useAuth();
@@ -65,7 +24,10 @@ export function ProfileSubscriptionTab() {
     const [loadingMySubscription, setLoadingMySubscription] = useState(false);
     const [detailSub, setDetailSub] = useState<SubscriptionDto | null>(null);
     const [paymentSub, setPaymentSub] = useState<SubscriptionDto | null>(null);
-    const [showTransactionHistory, setShowTransactionHistory] = useState(false);
+
+    const currentModules = useMemo(() => {
+        return parseAllowedModules(mySubscription?.allowedModules);
+    }, [mySubscription?.allowedModules]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -111,106 +73,138 @@ export function ProfileSubscriptionTab() {
         };
 
         initialize();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, setMySubscriptionStore]);
 
     return (
         <>
             <div className="space-y-6">
 
-                {/* Section header: title + transaction history button inline */}
                 <div className="flex items-center justify-between">
                     <h2 className={`text-base font-semibold ${textPrimary}`}>Quản lý gói thành viên</h2>
-                    <button
-                        onClick={() => setShowTransactionHistory(true)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        Lịch sử giao dịch
-                    </button>
                 </div>
 
-                {/* Current subscription — 3 columns */}
-                <div>
-                    <h3 className={`text-sm font-medium mb-3 ${textSecondary}`}>Gói hiện tại</h3>
+                <section className={`rounded-xl border ${borderCls} p-4 md:p-5 ${bgSub}`}>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <h3 className={`text-sm md:text-base font-semibold ${textPrimary}`}>Gói đăng ký hiện tại</h3>
+                        {mySubscription && (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-green-500/20 text-green-500">
+                                {levelOrderLabel(mySubscription.levelOrder)}
+                            </span>
+                        )}
+                    </div>
+
                     {loadingMySubscription ? (
-                        <div className="flex items-center gap-2 py-4">
+                        <div className="flex items-center gap-2 py-6">
                             <Spinner className="w-5 h-5 text-green-500" />
-                            <span className={`text-sm ${textSecondary}`}>Đang tải...</span>
+                            <span className={`text-sm ${textSecondary}`}>Đang tải thông tin gói hiện tại...</span>
                         </div>
                     ) : mySubscription ? (
-                        <div className={`rounded-xl border ${borderCls} p-4 grid grid-cols-3 gap-4`}>
-                            {(
-                                [
-                                    ['Tên gói', mySubscription.subscriptionName || '—'],
-                                    ['Workspace tối đa', mySubscription.maxWorkspaces != null ? mySubscription.maxWorkspaces.toString() : '—'],
-                                    ['Ngày kết thúc', mySubscription.endDate ? new Date(mySubscription.endDate).toLocaleDateString('vi-VN') : '—'],
-                                ] as [string, string][]
-                            ).map(([label, value]) => (
-                                <div key={label}>
-                                    <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${textMuted}`}>{label}</p>
-                                    <div className={`px-3 py-2 rounded-lg text-sm ${textPrimary} ${fieldBg} border ${borderCls}`}>{value}</div>
-                                </div>
-                            ))}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                            <div className="lg:col-span-7 space-y-2">
+                                {(
+                                    [
+                                        ['Tên gói', mySubscription.subscriptionName || '—'],
+                                        ['Workspace tối đa', mySubscription.maxWorkspaces != null ? mySubscription.maxWorkspaces.toString() : '—'],
+                                        ['Ngày bắt đầu', mySubscription.startDate ? new Date(mySubscription.startDate).toLocaleDateString('vi-VN') : '—'],
+                                        ['Ngày kết thúc', mySubscription.endDate ? new Date(mySubscription.endDate).toLocaleDateString('vi-VN') : '—'],
+                                    ] as [string, string][]
+                                ).map(([label, value]) => (
+                                    <div key={label} className={`rounded-lg border ${borderCls} ${fieldBg} px-3 py-2`}>
+                                        <p className={`text-[10px] uppercase tracking-wider font-medium ${textMuted}`}>{label}</p>
+                                        <p className={`text-sm font-semibold ${textPrimary}`}>{value}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className={`lg:col-span-5 rounded-lg border ${borderCls} ${fieldBg} p-3`}>
+                                <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${textMuted}`}>Modules được phép</p>
+                                {currentModules.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {currentModules.map(moduleName => (
+                                            <div
+                                                key={moduleName}
+                                                className={`rounded-md border ${borderCls} px-2.5 py-1.5 text-xs ${textPrimary} truncate`}
+                                                title={moduleName}
+                                            >
+                                                {moduleName}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className={`text-xs ${textSecondary}`}>Chưa có cấu hình module cho gói hiện tại.</p>
+                                )}
+                            </div>
                         </div>
                     ) : (
-                        <div className={`rounded-xl border ${borderCls} p-4 text-center text-sm ${textSecondary}`}>
-                            Bạn chưa đăng ký gói thành viên nào
+                        <div className={`rounded-lg border ${borderCls} p-4 text-sm ${textSecondary}`}>
+                            Bạn chưa đăng ký gói thành viên nào.
                         </div>
                     )}
-                </div>
+                </section>
 
-                {/* Available packages — 3-column portrait cards */}
-                <div>
-                    <h3 className={`text-sm font-medium mb-3 ${textSecondary}`}>Các gói thành viên</h3>
+                <section className={`rounded-xl border ${borderCls} p-4 md:p-5 ${bgSub}`}>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className={`text-sm md:text-base font-semibold ${textPrimary}`}>Các gói có thể nâng cấp</h3>
+                        <span className={`text-xs ${textMuted}`}>Vuốt ngang để xem thêm (nếu có)</span>
+                    </div>
+
                     {loadingSubscriptions ? (
-                        <div className="flex items-center gap-2 py-4">
+                        <div className="flex items-center gap-2 py-6">
                             <Spinner className="w-5 h-5 text-green-500" />
-                            <span className={`text-sm ${textSecondary}`}>Đang tải...</span>
+                            <span className={`text-sm ${textSecondary}`}>Đang tải danh sách gói...</span>
                         </div>
                     ) : subscriptions.length === 0 ? (
-                        <p className={`text-sm ${textSecondary}`}>Không có gói thành viên nào</p>
+                        <p className={`text-sm ${textSecondary}`}>Không có gói thành viên nào.</p>
                     ) : (
-                        <div className="grid grid-cols-3 gap-4">
-                            {subscriptions.map(sub => (
-                                <div
-                                    key={sub.id}
-                                    className={`rounded-xl border ${borderCls} p-4 flex flex-col gap-3 ${bgSub}`}
-                                >
-                                    <p className={`font-bold text-sm ${textPrimary} truncate`}>{sub.name}</p>
-                                    <div className="flex-1 space-y-1.5">
-                                        <p className={`text-xs ${textSecondary}`}>
-                                            Workspace: <span className={`font-semibold ${textPrimary}`}>{sub.maxWorkspaces}</span>
-                                        </p>
-                                        <p className="text-base font-bold text-green-500">{formatPrice(sub.price)}</p>
+                        <div className="overflow-x-auto pb-2">
+                            <div className="flex gap-4 min-w-max">
+                                {subscriptions.map(sub => (
+                                    <div
+                                        key={sub.id}
+                                        className={`w-[230px] rounded-xl border ${borderCls} ${fieldBg} p-4 flex flex-col justify-between gap-4`}
+                                    >
+                                        <div className="space-y-2">
+                                            <p className={`font-bold text-base ${textPrimary}`}>{sub.name}</p>
+                                            <p className={`text-sm ${textSecondary}`}>
+                                                Workspace tối đa: <span className={`font-semibold ${textPrimary}`}>{sub.maxWorkspaces}</span>
+                                            </p>
+                                            <p className={`text-sm ${textSecondary}`}>
+                                                Thời hạn: <span className={`font-semibold ${textPrimary}`}>{sub.durationInDays} ngày</span>
+                                            </p>
+                                            <p className="text-lg font-bold text-green-500">{formatPrice(sub.price)}</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <button
+                                                onClick={() => setDetailSub(sub)}
+                                                className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
+                                            >
+                                                Chi tiết
+                                            </button>
+                                            <button
+                                                onClick={() => setPaymentSub(sub)}
+                                                className="w-full py-2 rounded-lg text-sm font-medium bg-green-500 hover:bg-green-600 text-white transition-colors"
+                                            >
+                                                Nâng cấp
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col gap-2">
-                                        <button
-                                            onClick={() => setDetailSub(sub)}
-                                            className={`w-full py-1.5 rounded-lg text-xs font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
-                                        >
-                                            Chi tiết
-                                        </button>
-                                        <button
-                                            onClick={() => setPaymentSub(sub)}
-                                            className="w-full py-1.5 rounded-lg text-xs font-medium bg-green-500 hover:bg-green-600 text-white transition-colors"
-                                        >
-                                            Đăng ký
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
-                </div>
+                </section>
             </div>
 
-            {showTransactionHistory && (
-                <TransactionHistoryModal onClose={() => setShowTransactionHistory(false)} />
-            )}
             {detailSub && (
-                <SubscriptionDetailModal sub={detailSub} onClose={() => setDetailSub(null)} />
+                <SubscriptionDetailModal
+                    sub={detailSub}
+                    onClose={() => setDetailSub(null)}
+                    onUpgrade={selectedSub => {
+                        setDetailSub(null);
+                        setPaymentSub(selectedSub);
+                    }}
+                />
             )}
             {paymentSub && (
                 <SubscriptionPaymentModal sub={paymentSub} onClose={() => setPaymentSub(null)} />
