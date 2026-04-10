@@ -52,6 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const clearAuthData = useCallback(() => {
     clearAuthStorageItems();
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.clear();
+    }
+
     setUser(null);
     
     // Clear refresh timer
