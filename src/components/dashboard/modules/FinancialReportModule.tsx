@@ -134,8 +134,8 @@ export default function FinancialReportModule() {
     : 'text-gray-400 bg-gray-100 ring-gray-300 cursor-not-allowed opacity-50';
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-2xl border-2 flex flex-col overflow-hidden text-sm ${
-      isDark ? 'bg-moduleBackground border-gray-700/40 text-white' : 'bg-white border-gray-200 text-gray-900'
+    <div className={`dashboard-module w-full h-full rounded-2xl flex flex-col overflow-hidden text-sm ${
+      isDark ? 'bg-moduleBackground text-white' : 'bg-white text-gray-900'
     }`}>
       <div className="flex-none flex flex-col">
         <div className="flex items-center justify-center pt-1.5 pb-1">
@@ -188,24 +188,24 @@ export default function FinancialReportModule() {
                     contentStyle={{ backgroundColor: isDark ? '#424242' : '#fff', border: 'none', borderRadius: '4px' }}
                     labelStyle={{ color: isDark ? '#fff' : '#000' }}
                   />
-                  <Legend wrapperStyle={{ fontSize: '9px', color: isDark ? '#fff' : '#333' }} iconType="square" />
+                  <Legend wrapperStyle={{ fontSize: '4px', color: isDark ? '#fff' : '#333' }} iconType="square" />
                   {reportType === 'income' ? (
                     <>
-                      <Bar dataKey="Doanh thu thuần" fill="#84cc16" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Lợi nhuận gộp" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Lợi nhuận sau thuế" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Doanh thu thuần" fill="#84cc16" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Lợi nhuận gộp" fill="#22c55e" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Lợi nhuận sau thuế" fill="#10b981" radius={[2, 2, 0, 0]} />
                     </>
                   ) : reportType === 'balance' ? (
                     <>
-                      <Bar dataKey="Tổng tài sản" fill="#84cc16" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Vốn điều lệ" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Vốn chủ sở hữu" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Tổng tài sản" fill="#84cc16" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Vốn điều lệ" fill="#22c55e" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Vốn chủ sở hữu" fill="#10b981" radius={[2, 2, 0, 0]} />
                     </>
                   ) : (
                     <>
-                      <Bar dataKey="Dòng tiền KD" fill="#84cc16" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Dòng tiền ĐT" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Dòng tiền tự do" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Dòng tiền KD" fill="#84cc16" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Dòng tiền ĐT" fill="#22c55e" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Dòng tiền tự do" fill="#10b981" radius={[2, 2, 0, 0]} />
                     </>
                   )}
                 </BarChart>

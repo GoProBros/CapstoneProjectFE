@@ -633,10 +633,11 @@ export const getColumnDefs = (
         groupId: 'grossProfit',
         children: [
           {
-            field: 'grossProfit',
+            colId: 'grossProfit_summary',
             headerName: 'LN gộp',
             columnGroupShow: 'closed',
             width: 160,
+            valueGetter: (params) => params.data?.grossProfit ?? 0,
             valueFormatter: (p) => formatNumber(p.value),
             cellClass: 'font-bold'
           },
@@ -686,13 +687,6 @@ export const getColumnDefs = (
             cellClass: 'font-semibold'
           },
           {
-            field: 'costOfGoodsSold',
-            headerName: 'CP bán hàng',
-            columnGroupShow: 'open',
-            width: 140,
-            valueFormatter: (p) => formatNumber(p.value)
-          },
-          {
             field: 'interestExpenses',
             headerName: 'CP lãi vay',
             columnGroupShow: 'open',
@@ -729,10 +723,11 @@ export const getColumnDefs = (
         groupId: 'profitBeforeTax',
         children: [
           {
-            field: 'profitBeforeTax',
+            colId: 'profitBeforeTax_summary',
             headerName: 'LN trước thuế',
             columnGroupShow: 'closed',
             width: 150,
+            valueGetter: (params) => params.data?.profitBeforeTax ?? 0,
             valueFormatter: (p) => formatNumber(p.value),
             cellClass: 'font-bold'
           },
@@ -820,21 +815,6 @@ export const getColumnDefs = (
         groupId: 'parentCompanyNetProfit',
         children: [
           {
-            field: 'netProfit',
-            headerName: 'LN CTM',
-            columnGroupShow: 'closed',
-            width: 140,
-            valueFormatter: (p) => formatNumber(p.value),
-            cellClass: 'font-bold'
-          },
-          {
-            field: 'profitBeforeTax',
-            headerName: 'LN trước thuế',
-            columnGroupShow: 'open',
-            width: 150,
-            valueFormatter: (p) => formatNumber(p.value)
-          },
-          {
             field: 'corporateIncomeTax',
             headerName: 'Thuế TNDN',
             columnGroupShow: 'open',
@@ -847,14 +827,6 @@ export const getColumnDefs = (
             columnGroupShow: 'open',
             width: 130,
             valueFormatter: (p) => formatNumber(p.value)
-          },
-          {
-            field: 'netProfit',
-            headerName: 'LN C.ty mẹ',
-            columnGroupShow: 'open',
-            width: 140,
-            valueFormatter: (p) => formatNumber(p.value),
-            cellClass: 'font-bold'
           },
         ]
       },

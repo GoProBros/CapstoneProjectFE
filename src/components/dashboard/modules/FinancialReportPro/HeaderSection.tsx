@@ -10,10 +10,34 @@ import { Table2 } from "lucide-react";
 import LockToggle from "./LockToggle";
 import TickerSearchBox from "./TickerSearchBox";
 import IndustrySelect from "./IndustrySelect";
+import { LayoutSelector } from "@/components/dashboard/layout";
 import { useFinancialReportColumnStore } from "@/stores/financialReportColumnStore";
 import { useTheme } from "@/contexts/ThemeContext";
+import type { ModuleLayoutSummary } from "@/types/layout";
 
-const HeaderSection = memo(function HeaderSection() {
+interface HeaderSectionProps {
+  layouts: ModuleLayoutSummary[];
+  currentLayoutId: number | null;
+  currentLayoutName: string;
+  isLoadingLayouts: boolean;
+  isWorkspaceLayoutIdLoaded: boolean;
+  onSelectLayout: (layout: ModuleLayoutSummary) => void;
+  onDeleteLayout: (layout: ModuleLayoutSummary) => void;
+  onRefreshLayouts: () => void;
+  onCreateLayout: () => void;
+}
+
+const HeaderSection = memo(function HeaderSection({
+  layouts,
+  currentLayoutId,
+  currentLayoutName,
+  isLoadingLayouts,
+  isWorkspaceLayoutIdLoaded,
+  onSelectLayout,
+  onDeleteLayout,
+  onRefreshLayouts,
+  onCreateLayout,
+}: HeaderSectionProps) {
   const { setSidebarOpen } = useFinancialReportColumnStore();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -43,7 +67,25 @@ const HeaderSection = memo(function HeaderSection() {
       </div>
 
       {/* Right side: Column manager button */}
-      <div className="flex-1 flex flex-wrap items-center justify-end gap-2 py-2 px-2 md:px-4 overflow-x-auto ">
+      <div className="relative z-30 flex-1 flex flex-wrap items-center justify-end gap-2 py-2 px-2 md:px-4">
+        {!isWorkspaceLayoutIdLoaded && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 text-xs">
+            <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent" />
+            <span>Đang tải cấu hình...</span>
+          </div>
+        )}
+
+        <LayoutSelector
+          layouts={layouts}
+          currentLayoutId={currentLayoutId}
+          currentLayoutName={currentLayoutName}
+          isLoading={isLoadingLayouts}
+          onSelect={onSelectLayout}
+          onDelete={onDeleteLayout}
+          onRefresh={onRefreshLayouts}
+          onCreateNew={onCreateLayout}
+        />
+
         <button
           onClick={() => setSidebarOpen(true)}
           title="Quản lý cột"
