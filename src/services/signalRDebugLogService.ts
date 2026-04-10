@@ -14,6 +14,22 @@ class SignalRDebugLogService {
   private sessionId: string | null = null;
   private isLoaded = false;
 
+  private isDebugEnabled(): boolean {
+    if (process.env.NEXT_PUBLIC_ENABLE_SIGNALR_DEBUG === '1') {
+      return true;
+    }
+
+    if (!this.isBrowser()) {
+      return false;
+    }
+
+    try {
+      return window.localStorage.getItem('debug:signalrlog') === '1';
+    } catch {
+      return false;
+    }
+  }
+
   private isBrowser(): boolean {
     return typeof window !== 'undefined';
   }
@@ -110,7 +126,7 @@ class SignalRDebugLogService {
     payload?: unknown,
     metadata?: Record<string, unknown>,
   ): void {
-    if (!this.isBrowser()) {
+    if (!this.isBrowser() || !this.isDebugEnabled()) {
       return;
     }
 
@@ -149,7 +165,7 @@ class SignalRDebugLogService {
   }
 
   public startSession(metadata?: Record<string, unknown>): void {
-    if (!this.isBrowser()) {
+    if (!this.isBrowser() || !this.isDebugEnabled()) {
       return;
     }
 
@@ -164,11 +180,20 @@ class SignalRDebugLogService {
   }
 
   public endSession(reason: string): void {
+    if (!this.isDebugEnabled()) {
+      this.sessionId = null;
+      return;
+    }
+
     this.append('state', 'SESSION_ENDED', { reason });
     this.sessionId = null;
   }
 
   public ensureSession(metadata?: Record<string, unknown>): void {
+    if (!this.isDebugEnabled()) {
+      return;
+    }
+
     if (!this.sessionId) {
       this.startSession(metadata);
     }
@@ -179,22 +204,30 @@ class SignalRDebugLogService {
   }
 
   public logState(event: string, payload?: unknown, metadata?: Record<string, unknown>): void {
+    if (!this.isDebugEnabled()) return;
     this.append('state', event, payload, metadata);
   }
 
   public logAction(event: string, payload?: unknown, metadata?: Record<string, unknown>): void {
+    if (!this.isDebugEnabled()) return;
     this.append('action', event, payload, metadata);
   }
 
   public logReceived(event: string, payload?: unknown, metadata?: Record<string, unknown>): void {
+    if (!this.isDebugEnabled()) return;
     this.append('received', event, payload, metadata);
   }
 
   public logError(event: string, payload?: unknown, metadata?: Record<string, unknown>): void {
+    if (!this.isDebugEnabled()) return;
     this.append('error', event, payload, metadata);
   }
 
   public getLogs(startIso?: string, endIso?: string): SignalRDebugLogEntry[] {
+    if (!this.isDebugEnabled()) {
+      return [];
+    }
+
     this.loadFromStorage();
 
     const startTime = startIso ? new Date(startIso).getTime() : null;
@@ -216,16 +249,24 @@ class SignalRDebugLogService {
   }
 
   public getCount(startIso?: string, endIso?: string): number {
+    if (!this.isDebugEnabled()) {
+      return 0;
+    }
+
     return this.getLogs(startIso, endIso).length;
   }
 
   public clearAllLogs(): void {
+    if (!this.isDebugEnabled()) {
+      return;
+    }
+
     this.logs = [];
     this.persist();
   }
 
   public downloadLogs(startIso?: string, endIso?: string): void {
-    if (!this.isBrowser()) {
+    if (!this.isBrowser() || !this.isDebugEnabled()) {
       return;
     }
 

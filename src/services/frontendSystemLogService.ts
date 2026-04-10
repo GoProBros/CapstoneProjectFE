@@ -15,6 +15,22 @@ class FrontendSystemLogService {
   private queue: FrontendSystemLogEntry[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private isDebugEnabled(): boolean {
+    if (process.env.NEXT_PUBLIC_ENABLE_SIGNALR_DEBUG === '1') {
+      return true;
+    }
+
+    if (!this.isBrowser()) {
+      return false;
+    }
+
+    try {
+      return window.localStorage.getItem('debug:signalrlog') === '1';
+    } catch {
+      return false;
+    }
+  }
+
   private isBrowser(): boolean {
     return typeof window !== 'undefined';
   }
@@ -66,7 +82,7 @@ class FrontendSystemLogService {
   }
 
   public enqueue(entry: Omit<FrontendSystemLogEntry, 'id' | 'timestamp'> & { timestamp?: string }): void {
-    if (!this.isBrowser()) {
+    if (!this.isBrowser() || !this.isDebugEnabled()) {
       return;
     }
 
@@ -95,6 +111,10 @@ class FrontendSystemLogService {
     payload?: unknown;
     metadata?: Record<string, unknown>;
   }): void {
+    if (!this.isDebugEnabled()) {
+      return;
+    }
+
     this.enqueue({
       level: args.level,
       source: 'signalr',
@@ -113,6 +133,10 @@ class FrontendSystemLogService {
     payload?: unknown;
     metadata?: Record<string, unknown>;
   }): void {
+    if (!this.isDebugEnabled()) {
+      return;
+    }
+
     this.enqueue({
       level: args.level,
       source: 'console',
