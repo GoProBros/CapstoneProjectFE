@@ -178,7 +178,7 @@ export default function SmartBoardModule() {
   const [vn30Tickers, setVn30Tickers] = useState<Set<string>>(VN30_FALLBACK);
 
   useEffect(() => {
-    getIndexConstituents('VN30', { isActive: true, pageSize: 500 })
+    getIndexConstituents('VN30', { isActive: true, pageSize: 100 })
       .then((res) => {
         if (res.data?.items && res.data.items.length > 0) {
           setVn30Tickers(new Set(res.data.items.map((s) => s.ticker.toUpperCase())));

@@ -14,6 +14,22 @@ interface WindowWithConsoleCapture extends Window {
 
 const METHODS: ConsoleMethod[] = ['log', 'info', 'warn', 'error', 'debug'];
 
+const isSignalRDebugEnabled = (): boolean => {
+  if (process.env.NEXT_PUBLIC_ENABLE_SIGNALR_DEBUG === '1') {
+    return true;
+  }
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem('debug:signalrlog') === '1';
+  } catch {
+    return false;
+  }
+};
+
 const toMessage = (args: unknown[]): string => {
   if (args.length === 0) {
     return '';
@@ -34,6 +50,10 @@ const toMessage = (args: unknown[]): string => {
 export default function FrontendConsoleCapture() {
   useEffect(() => {
     if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!isSignalRDebugEnabled()) {
       return;
     }
 
