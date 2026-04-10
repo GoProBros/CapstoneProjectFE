@@ -85,33 +85,51 @@ export async function fetchSymbolsByExchange(exchange: ExchangeCode): Promise<st
 }
 
 /**
- * Fetch symbols with filters
+ * Fetch symbols with filters (paginated response)
  */
-export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolData[]> {
+export async function fetchSymbolsPaginated(params: SymbolQueryParams): Promise<PaginatedSymbolData> {
   const queryParams = new URLSearchParams();
-  
+
   if (params.Type !== undefined) queryParams.append('Type', String(params.Type));
   if (params.Exchange) queryParams.append('Exchange', params.Exchange);
   if (params.Sector) queryParams.append('Sector', params.Sector);
   if (params.PageIndex !== undefined) queryParams.append('PageIndex', String(params.PageIndex));
   if (params.PageSize !== undefined) queryParams.append('PageSize', String(params.PageSize));
-  
+
   const endpoint = `${API_ENDPOINTS.SYMBOL.LIST}?${queryParams}`;
-  
-  console.log('[SymbolService] Fetching symbols from:', endpoint);
-  
+
+  console.log('[SymbolService] Fetching paginated symbols from:', endpoint);
+
   try {
     const result = await get<PaginatedSymbolData>(endpoint);
-    
-    console.log('[SymbolService] API response:', result);
-    
-    // Handle ApiResponse wrapper
-    if (result.isSuccess && result.data && result.data.items) {
-      console.log('[SymbolService] Fetched', result.data.items.length, 'symbols');
-      return result.data.items;
-    } else {
-      throw new Error(result.message || 'Fetch symbols failed');
+
+    if (result.isSuccess && result.data) {
+      const payload = result.data;
+      return {
+        items: payload.items ?? payload.Items ?? [],
+        pageIndex: payload.pageIndex ?? payload.PageIndex ?? 1,
+        totalPages: payload.totalPages ?? payload.TotalPages ?? 1,
+        totalCount: payload.totalCount ?? payload.TotalCount ?? 0,
+        hasPreviousPage: payload.hasPreviousPage ?? payload.HasPreviousPage ?? false,
+        hasNextPage: payload.hasNextPage ?? payload.HasNextPage ?? false,
+      };
     }
+
+    throw new Error(result.message || 'Fetch paginated symbols failed');
+  } catch (error) {
+    console.error('[SymbolService] Fetch paginated symbols error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch symbols with filters
+ */
+export async function fetchSymbols(params: SymbolQueryParams): Promise<SymbolData[]> {
+  try {
+    const paginated = await fetchSymbolsPaginated(params);
+    console.log('[SymbolService] Fetched', paginated.items.length, 'symbols');
+    return paginated.items;
   } catch (error) {
     console.error('[SymbolService] Fetch symbols error:', error);
     throw error;

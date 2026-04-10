@@ -44,12 +44,12 @@ export default function ModuleSelectorModal({ isOpen, onClose }: ModuleSelectorM
     { 
       id: 'smart-board', 
       title: 'Bảng Điện Thông Minh',
-      preview: '/assets/Dashboard/ModulePreviews/heatmap.png'
+      preview: '/assets/Dashboard/ModulePreviews/smart-stock-screener.png'
     },
     { 
       id: 'index', 
       title: 'Chỉ số thị trường',
-      preview: '/assets/Dashboard/ModulePreviews/heatmap.png'
+      preview: '/assets/Dashboard/ModulePreviews/market-index.png'
     },
     { 
       id: 'vn-stock-chart', 

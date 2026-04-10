@@ -705,22 +705,27 @@ class SignalRService {
     
     try {
       // Normalize symbols to uppercase
-      const normalizedSymbols = symbols.map(s => s.toUpperCase());
+      const normalizedSymbols = Array.from(new Set(symbols.map(s => s.toUpperCase())));
+      const symbolsToSubscribe = normalizedSymbols.filter((symbol) => !this.subscribedSymbols.has(symbol));
+
+      if (symbolsToSubscribe.length === 0) {
+        return;
+      }
       
       // Gọi server method: SubscribeToSymbols
-      await this.connection.invoke('SubscribeToSymbols', normalizedSymbols);
+      await this.connection.invoke('SubscribeToSymbols', symbolsToSubscribe);
       signalRDebugLogService.ensureSession({ reason: 'subscribe-symbols' });
       signalRDebugLogService.logAction('SubscribeToSymbols', {
-        count: normalizedSymbols.length,
-        symbols: normalizedSymbols,
+        count: symbolsToSubscribe.length,
+        symbols: symbolsToSubscribe,
       });
       
       // Lưu vào danh sách subscribed
-      normalizedSymbols.forEach(symbol => this.subscribedSymbols.add(symbol));
+      symbolsToSubscribe.forEach(symbol => this.subscribedSymbols.add(symbol));
 
       this.debugLog('Subscribed symbols', {
-        count: normalizedSymbols.length,
-        sample: normalizedSymbols.slice(0, 10),
+        count: symbolsToSubscribe.length,
+        sample: symbolsToSubscribe.slice(0, 10),
       });
     } catch (error) {
       console.error('[SignalR] Error subscribing to symbols:', error);
@@ -740,22 +745,27 @@ class SignalRService {
     }
     
     try {
-      const normalizedSymbols = symbols.map(s => s.toUpperCase());
+      const normalizedSymbols = Array.from(new Set(symbols.map(s => s.toUpperCase())));
+      const symbolsToUnsubscribe = normalizedSymbols.filter((symbol) => this.subscribedSymbols.has(symbol));
+
+      if (symbolsToUnsubscribe.length === 0) {
+        return;
+      }
       
       // Gọi server method: UnsubscribeFromSymbols
-      await this.connection.invoke('UnsubscribeFromSymbols', normalizedSymbols);
+      await this.connection.invoke('UnsubscribeFromSymbols', symbolsToUnsubscribe);
       signalRDebugLogService.ensureSession({ reason: 'unsubscribe-symbols' });
       signalRDebugLogService.logAction('UnsubscribeFromSymbols', {
-        count: normalizedSymbols.length,
-        symbols: normalizedSymbols,
+        count: symbolsToUnsubscribe.length,
+        symbols: symbolsToUnsubscribe,
       });
       
       // Xóa khỏi danh sách subscribed
-      normalizedSymbols.forEach(symbol => this.subscribedSymbols.delete(symbol));
+      symbolsToUnsubscribe.forEach(symbol => this.subscribedSymbols.delete(symbol));
 
       this.debugLog('Unsubscribed symbols', {
-        count: normalizedSymbols.length,
-        sample: normalizedSymbols.slice(0, 10),
+        count: symbolsToUnsubscribe.length,
+        sample: symbolsToUnsubscribe.slice(0, 10),
       });
   
     } catch (error) {

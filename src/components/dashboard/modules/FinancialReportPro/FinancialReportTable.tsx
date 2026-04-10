@@ -6,9 +6,14 @@
  * rather than rebuilding columnDefs — avoids AG Grid reconciliation bugs.
  */
 
-import React, { useEffect, useMemo, memo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, memo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, AllCommunityModule, GridApi } from "ag-grid-community";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  GridApi,
+  type ColumnVisibleEvent,
+} from "ag-grid-community";
 import "./ag-grid-custom.css";
 
 import { useTheme } from "@/contexts/ThemeContext";
@@ -38,10 +43,59 @@ interface FinancialReportTableProps {
  * collapsed (columnGroupShow: 'closed'). That field shares the same name as
  * the sub-group's groupId. We need to hide/show it together with the sub-group.
  */
-const SUB_GROUP_SUMMARY_FIELDS: Record<string, string> = {
-  shortTermAssets: "shortTermAssets",
-  longTermAssets: "longTermAssets",
+const SUB_GROUP_SUMMARY_FIELDS: Record<
+  string,
+  { colId: string; controlField?: string }
+> = {
+  shortTermAssets: { colId: "shortTermAssets" },
+  longTermAssets: { colId: "longTermAssets" },
+  grossProfit: { colId: "grossProfit_summary", controlField: "grossProfit" },
+  profitBeforeTax: {
+    colId: "profitBeforeTax_summary",
+    controlField: "profitBeforeTax",
+  },
 };
+
+const SUMMARY_COLID_TO_FIELD: Record<string, string> = {
+  grossProfit_summary: "grossProfit",
+  profitBeforeTax_summary: "profitBeforeTax",
+};
+
+function buildGroupVisibilityFromFields(
+  currentGroups: Record<string, boolean>,
+  nextFields: Record<string, boolean>
+): Record<string, boolean> {
+  const nextGroups = { ...currentGroups };
+
+  for (const topGroup of FINANCIAL_COLUMN_STRUCTURE) {
+    if (topGroup.locked) {
+      nextGroups[topGroup.groupId] = true;
+      continue;
+    }
+
+    let topGroupHasVisibleField = false;
+
+    const topFields = topGroup.fields ?? [];
+    if (topFields.length > 0) {
+      const hasVisibleTopField = topFields.some(
+        (field) => nextFields[field.field] !== false
+      );
+      topGroupHasVisibleField ||= hasVisibleTopField;
+    }
+
+    for (const subGroup of topGroup.subGroups ?? []) {
+      const subGroupVisible = subGroup.fields.some(
+        (field) => nextFields[field.field] !== false
+      );
+      nextGroups[subGroup.groupId] = subGroupVisible;
+      topGroupHasVisibleField ||= subGroupVisible;
+    }
+
+    nextGroups[topGroup.groupId] = topGroupHasVisibleField;
+  }
+
+  return nextGroups;
+}
 
 function buildExpectedVisibility(
   groups: Record<string, boolean>,
@@ -65,9 +119,12 @@ function buildExpectedVisibility(
       const subVisible = topVisible && groups[sub.groupId] !== false;
 
       // Hide / show sub-group summary field if it exists
-      const summaryField = SUB_GROUP_SUMMARY_FIELDS[sub.groupId];
-      if (summaryField) {
-        expected.set(summaryField, subVisible);
+      const summaryConfig = SUB_GROUP_SUMMARY_FIELDS[sub.groupId];
+      if (summaryConfig) {
+        const summaryFieldVisible = summaryConfig.controlField
+          ? fields[summaryConfig.controlField] !== false
+          : true;
+        expected.set(summaryConfig.colId, subVisible && summaryFieldVisible);
       }
 
       for (const f of sub.fields) {
@@ -109,6 +166,7 @@ const FinancialReportTable = memo(function FinancialReportTable({
   const { theme } = useTheme();
   const { groups, fields } = useFinancialReportColumnStore();
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  const isApplyingStoreVisibilityRef = useRef(false);
 
   // columnDefs rebuilds when `groups` changes so that hidden column groups
   // (including their headers) are removed from the AG Grid defs entirely.
@@ -124,12 +182,58 @@ const FinancialReportTable = memo(function FinancialReportTable({
       gridApi.getColumns()?.map((c) => c.getColId()) ?? []
     );
 
-    for (const [field, visible] of expected.entries()) {
-      if (availableColIds.has(field)) {
-        gridApi.setColumnsVisible([field], visible);
+    isApplyingStoreVisibilityRef.current = true;
+    try {
+      for (const [field, visible] of expected.entries()) {
+        if (availableColIds.has(field)) {
+          gridApi.setColumnsVisible([field], visible);
+        }
       }
+    } finally {
+      isApplyingStoreVisibilityRef.current = false;
     }
   }, [gridApi, groups, fields]);
+
+  const handleColumnVisible = useCallback((event: ColumnVisibleEvent) => {
+    if (isApplyingStoreVisibilityRef.current) {
+      return;
+    }
+
+    const changedColumns = event.columns ?? (event.column ? [event.column] : []);
+    if (changedColumns.length === 0) {
+      return;
+    }
+
+    useFinancialReportColumnStore.setState((state) => {
+      const nextFields = { ...state.fields };
+      let hasFieldChange = false;
+
+      for (const column of changedColumns) {
+        const colId = column.getColId();
+        const fieldKey = SUMMARY_COLID_TO_FIELD[colId] ?? colId;
+
+        if (!(fieldKey in nextFields)) {
+          continue;
+        }
+
+        const isVisible = column.isVisible();
+        if (nextFields[fieldKey] !== isVisible) {
+          nextFields[fieldKey] = isVisible;
+          hasFieldChange = true;
+        }
+      }
+
+      if (!hasFieldChange) {
+        return state;
+      }
+
+      return {
+        ...state,
+        fields: nextFields,
+        groups: buildGroupVisibilityFromFields(state.groups, nextFields),
+      };
+    });
+  }, []);
 
   // ── Group data by ticker ──────────────────────────────────────────────────
   const groupedData = useMemo(() => {
@@ -182,6 +286,7 @@ const FinancialReportTable = memo(function FinancialReportTable({
           loadingOverlayComponent={LoadingOverlay}
           noRowsOverlayComponent={NoRowsOverlay}
           onGridReady={(params) => setGridApi(params.api)}
+          onColumnVisible={handleColumnVisible}
           getRowStyle={(params) => {
             if (params.data?.isTickerHeader) {
               return {
