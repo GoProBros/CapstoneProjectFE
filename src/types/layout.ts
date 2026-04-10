@@ -14,6 +14,7 @@
  */
 export enum ModuleType {
   StockScreener = 1,
+  FinancialReportPro = 3,
   // Add more module types as needed
   // Chart = 2,
   // OrderBook = 3,

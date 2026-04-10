@@ -22,6 +22,12 @@ export interface ColumnState {
   setSidebarOpen: (open: boolean) => void;
 }
 
+type PersistedColumnPatch = {
+  visible?: boolean;
+  width?: number;
+  order?: number;
+};
+
 // Default column configuration - SSI STREAM MARKET DATA
 const defaultColumns: Record<string, ColumnConfig> = {
   // THÔNG TIN GIAO DỊCH (SSI Stream - visible by default)
@@ -75,55 +81,198 @@ const defaultColumns: Record<string, ColumnConfig> = {
   currentRoom: { field: 'currentRoom', visible: false, width: 130, order: 35 },
 };
 
+const validColumnIds = new Set(Object.keys(defaultColumns));
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const normalizeColumnFromUnknown = (columnId: string, raw: unknown): ColumnConfig => {
+  const fallback = defaultColumns[columnId];
+  if (!fallback || !raw || typeof raw !== 'object') {
+    return { ...fallback };
+  }
+
+  const candidate = raw as Partial<ColumnConfig>;
+  return {
+    field: fallback.field,
+    visible: typeof candidate.visible === 'boolean' ? candidate.visible : fallback.visible,
+    width: isFiniteNumber(candidate.width) ? candidate.width : fallback.width,
+    order: isFiniteNumber(candidate.order) ? candidate.order : fallback.order,
+  };
+};
+
+const sanitizeColumns = (columns: Record<string, ColumnConfig> | null | undefined): Record<string, ColumnConfig> => {
+  const sanitized: Record<string, ColumnConfig> = {};
+
+  Object.keys(defaultColumns).forEach((columnId) => {
+    const raw = columns?.[columnId];
+    sanitized[columnId] = normalizeColumnFromUnknown(columnId, raw);
+  });
+
+  return sanitized;
+};
+
+const isSameColumnConfig = (a: ColumnConfig | undefined, b: ColumnConfig | undefined): boolean => {
+  if (!a || !b) return false;
+  return (
+    a.field === b.field &&
+    a.visible === b.visible &&
+    a.width === b.width &&
+    a.order === b.order
+  );
+};
+
+const isSameColumnsState = (a: Record<string, ColumnConfig>, b: Record<string, ColumnConfig>): boolean => {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (const key of aKeys) {
+    if (!isSameColumnConfig(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const buildPersistedColumnPatch = (columns: Record<string, ColumnConfig>): Record<string, PersistedColumnPatch> => {
+  const compacted: Record<string, PersistedColumnPatch> = {};
+
+  Object.keys(defaultColumns).forEach((columnId) => {
+    const defaults = defaultColumns[columnId];
+    const current = columns[columnId] ?? defaults;
+    const patch: PersistedColumnPatch = {};
+
+    if (current.visible !== defaults.visible) {
+      patch.visible = current.visible;
+    }
+    if (current.width !== defaults.width) {
+      patch.width = current.width;
+    }
+    if (current.order !== defaults.order) {
+      patch.order = current.order;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      compacted[columnId] = patch;
+    }
+  });
+
+  return compacted;
+};
+
+const mergeColumnsWithPatch = (patches: unknown): Record<string, ColumnConfig> => {
+  const merged: Record<string, ColumnConfig> = sanitizeColumns(defaultColumns);
+
+  if (!patches || typeof patches !== 'object') {
+    return merged;
+  }
+
+  Object.entries(patches as Record<string, unknown>).forEach(([columnId, rawPatch]) => {
+    if (!validColumnIds.has(columnId)) return;
+    if (!rawPatch || typeof rawPatch !== 'object') return;
+
+    const patch = rawPatch as PersistedColumnPatch;
+    const base = merged[columnId] ?? defaultColumns[columnId];
+
+    merged[columnId] = {
+      field: base.field,
+      visible: typeof patch.visible === 'boolean' ? patch.visible : base.visible,
+      width: isFiniteNumber(patch.width) ? patch.width : base.width,
+      order: isFiniteNumber(patch.order) ? patch.order : base.order,
+    };
+  });
+
+  return merged;
+};
+
 export const useColumnStore = create<ColumnState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       columns: defaultColumns,
       isSidebarOpen: false,
       
-      setColumns: (columns) => set({ columns }),
+      setColumns: (columns) =>
+        set((state) => {
+          const sanitizedColumns = sanitizeColumns(columns);
+          if (isSameColumnsState(state.columns, sanitizedColumns)) {
+            return state;
+          }
+          return { columns: sanitizedColumns };
+        }),
       
       setColumnVisibility: (field, visible) =>
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [field]: { ...state.columns[field], visible },
-          },
-        })),
+        set((state) => {
+          if (!validColumnIds.has(field)) return state;
+          const existing = state.columns[field] ?? defaultColumns[field];
+          if (!existing || existing.visible === visible) return state;
+          return {
+            columns: {
+              ...state.columns,
+              [field]: { ...existing, visible },
+            },
+          };
+        }),
       
       setColumnWidth: (field, width) =>
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [field]: { ...state.columns[field], width },
-          },
-        })),
+        set((state) => {
+          if (!validColumnIds.has(field)) return state;
+          const normalizedWidth = isFiniteNumber(width) ? width : undefined;
+          const existing = state.columns[field] ?? defaultColumns[field];
+          if (!existing || existing.width === normalizedWidth) return state;
+          return {
+            columns: {
+              ...state.columns,
+              [field]: { ...existing, width: normalizedWidth },
+            },
+          };
+        }),
       
       setColumnOrder: (field, order) =>
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [field]: { ...state.columns[field], order },
-          },
-        })),
+        set((state) => {
+          if (!validColumnIds.has(field)) return state;
+          const existing = state.columns[field] ?? defaultColumns[field];
+          if (!existing || existing.order === order) return state;
+          return {
+            columns: {
+              ...state.columns,
+              [field]: { ...existing, order },
+            },
+          };
+        }),
       
       reorderColumns: (fields) =>
         set((state) => {
+          const validFields = fields.filter((field) => validColumnIds.has(field));
+          if (validFields.length === 0) return state;
+
           const newColumns = { ...state.columns };
-          fields.forEach((field, index) => {
+          let changed = false;
+
+          validFields.forEach((field, index) => {
             if (newColumns[field]) {
+              if (newColumns[field].order === index) return;
               newColumns[field] = { ...newColumns[field], order: index };
+              changed = true;
             }
           });
-          return { columns: newColumns };
+
+          return changed ? { columns: newColumns } : state;
         }),
       
-      resetColumns: () => set({ columns: defaultColumns }),
+      resetColumns: () =>
+        set((state) => {
+          if (isSameColumnsState(state.columns, defaultColumns)) return state;
+          return { columns: defaultColumns };
+        }),
       
       toggleColumnVisibility: (field) =>
         set((state) => {
+          if (!validColumnIds.has(field)) return state;
           const existing = state.columns[field] ?? defaultColumns[field];
           if (!existing) return state;
+
           return {
             columns: {
               ...state.columns,
@@ -134,48 +283,73 @@ export const useColumnStore = create<ColumnState>()(
       
       setGroupVisibility: (fields, visible) =>
         set((state) => {
+          const validFields = fields.filter((field) => validColumnIds.has(field));
+          if (validFields.length === 0) return state;
+
           const newColumns = { ...state.columns };
-          fields.forEach((field) => {
+          let changed = false;
+
+          validFields.forEach((field) => {
             if (newColumns[field]) {
+              if (newColumns[field].visible === visible) return;
               newColumns[field] = { ...newColumns[field], visible };
+              changed = true;
             }
           });
-          return { columns: newColumns };
+
+          return changed ? { columns: newColumns } : state;
         }),
       
-      setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+      setSidebarOpen: (open) =>
+        set((state) => (state.isSidebarOpen === open ? state : { isSidebarOpen: open })),
     }),
     {
       name: 'stock-screener-columns',
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown, version: number): unknown => {
-        const state = persistedState as { columns?: Record<string, ColumnConfig> } | null;
+        const state = persistedState as {
+          columns?: Record<string, unknown>;
+          isSidebarOpen?: boolean;
+        } | null;
+
+        if (!state) {
+          return state;
+        }
+
+        const mergedColumns = mergeColumnsWithPatch(state.columns);
+
         if (version < 2 && state?.columns) {
           // fBuyVol and fSellVol are now visible by default. Make sure old data reflects this
           // so the "ĐẦU TƯ NƯỚC NGOÀI" group header is never fully hidden on upgrade.
-          if (state.columns.fBuyVol) state.columns.fBuyVol = { ...state.columns.fBuyVol, visible: true };
-          if (state.columns.fSellVol) state.columns.fSellVol = { ...state.columns.fSellVol, visible: true };
+          if (mergedColumns.fBuyVol) mergedColumns.fBuyVol = { ...mergedColumns.fBuyVol, visible: true };
+          if (mergedColumns.fSellVol) mergedColumns.fSellVol = { ...mergedColumns.fSellVol, visible: true };
         }
-        return state;
-      },
-      merge: (persistedState: unknown, currentState: ColumnState): ColumnState => {
-        const persisted = persistedState as Partial<ColumnState>;
-        const persistedColumns = persisted?.columns ?? {};
-        // Only restore persisted settings for columns that still exist in defaultColumns.
-        // This discards stale entries from old versions of the store so that
-        // columns removed from defaultColumns are never force-hidden in AG Grid.
-        const filteredColumns = Object.fromEntries(
-          Object.entries(persistedColumns).filter(([key]) => key in defaultColumns)
-        );
+
         return {
-          ...currentState,
-          ...persisted,
-          columns: {
-            ...defaultColumns,
-            ...filteredColumns,
-          },
+          ...state,
+          columns: mergedColumns,
         };
       },
+      merge: (persistedState: unknown, currentState: ColumnState): ColumnState => {
+        const persisted = persistedState as {
+          columns?: Record<string, unknown>;
+          isSidebarOpen?: boolean;
+        };
+        const mergedColumns = mergeColumnsWithPatch(persisted?.columns);
+
+        return {
+          ...currentState,
+          isSidebarOpen:
+            typeof persisted?.isSidebarOpen === 'boolean'
+              ? persisted.isSidebarOpen
+              : currentState.isSidebarOpen,
+          columns: mergedColumns,
+        };
+      },
+      partialize: (state) => ({
+        isSidebarOpen: state.isSidebarOpen,
+        columns: buildPersistedColumnPatch(state.columns),
+      }),
     }
   )
 );

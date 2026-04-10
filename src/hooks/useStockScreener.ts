@@ -5,7 +5,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useModule } from '@/contexts/ModuleContext';
 import { useColumnStore } from '@/stores/columnStore';
 import { useSignalR } from '@/contexts/SignalRContext';
-import { fetchSymbolsByExchange, fetchSymbols } from '@/services/symbolService';
+import { fetchSymbolsPaginated } from '@/services/symbolService';
 import { watchListService } from '@/services/watchListService';
 import * as layoutService from '@/services/layoutService';
 import type { ExchangeCode, SymbolType } from '@/types/symbol';
@@ -19,7 +19,36 @@ import { ToastType } from '@/components/ui/Toast';
 
 // Module type constant for Stock Screener
 const MODULE_TYPE_STOCK_SCREENER = 1;
-const FILTER_DEFAULT_PAGE_SIZE = 1000;
+const FILTER_DEFAULT_PAGE_SIZE = 50;
+const GRID_ROW_HEIGHT = 36;
+const SCROLL_PREFETCH_DEBOUNCE_MS = 120;
+const NEXT_PAGE_LOAD_COOLDOWN_MS = 250;
+const DEFAULT_MARKET_INDEX: MarketIndex = {
+  code: 'VN30',
+  name: 'VN30',
+  exchangeCode: 'HSX',
+  isBenchmark: true,
+  status: 1,
+};
+
+type ActiveSymbolSource =
+  | {
+      mode: 'filter';
+      exchange: ExchangeCode | null;
+      symbolType: SymbolType | null;
+      sector: Sector | null;
+    }
+  | {
+      mode: 'index';
+      index: MarketIndex;
+    };
+
+type SymbolsPageData = {
+  tickers: string[];
+  pageIndex: number;
+  hasNextPage: boolean;
+  pageTickerCount: number;
+};
 
 const isStockScreenerDebugEnabled = (): boolean => {
   if (process.env.NEXT_PUBLIC_STOCK_SCREENER_DEBUG === '1') {
@@ -194,6 +223,218 @@ export function useStockScreener() {
   /** Counter for sampled debug logs in high-frequency grid updates. */
   const gridUpdateDebugCountRef = useRef(0);
 
+  /** Active source query for incremental page loading (infinite scroll). */
+  const activeSymbolSourceRef = useRef<ActiveSymbolSource | null>(null);
+
+  /** Pagination state for symbol list API when using filter mode. */
+  const symbolPaginationRef = useRef<{
+    pageIndex: number;
+    hasNextPage: boolean;
+    isLoadingNextPage: boolean;
+    loadedTickerCount: number;
+    nextPrefetchTriggerRow: number;
+  }>({
+    pageIndex: 0,
+    hasNextPage: false,
+    isLoadingNextPage: false,
+    loadedTickerCount: 0,
+    nextPrefetchTriggerRow: Number.MAX_SAFE_INTEGER,
+  });
+
+  const pendingScrollPrefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestGridReadRowRef = useRef<number>(-1);
+  const lastNextPageLoadAtRef = useRef<number>(0);
+  const subscribedTickerSetRef = useRef<Set<string>>(new Set());
+
+  const cancelScheduledPrefetch = useCallback(() => {
+    if (pendingScrollPrefetchTimerRef.current !== null) {
+      clearTimeout(pendingScrollPrefetchTimerRef.current);
+      pendingScrollPrefetchTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    subscribedTickerSetRef.current = new Set(subscribedSymbols.map((ticker) => ticker.toUpperCase()));
+  }, [subscribedSymbols]);
+
+  const resetSymbolPagination = useCallback(() => {
+    cancelScheduledPrefetch();
+    activeSymbolSourceRef.current = null;
+    latestGridReadRowRef.current = -1;
+    lastNextPageLoadAtRef.current = 0;
+    symbolPaginationRef.current = {
+      pageIndex: 0,
+      hasNextPage: false,
+      isLoadingNextPage: false,
+      loadedTickerCount: 0,
+      nextPrefetchTriggerRow: Number.MAX_SAFE_INTEGER,
+    };
+  }, [cancelScheduledPrefetch]);
+
+  const fetchSymbolsPageBySource = useCallback(async (
+    source: ActiveSymbolSource,
+    pageIndex: number,
+  ): Promise<SymbolsPageData> => {
+    if (source.mode === 'index') {
+      const response = await getIndexConstituents(source.index.code, {
+        pageIndex,
+        pageSize: FILTER_DEFAULT_PAGE_SIZE,
+      });
+
+      if (!response.isSuccess || !response.data) {
+        return {
+          tickers: [],
+          pageIndex,
+          hasNextPage: false,
+          pageTickerCount: 0,
+        };
+      }
+
+      const tickers = Array.from(
+        new Set((response.data.items ?? []).map((s) => s.ticker.toUpperCase())),
+      );
+
+      return {
+        tickers,
+        pageIndex: response.data.pageIndex,
+        hasNextPage: response.data.hasNextPage,
+        pageTickerCount: tickers.length,
+      };
+    }
+
+    const params: Parameters<typeof fetchSymbolsPaginated>[0] = {
+      PageSize: FILTER_DEFAULT_PAGE_SIZE,
+      PageIndex: pageIndex,
+    };
+
+    if (source.exchange) params.Exchange = source.exchange;
+    if (source.symbolType !== null) params.Type = source.symbolType;
+    if (source.sector) params.Sector = source.sector.id;
+
+    const paginated = await fetchSymbolsPaginated(params);
+    const filteredItems =
+      source.symbolType !== null
+        ? paginated.items.filter((s) => s.type === source.symbolType)
+        : paginated.items;
+
+    const tickers = Array.from(
+      new Set(filteredItems.map((s) => s.ticker.toUpperCase())),
+    );
+
+    return {
+      tickers,
+      pageIndex: paginated.pageIndex,
+      hasNextPage: paginated.hasNextPage,
+      pageTickerCount: tickers.length,
+    };
+  }, []);
+
+  const loadNextSymbolsPage = useCallback(async () => {
+    const activeSource = activeSymbolSourceRef.current;
+    const pagination = symbolPaginationRef.current;
+
+    if (!isConnected || !activeSource || !pagination.hasNextPage || pagination.isLoadingNextPage) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastNextPageLoadAtRef.current < NEXT_PAGE_LOAD_COOLDOWN_MS) {
+      return;
+    }
+    lastNextPageLoadAtRef.current = now;
+
+    symbolPaginationRef.current = {
+      ...pagination,
+      isLoadingNextPage: true,
+    };
+
+    try {
+      const nextPage = pagination.pageIndex + 1;
+      const loadedBefore = pagination.loadedTickerCount;
+      const nextPageData = await fetchSymbolsPageBySource(activeSource, nextPage);
+      const currentTickerSet = subscribedTickerSetRef.current;
+      const tickersToSubscribe = nextPageData.tickers.filter((ticker) => !currentTickerSet.has(ticker));
+
+      if (tickersToSubscribe.length > 0) {
+        await subscribeToSymbols(tickersToSubscribe);
+        tickersToSubscribe.forEach((ticker) => currentTickerSet.add(ticker));
+      }
+
+      const nextLoadedTickerCount = loadedBefore + nextPageData.pageTickerCount;
+      const nextPrefetchTriggerRow =
+        nextPageData.hasNextPage && nextPageData.pageTickerCount > 0
+          ? loadedBefore + Math.floor(nextPageData.pageTickerCount / 2)
+          : Number.MAX_SAFE_INTEGER;
+
+      symbolPaginationRef.current = {
+        pageIndex: nextPageData.pageIndex,
+        hasNextPage: nextPageData.hasNextPage,
+        isLoadingNextPage: false,
+        loadedTickerCount: nextLoadedTickerCount,
+        nextPrefetchTriggerRow,
+      };
+    } catch (error) {
+      console.error('[StockScreener] Error loading next symbols page:', error);
+      symbolPaginationRef.current = {
+        ...symbolPaginationRef.current,
+        isLoadingNextPage: false,
+      };
+    }
+  }, [fetchSymbolsPageBySource, isConnected, subscribeToSymbols]);
+
+  const scheduleNextPageLoad = useCallback(() => {
+    if (pendingScrollPrefetchTimerRef.current !== null) {
+      return;
+    }
+
+    pendingScrollPrefetchTimerRef.current = setTimeout(() => {
+      pendingScrollPrefetchTimerRef.current = null;
+
+      const pagination = symbolPaginationRef.current;
+      if (!pagination.hasNextPage || pagination.isLoadingNextPage) {
+        return;
+      }
+
+      if (latestGridReadRowRef.current >= pagination.nextPrefetchTriggerRow) {
+        void loadNextSymbolsPage();
+      }
+    }, SCROLL_PREFETCH_DEBOUNCE_MS);
+  }, [loadNextSymbolsPage]);
+
+  const handleGridBodyScroll = useCallback((event: {
+    direction?: string;
+    top?: number;
+    api?: {
+      getDisplayedRowCount?: () => number;
+      getLastDisplayedRow?: () => number;
+      getLastDisplayedRowIndex?: () => number;
+      getVerticalPixelRange?: () => { top: number; bottom: number };
+    };
+  }) => {
+    // Ignore horizontal-only scroll events.
+    if (event.direction === 'horizontal') return;
+
+    const pagination = symbolPaginationRef.current;
+    if (!pagination.hasNextPage || pagination.isLoadingNextPage) {
+      return;
+    }
+
+    const lastDisplayedRow =
+      event.api?.getLastDisplayedRow?.() ??
+      event.api?.getLastDisplayedRowIndex?.() ??
+      -1;
+    const verticalRange = event.api?.getVerticalPixelRange?.();
+    const viewportBottom = verticalRange?.bottom ?? ((event.top ?? 0) + GRID_ROW_HEIGHT);
+    const lastReadRowByPixel = Math.max(-1, Math.floor(viewportBottom / GRID_ROW_HEIGHT) - 1);
+    const lastReadRow = Math.max(lastDisplayedRow, lastReadRowByPixel);
+    latestGridReadRowRef.current = lastReadRow;
+
+    // Trigger when user has read more than half of tickers returned by the latest API page.
+    if (lastReadRow >= pagination.nextPrefetchTriggerRow) {
+      scheduleNextPageLoad();
+    }
+  }, [scheduleNextPageLoad]);
+
   /**
    * Shared helper: fetch symbols with combined filters (Exchange + Type + Sector)
    * then unsubscribe old tickers and subscribe to new ones.
@@ -204,6 +445,10 @@ export function useStockScreener() {
     symbolType: SymbolType | null;
     sector: Sector | null;
   }) => {
+    cancelScheduledPrefetch();
+    latestGridReadRowRef.current = -1;
+    lastNextPageLoadAtRef.current = 0;
+
     const { exchange, symbolType, sector } = opts;
     const currentTickers = Array.from(marketData.keys());
 
@@ -214,36 +459,41 @@ export function useStockScreener() {
       if (allRows.length > 0) gridApi.applyTransaction({ remove: allRows });
     }
 
-    // All 3 filters are now combinable; build query params from whatever is active
-    const params: Parameters<typeof fetchSymbols>[0] = {
-      PageSize: FILTER_DEFAULT_PAGE_SIZE,
-      PageIndex: 1,
+    const source: ActiveSymbolSource = {
+      mode: 'filter',
+      exchange,
+      symbolType,
+      sector,
     };
-    if (exchange) params.Exchange = exchange;
-    if (symbolType !== null) params.Type = symbolType;
-    if (sector) params.Sector = sector.id;
 
-    // If NO filter is selected, fall back to entire HSX list (cheap exchange-only endpoint)
-    const tickerPromise: Promise<string[]> =
-      !exchange && symbolType === null && !sector
-        ? fetchSymbolsByExchange('HSX')
-        : fetchSymbols(params).then((symbols) => {
-            // When Type filter is active, ensure server-side type matches
-            const filtered =
-              symbolType !== null
-                ? symbols.filter((s) => s.type === symbolType)
-                : symbols;
-            return filtered.map((s) => s.ticker);
-          });
-
-    const [newTickers] = await Promise.all([
-      tickerPromise,
+    const [firstPage] = await Promise.all([
+      fetchSymbolsPageBySource(source, 1),
       currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
     ]);
 
-    if (!newTickers || newTickers.length === 0) return;
-    await subscribeToSymbols(newTickers);
+    activeSymbolSourceRef.current = source;
+    const firstPageTriggerRow =
+      firstPage.hasNextPage && firstPage.pageTickerCount > 0
+        ? Math.floor(firstPage.pageTickerCount / 2)
+        : Number.MAX_SAFE_INTEGER;
+
+    symbolPaginationRef.current = {
+      pageIndex: firstPage.pageIndex,
+      hasNextPage: firstPage.hasNextPage,
+      isLoadingNextPage: false,
+      loadedTickerCount: firstPage.pageTickerCount,
+      nextPrefetchTriggerRow: firstPageTriggerRow,
+    };
+
+    if (!firstPage.tickers.length) return;
+    await subscribeToSymbols(firstPage.tickers);
   };
+
+  useEffect(() => {
+    return () => {
+      cancelScheduledPrefetch();
+    };
+  }, [cancelScheduledPrefetch]);
 
   /**
    * Handle exchange filter change.
@@ -310,24 +560,39 @@ export function useStockScreener() {
     setSelectedSector(null);
     activeSectorIdRef.current = null;
     setSelectedSymbolType(null);
+    resetSymbolPagination();
     // Prevent the default HSX load from firing
     hasLoadedDefaultSymbols.current = true;
 
     try {
-      // Unsubscribe old tickers and fetch new ones in parallel
-      const [response] = await Promise.all([
-        index ? getIndexConstituents(index.code, { pageSize: 100 }) : Promise.resolve(null),
+      // Unsubscribe old tickers and fetch first index page in parallel
+      const source: ActiveSymbolSource | null = index ? { mode: 'index', index } : null;
+      const [firstPage] = await Promise.all([
+        source ? fetchSymbolsPageBySource(source, 1) : Promise.resolve(null),
         currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
       ]);
 
-      if (!index) {
+      if (!index || !firstPage) {
         setIsLoadingIndex(false);
         return;
       }
 
-      if (response && response.isSuccess && response.data?.items?.length) {
-        const tickers = response.data.items.map((s) => s.ticker);
-        await subscribeToSymbols(tickers);
+      activeSymbolSourceRef.current = source;
+      const firstPageTriggerRow =
+        firstPage.hasNextPage && firstPage.pageTickerCount > 0
+          ? Math.floor(firstPage.pageTickerCount / 2)
+          : Number.MAX_SAFE_INTEGER;
+
+      symbolPaginationRef.current = {
+        pageIndex: firstPage.pageIndex,
+        hasNextPage: firstPage.hasNextPage,
+        isLoadingNextPage: false,
+        loadedTickerCount: firstPage.pageTickerCount,
+        nextPrefetchTriggerRow: firstPageTriggerRow,
+      };
+
+      if (firstPage.tickers.length > 0) {
+        await subscribeToSymbols(firstPage.tickers);
       }
     } catch (error) {
       console.error(`[StockScreener] Error changing to index ${index?.code}:`, error);
@@ -440,17 +705,35 @@ export function useStockScreener() {
     const loadDefaultSymbols = async () => {
       // Mark as loaded immediately to prevent concurrent runs
       hasLoadedDefaultSymbols.current = true;
+      resetSymbolPagination();
       try {
-        const response = await getIndexConstituents('VN30', { pageSize: 100 });
+        const source: ActiveSymbolSource = {
+          mode: 'index',
+          index: DEFAULT_MARKET_INDEX,
+        };
+        const firstPage = await fetchSymbolsPageBySource(source, 1);
 
-        if (!response.isSuccess || !response.data?.items?.length) {
+        activeSymbolSourceRef.current = source;
+        const firstPageTriggerRow =
+          firstPage.hasNextPage && firstPage.pageTickerCount > 0
+            ? Math.floor(firstPage.pageTickerCount / 2)
+            : Number.MAX_SAFE_INTEGER;
+
+        symbolPaginationRef.current = {
+          pageIndex: firstPage.pageIndex,
+          hasNextPage: firstPage.hasNextPage,
+          isLoadingNextPage: false,
+          loadedTickerCount: firstPage.pageTickerCount,
+          nextPrefetchTriggerRow: firstPageTriggerRow,
+        };
+
+        if (!firstPage.tickers.length) {
           return;
         }
 
-        const tickers = response.data.items.map((s) => s.ticker);
         // Set selectedIndex to VN30 so the UI reflects the default selection
-        setSelectedIndex({ code: 'VN30', name: 'VN30', exchangeCode: 'HSX', isBenchmark: true, status: 1 });
-        await subscribeToSymbols(tickers);
+        setSelectedIndex(DEFAULT_MARKET_INDEX);
+        await subscribeToSymbols(firstPage.tickers);
       } catch (error) {
         console.error('[StockScreener] Error loading default symbols:', error);
         hasLoadedDefaultSymbols.current = false;
@@ -458,7 +741,7 @@ export function useStockScreener() {
     };
 
     loadDefaultSymbols();
-  }, [isConnected, subscribeToSymbols]);
+  }, [fetchSymbolsPageBySource, isConnected, resetSymbolPagination, subscribeToSymbols]);
 
   /**
    * Global mouseup listener để detect khi user thả chuột sau khi drag ra ngoài grid
@@ -1119,6 +1402,7 @@ export function useStockScreener() {
     setSelectedSymbolType(null);
     setSelectedIndex(null);
     setSelectedSector(null);
+    resetSymbolPagination();
 
     try {
       // Unsubscribe old (SignalR) and fetch watch-list detail (REST) in parallel
@@ -1159,12 +1443,28 @@ export function useStockScreener() {
       
       // Refresh watch lists
       await fetchWatchLists();
+
+      // Auto-select the newly created watch-list
+      if (isConnected) {
+        await handleSelectWatchList({
+          id: newWatchList.id,
+          name: newWatchList.name,
+          tickerCount: newWatchList.tickers.length,
+          status: newWatchList.status,
+          createdAt: newWatchList.createdAt,
+          updatedAt: newWatchList.updatedAt,
+        });
+      } else {
+        // Fallback when SignalR is not connected: still switch UI selection.
+        setCurrentWatchListId(newWatchList.id);
+        setCurrentWatchListName(newWatchList.name);
+        currentWatchListTickers.current.clear();
+        setSelectedExchange(null);
+        setSelectedSymbolType(null);
+        setSelectedIndex(null);
+        setSelectedSector(null);
+      }
       
-      setToast({
-        isOpen: true,
-        message: `Đã tạo watch-list "${name}" thành công`,
-        type: 'success'
-      });
     } catch (error) {
       console.error('[StockScreener] Error creating watch list:', error);
       setToast({
@@ -1192,11 +1492,21 @@ export function useStockScreener() {
           // Refresh watch lists
           await fetchWatchLists();
           
-          // If deleted watch list is current, clear selection
+          // If deleted watch list is current, switch back to default subscription (VN30)
           if (currentWatchListId === watchList.id) {
-            setCurrentWatchListId(null);
-            setCurrentWatchListName('Danh mục của tôi');
-            currentWatchListTickers.current.clear();
+            if (isConnected) {
+              await handleIndexChange(DEFAULT_MARKET_INDEX);
+            } else {
+              setCurrentWatchListId(null);
+              setCurrentWatchListName('Danh mục của tôi');
+              currentWatchListTickers.current.clear();
+              setSelectedExchange(null);
+              setSelectedSymbolType(null);
+              setSelectedSector(null);
+              activeSectorIdRef.current = null;
+              setSelectedIndex(DEFAULT_MARKET_INDEX);
+              hasLoadedDefaultSymbols.current = true;
+            }
           }
           
           setToast({
@@ -1359,6 +1669,7 @@ export function useStockScreener() {
     handleCreateWatchList,
     onColumnResized,
     onColumnVisible,
+    handleGridBodyScroll,
     handleRowDragEnter,
     handleRowDragLeave,
     
