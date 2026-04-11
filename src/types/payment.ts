@@ -3,6 +3,29 @@ export interface PaymentLinkResponse {
   orderCode: number;
 }
 
+/** 0 = Pending, 1 = Completed, 2 = Cancelled, 3 = Expired */
+export const PaymentTransactionStatus = {
+  Pending: 0,
+  Completed: 1,
+  Cancelled: 2,
+  Expired: 3,
+} as const;
+
+export type PaymentTransactionStatusValue =
+  (typeof PaymentTransactionStatus)[keyof typeof PaymentTransactionStatus];
+
+export interface PaymentStatusResponse {
+  orderCode: number;
+  amount: number;
+  status: PaymentTransactionStatusValue;
+  statusName: string;
+  paymentProvider: PaymentProviderValue;
+  paymentProviderName: string;
+  subscriptionId: number;
+  subscriptionName: string;
+  createdAt: string;
+}
+
 export interface CreatePaymentLinkRequest {
   subscriptionId: number;
   paymentProvider: number;
