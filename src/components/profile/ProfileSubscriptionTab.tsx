@@ -7,7 +7,12 @@ import { getPaymentStatus, syncMomoPayment, waitForPaymentCompletion } from '@/s
 import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
 import type { PaymentProviderValue } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
-import { formatPrice, levelOrderLabel, parseAllowedModules } from './helpers';
+import { formatPrice, levelOrderLabel } from './helpers';
+import { ModulePreviewPanel } from './ModulePreviewPanel';
+import {
+    normalizeAllowedModulesWithPreview,
+    type ModulePreviewItem,
+} from './modulePreviewUtils';
 import { Spinner } from './Spinner';
 import { SubscriptionDetailModal } from './SubscriptionDetailModal';
 import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
@@ -67,6 +72,11 @@ function getPayOSPendingFromQuery(): PendingPaymentPayload | null {
 }
 
 export function ProfileSubscriptionTab() {
+    const PREVIEW_POPUP_WIDTH = 340;
+    const PREVIEW_POPUP_HEIGHT = 320;
+    const PREVIEW_POPUP_OFFSET = 14;
+    const PREVIEW_POPUP_MARGIN = 12;
+
     const { isAuthenticated } = useAuth();
     const { borderCls, textPrimary, textSecondary, textMuted, hoverBg, fieldBg, bgSub } = useProfileTheme();
     const setMySubscriptionStore = useSubscriptionStore(s => s.setMySubscription);
@@ -77,9 +87,40 @@ export function ProfileSubscriptionTab() {
     const [loadingMySubscription, setLoadingMySubscription] = useState(false);
     const [detailSub, setDetailSub] = useState<SubscriptionDto | null>(null);
     const [paymentSub, setPaymentSub] = useState<SubscriptionDto | null>(null);
+    const [hoveredModulePreview, setHoveredModulePreview] = useState<ModulePreviewItem | null>(null);
+    const [previewPopupPosition, setPreviewPopupPosition] = useState({ x: 0, y: 0 });
 
-    const currentModules = useMemo(() => {
-        return parseAllowedModules(mySubscription?.allowedModules);
+    const updatePreviewPopupPosition = (clientX: number, clientY: number) => {
+        if (typeof window === 'undefined') return;
+
+        const maxX = window.innerWidth - PREVIEW_POPUP_WIDTH - PREVIEW_POPUP_MARGIN;
+        const maxY = window.innerHeight - PREVIEW_POPUP_HEIGHT - PREVIEW_POPUP_MARGIN;
+
+        const nextX = Math.max(PREVIEW_POPUP_MARGIN, Math.min(clientX + PREVIEW_POPUP_OFFSET, maxX));
+        const nextY = Math.max(PREVIEW_POPUP_MARGIN, Math.min(clientY + PREVIEW_POPUP_OFFSET, maxY));
+
+        setPreviewPopupPosition({ x: nextX, y: nextY });
+    };
+
+    const showModulePreviewFromMouse = (
+        moduleItem: ModulePreviewItem,
+        event: React.MouseEvent<HTMLButtonElement>,
+    ) => {
+        setHoveredModulePreview(moduleItem);
+        updatePreviewPopupPosition(event.clientX, event.clientY);
+    };
+
+    const showModulePreviewFromFocus = (
+        moduleItem: ModulePreviewItem,
+        event: React.FocusEvent<HTMLButtonElement>,
+    ) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setHoveredModulePreview(moduleItem);
+        updatePreviewPopupPosition(rect.right, rect.bottom);
+    };
+
+    const currentModuleItems = useMemo(() => {
+        return normalizeAllowedModulesWithPreview(mySubscription?.allowedModules);
     }, [mySubscription?.allowedModules]);
 
     useEffect(() => {
@@ -188,16 +229,22 @@ export function ProfileSubscriptionTab() {
 
                             <div className={`lg:col-span-5 rounded-lg border ${borderCls} ${fieldBg} p-3`}>
                                 <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${textMuted}`}>Modules được phép</p>
-                                {currentModules.length > 0 ? (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {currentModules.map(moduleName => (
-                                            <div
-                                                key={moduleName}
-                                                className={`rounded-md border ${borderCls} px-2.5 py-1.5 text-xs ${textPrimary} truncate`}
-                                                title={moduleName}
+                                {currentModuleItems.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2 max-h-[184px] overflow-y-auto pr-1">
+                                        {currentModuleItems.map(moduleItem => (
+                                            <button
+                                                type="button"
+                                                key={`${moduleItem.key}-${moduleItem.label}`}
+                                                onMouseEnter={event => showModulePreviewFromMouse(moduleItem, event)}
+                                                onMouseMove={event => updatePreviewPopupPosition(event.clientX, event.clientY)}
+                                                onMouseLeave={() => setHoveredModulePreview(null)}
+                                                onFocus={event => showModulePreviewFromFocus(moduleItem, event)}
+                                                onBlur={() => setHoveredModulePreview(null)}
+                                                className={`w-full text-left rounded-md border ${borderCls} px-2.5 py-1.5 text-xs ${textPrimary} truncate ${hoverBg} transition-colors`}
+                                                title={moduleItem.label}
                                             >
-                                                {moduleName}
-                                            </div>
+                                                {moduleItem.label}
+                                            </button>
                                         ))}
                                     </div>
                                 ) : (
@@ -265,6 +312,28 @@ export function ProfileSubscriptionTab() {
                     )}
                 </section>
             </div>
+
+            {hoveredModulePreview && (
+                <div className="fixed inset-0 z-50 pointer-events-none">
+                    <div
+                        className="absolute w-[340px] max-w-[calc(100vw-1.5rem)]"
+                        style={{
+                            left: `${previewPopupPosition.x}px`,
+                            top: `${previewPopupPosition.y}px`,
+                        }}
+                    >
+                        <ModulePreviewPanel
+                            moduleItem={hoveredModulePreview}
+                            borderCls={borderCls}
+                            bgSub={bgSub}
+                            textPrimary={textPrimary}
+                            textMuted={textMuted}
+                            hintText="Rê chuột vào module khác để xem preview nhanh."
+                            className="shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
 
             {detailSub && (
                 <SubscriptionDetailModal

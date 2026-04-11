@@ -1,98 +1,16 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import type { SubscriptionDto } from "@/types/subscription";
-import { formatPrice, levelOrderLabel, MODULE_LABELS } from "./helpers";
+import { formatPrice, levelOrderLabel } from "./helpers";
+import { ModulePreviewPanel } from "./ModulePreviewPanel";
+import { normalizeAllowedModulesWithPreview } from "./modulePreviewUtils";
 import { useProfileTheme } from "./useProfileTheme";
 
 interface SubscriptionDetailModalProps {
   sub: SubscriptionDto;
   onClose: () => void;
   onUpgrade?: (sub: SubscriptionDto) => void;
-}
-
-interface ModuleItem {
-  key: string;
-  label: string;
-  preview: string | null;
-}
-
-const MODULE_PREVIEW_MAP: Record<string, string> = {
-  "smart-board": "/assets/Dashboard/ModulePreviews/smart-stock-screener.png",
-  index: "/assets/Dashboard/ModulePreviews/market-index.png",
-  "vn-stock-chart": "/assets/Dashboard/ModulePreviews/vn-stock-chart.png",
-  "global-stock-chart":
-    "/assets/Dashboard/ModulePreviews/global-stock-chart.png",
-  "financial-report": "/assets/Dashboard/ModulePreviews/financial-report.png",
-  financialReport: "/assets/Dashboard/ModulePreviews/financial-report.png",
-  "financial-report-pro":
-    "/assets/Dashboard/ModulePreviews/financial-report-pro.png",
-  news: "/assets/Dashboard/ModulePreviews/news.png",
-  "session-info": "/assets/Dashboard/ModulePreviews/session-info.png",
-  "order-matching": "/assets/Dashboard/ModulePreviews/order-matching.png",
-  orderBook: "/assets/Dashboard/ModulePreviews/order-matching.png",
-  canslim: "/assets/Dashboard/ModulePreviews/canslim.png",
-  "stock-screener": "/assets/Dashboard/ModulePreviews/stock-screener.png",
-  screener: "/assets/Dashboard/ModulePreviews/stock-screener.png",
-  heatmap: "/assets/Dashboard/ModulePreviews/heatmap.png",
-  "analysis-report": "/assets/Dashboard/ModulePreviews/analysis-report.png",
-  analysisReport: "/assets/Dashboard/ModulePreviews/analysis-report.png",
-  "ai-chat": "/assets/Dashboard/ModulePreviews/AIAssistantModule.jpg",
-  chart: "/assets/Dashboard/ModulePreviews/vn-stock-chart.png",
-  watchList: "/assets/Dashboard/ModulePreviews/smart-stock-screener.png",
-};
-
-function normalizeAllowedModules(raw: unknown): ModuleItem[] {
-  if (!raw) return [];
-
-  const arr = Array.isArray(raw)
-    ? raw
-    : typeof raw === "object" &&
-        raw !== null &&
-        Array.isArray((raw as Record<string, unknown>).modules)
-      ? ((raw as Record<string, unknown>).modules as unknown[])
-      : null;
-
-  if (!arr) return [];
-
-  const items = arr.map((item) => {
-    if (typeof item === "string") {
-      return {
-        key: item,
-        label: MODULE_LABELS[item] ?? item,
-        preview: MODULE_PREVIEW_MAP[item] ?? null,
-      };
-    }
-
-    if (typeof item === "object" && item !== null) {
-      const obj = item as Record<string, unknown>;
-      const key = String(obj.id ?? obj.moduleId ?? obj.name ?? "").trim();
-      const label = (MODULE_LABELS[key] ?? key) || "Không xác định";
-      return {
-        key,
-        label,
-        preview: MODULE_PREVIEW_MAP[key] ?? null,
-      };
-    }
-
-    const fallback = String(item);
-    return {
-      key: fallback,
-      label: MODULE_LABELS[fallback] ?? fallback,
-      preview: MODULE_PREVIEW_MAP[fallback] ?? null,
-    };
-  });
-
-  const deduped = new Map<string, ModuleItem>();
-  items.forEach((m) => {
-    const dedupeKey = `${m.key}::${m.label}`;
-    if (!deduped.has(dedupeKey)) {
-      deduped.set(dedupeKey, m);
-    }
-  });
-
-  return Array.from(deduped.values());
 }
 
 export function SubscriptionDetailModal({
@@ -111,7 +29,7 @@ export function SubscriptionDetailModal({
   } = useProfileTheme();
 
   const modules = useMemo(
-    () => normalizeAllowedModules(sub.allowedModules),
+    () => normalizeAllowedModulesWithPreview(sub.allowedModules),
     [sub.allowedModules],
   );
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
@@ -216,35 +134,14 @@ export function SubscriptionDetailModal({
           </div>
 
           <div className="lg:col-span-5">
-            <div className={`rounded-xl border ${borderCls} p-4 ${bgSub}`}>
-              <p className={`text-sm font-semibold mb-3 ${textPrimary}`}>
-                {hoveredModule ? hoveredModule.label : "Module previews"}
-              </p>
-
-              <div
-                className={`aspect-[4/3] rounded-lg border ${borderCls} overflow-hidden bg-white dark:bg-cardPreview`}
-              >
-                {hoveredModule?.preview ? (
-                  <Image
-                    src={hoveredModule.preview}
-                    alt={hoveredModule.label}
-                    width={800}
-                    height={600}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div
-                    className={`w-full h-full flex items-center justify-center text-sm ${textMuted} px-4 text-center`}
-                  >
-                    Chưa có ảnh preview cho module này.
-                  </div>
-                )}
-              </div>
-
-              <p className={`mt-2 text-xs ${textMuted}`}>
-                Di chuột vào từng module để xem preview.
-              </p>
-            </div>
+            <ModulePreviewPanel
+              moduleItem={hoveredModule}
+              borderCls={borderCls}
+              bgSub={bgSub}
+              textPrimary={textPrimary}
+              textMuted={textMuted}
+              emptyTitle="Module previews"
+            />
           </div>
         </div>
 
