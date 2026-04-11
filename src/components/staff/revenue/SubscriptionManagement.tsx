@@ -8,6 +8,7 @@ import { patch, post } from "@/services/api";
 import statisticService from "@/services/statisticService";
 import { getSubscriptions } from "@/services/subscriptionService";
 import type {
+  SubscriptionDto,
   SubscriptionStatisticsDto,
   VipCurrentUserCountDto,
   VipPackageUsageDto,
@@ -400,10 +401,8 @@ export default function SubscriptionManagement({
 
     try {
       await patch<unknown>(
-        `${API_ENDPOINTS.SUBSCRIPTIONS.BASE}/${selectedDraft.id}/status`,
-        {
-          isActive: nextIsActive ? 1 : 0,
-        },
+        API_ENDPOINTS.SUBSCRIPTIONS.UPDATE_STATUS(selectedDraft.id),
+        {},
       );
 
       updateSelectedDraftField("isActive", nextIsActive);
@@ -426,18 +425,64 @@ export default function SubscriptionManagement({
     }
   };
 
-  const saveSelectedSubscription = () => {
+  const saveSelectedSubscription = async () => {
     if (!selectedDraft) {
       return;
     }
 
-    console.log(
-      "[SubscriptionManagement] Luu thay doi subscription (chua co API update):",
-      selectedDraft,
-    );
-    setActionMessage(
-      "Đã ghi nhận thao tác Lưu thay đổi. API update chưa sẵn sàng nên chưa gửi lên server.",
-    );
+    setActionMessage(null);
+
+    const payload: { price: number; allowedModules?: string[] } = {
+      price: selectedDraft.price,
+    };
+
+    if (selectedDraft.allowedModules.length > 0) {
+      payload.allowedModules = selectedDraft.allowedModules;
+    }
+
+    try {
+      const response = await patch<SubscriptionDto>(
+        API_ENDPOINTS.SUBSCRIPTIONS.UPDATE_PRICE(selectedDraft.id),
+        payload,
+      );
+
+      const fallbackSubscription = subscriptions.find(
+        (item) => item.id === selectedDraft.id,
+      );
+
+      const updatedSubscription: SubscriptionWithStatus = response.data
+        ? {
+            ...response.data,
+            isActive: normalizeIsActive(response.data.isActive),
+          }
+        : {
+            id: selectedDraft.id,
+            name: selectedDraft.name,
+            levelOrder: selectedDraft.levelOrder,
+            maxWorkspaces: selectedDraft.maxWorkspaces,
+            price: selectedDraft.price,
+            durationInDays: selectedDraft.durationInDays,
+            allowedModules: selectedDraft.allowedModules,
+            isActive: fallbackSubscription
+              ? fallbackSubscription.isActive
+              : selectedDraft.isActive,
+          };
+
+      setSubscriptions((prev) =>
+        prev.map((item) =>
+          item.id === selectedDraft.id ? { ...item, ...updatedSubscription } : item,
+        ),
+      );
+
+      setDraftMap((prev) => ({
+        ...prev,
+        [selectedDraft.id]: createDraftFromSubscription(updatedSubscription),
+      }));
+
+      setActionMessage("Đã lưu thay đổi Giá và Allowed module thành công.");
+    } catch {
+      setActionMessage("Lưu thay đổi thất bại. Vui lòng thử lại.");
+    }
   };
 
   const cancelSelectedSubscriptionChanges = () => {
