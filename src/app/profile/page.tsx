@@ -167,7 +167,9 @@ export default function ProfilePage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className={`flex h-screen w-full flex-col overflow-hidden ${bgPage} ${textPrimary}`}>
+    <div
+      className={`flex h-screen w-full flex-col overflow-hidden ${bgPage} ${textPrimary}`}
+    >
       <header
         className={`sticky top-0 z-40 border-b ${borderCls} ${bgCard}/90 backdrop-blur-md`}
       >
@@ -255,7 +257,9 @@ export default function ProfilePage() {
           </button>
         </aside>
 
-        <main className={`h-[calc(100vh-64px)] w-full flex-1 overflow-y-auto ${bgPage} p-4 md:p-8`}>
+        <main
+          className={`h-[calc(100vh-64px)] w-full flex-1 overflow-y-auto ${bgPage} p-4 md:p-8`}
+        >
           <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
             <button
               onClick={() => setActiveTab("account")}
@@ -378,7 +382,7 @@ export default function ProfilePage() {
                       <p
                         className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}
                       >
-                        Role
+                        Vai trò
                       </p>
                       <h1
                         className={`truncate text-sm font-medium ${textPrimary} `}
@@ -393,12 +397,10 @@ export default function ProfilePage() {
                       <p
                         className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}
                       >
-                        Email
+                        Số điện thoại
                       </p>
-                      <p
-                        className={`truncate text-sm font-medium ${textPrimary}`}
-                      >
-                        {displayUser?.email || "—"}
+                      <p className={`text-sm font-medium ${textPrimary}`}>
+                        {displayUser?.phoneNumber || "—"}
                       </p>
                     </div>
 
@@ -408,10 +410,12 @@ export default function ProfilePage() {
                       <p
                         className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}
                       >
-                        Số điện thoại
+                        Email
                       </p>
-                      <p className={`text-sm font-medium ${textPrimary}`}>
-                        {displayUser?.phoneNumber || "—"}
+                      <p
+                        className={`truncate text-sm font-medium ${textPrimary}`}
+                      >
+                        {displayUser?.email || "—"}
                       </p>
                     </div>
                   </div>
@@ -453,9 +457,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {activeTab === "transactions" && (
-                <ProfileTransactionTab />
-              )}
+              {activeTab === "transactions" && <ProfileTransactionTab />}
             </section>
           </div>
         </main>
