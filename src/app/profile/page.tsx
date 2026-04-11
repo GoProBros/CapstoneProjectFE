@@ -61,6 +61,23 @@ export default function ProfilePage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
+    if (!isAuthenticated || typeof window === "undefined") return;
+
+    const hasPendingPayment = Boolean(sessionStorage.getItem("pendingPayment"));
+    const query = new URLSearchParams(window.location.search);
+    const hasPaymentCallbackParams =
+      query.has("orderCode") ||
+      query.has("ordercode") ||
+      query.has("status") ||
+      query.has("code") ||
+      query.has("cancel");
+
+    if (hasPendingPayment || hasPaymentCallbackParams) {
+      setActiveTab("subscription");
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (!isAuthenticated) return;
     setLoadingUser(true);
     getMe()

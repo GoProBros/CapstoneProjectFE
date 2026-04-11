@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
-import { syncMomoPayment, getPaymentStatus } from '@/services/paymentService';
-import { PaymentProviderType } from '@/types/payment';
+import { getPaymentStatus, syncMomoPayment, waitForPaymentCompletion } from '@/services/paymentService';
+import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
+import type { PaymentProviderValue } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
 import { formatPrice, levelOrderLabel, parseAllowedModules } from './helpers';
 import { Spinner } from './Spinner';
@@ -12,6 +13,58 @@ import { SubscriptionDetailModal } from './SubscriptionDetailModal';
 import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
 import { useProfileTheme } from './useProfileTheme';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+
+interface PendingPaymentPayload {
+    orderCode: number;
+    provider: PaymentProviderValue;
+}
+
+function isPaymentProviderValue(value: unknown): value is PaymentProviderValue {
+    return value === PaymentProviderType.PayOS || value === PaymentProviderType.Momo;
+}
+
+function parsePendingPayment(raw: string | null): PendingPaymentPayload | null {
+    if (!raw) return null;
+
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== 'object' || parsed === null) return null;
+
+        const orderCodeRaw = (parsed as Record<string, unknown>).orderCode;
+        const providerRaw = (parsed as Record<string, unknown>).provider;
+
+        if (typeof orderCodeRaw !== 'number' || !Number.isFinite(orderCodeRaw) || orderCodeRaw <= 0) {
+            return null;
+        }
+
+        if (!isPaymentProviderValue(providerRaw)) {
+            return null;
+        }
+
+        return {
+            orderCode: orderCodeRaw,
+            provider: providerRaw,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function getPayOSPendingFromQuery(): PendingPaymentPayload | null {
+    if (typeof window === 'undefined') return null;
+
+    const params = new URLSearchParams(window.location.search);
+    const orderCodeRaw = params.get('orderCode') ?? params.get('ordercode');
+    if (!orderCodeRaw) return null;
+
+    const orderCode = Number(orderCodeRaw);
+    if (!Number.isFinite(orderCode) || orderCode <= 0) return null;
+
+    return {
+        orderCode,
+        provider: PaymentProviderType.PayOS,
+    };
+}
 
 export function ProfileSubscriptionTab() {
     const { isAuthenticated } = useAuth();
@@ -37,20 +90,37 @@ export function ProfileSubscriptionTab() {
             setLoadingMySubscription(true);
 
             // If returning from a payment gateway, sync the payment status first
-            const pendingRaw = sessionStorage.getItem('pendingPayment');
-            if (pendingRaw) {
-                sessionStorage.removeItem('pendingPayment');
+            const pendingFromSession = parsePendingPayment(sessionStorage.getItem('pendingPayment'));
+            const pending = pendingFromSession ?? getPayOSPendingFromQuery();
+
+            if (pending) {
                 try {
-                    const pending: { orderCode: number; provider: number } = JSON.parse(pendingRaw);
                     if (pending.provider === PaymentProviderType.Momo) {
                         await syncMomoPayment(pending.orderCode).catch(err =>
                             console.error('[ProfileSubscriptionTab] MoMo sync error:', err),
                         );
-                    } else {
-                        // PayOS: check payment status (webhook handled server-side but verify here)
+
                         await getPaymentStatus(pending.orderCode).catch(err =>
-                            console.error('[ProfileSubscriptionTab] PayOS status check error:', err),
+                            console.error('[ProfileSubscriptionTab] MoMo status check error:', err),
                         );
+
+                        if (pendingFromSession) {
+                            sessionStorage.removeItem('pendingPayment');
+                        }
+                    } else {
+                        // PayOS business logic is finalized by backend webhook (server-to-server).
+                        // Frontend only polls transaction status after redirect.
+                        const payOSStatus = await waitForPaymentCompletion(pending.orderCode, {
+                            timeoutMs: 30000,
+                            pollIntervalMs: 2000,
+                        }).catch(err => {
+                            console.error('[ProfileSubscriptionTab] PayOS status check error:', err);
+                            return null;
+                        });
+
+                        if (pendingFromSession && payOSStatus && payOSStatus.status !== PaymentTransactionStatus.Pending) {
+                            sessionStorage.removeItem('pendingPayment');
+                        }
                     }
                 } catch {
                     // ignore malformed data

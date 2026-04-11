@@ -1,6 +1,11 @@
 import { post, get } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
-import type { PaymentLinkResponse, PaymentProviderValue } from '@/types/payment';
+import {
+  PaymentTransactionStatus,
+  type PaymentLinkResponse,
+  type PaymentProviderValue,
+  type PaymentStatusResponse,
+} from '@/types/payment';
 
 /**
  * Create a payment link for a subscription
@@ -32,9 +37,44 @@ export async function syncMomoPayment(orderCode: number): Promise<void> {
 
 /**
  * Check PayOS payment status.
- * @returns true if the payment was completed successfully
+ * @returns Payment status details from backend
  */
-export async function getPaymentStatus(orderCode: number): Promise<boolean> {
-  const result = await get<{ isSuccess: boolean }>(API_ENDPOINTS.PAYMENTS.STATUS(orderCode));
-  return result.isSuccess;
+export async function getPaymentStatus(orderCode: number): Promise<PaymentStatusResponse> {
+  const result = await get<PaymentStatusResponse>(API_ENDPOINTS.PAYMENTS.STATUS(orderCode));
+  if (!result.data) {
+    throw new Error(result.message || 'Không lấy được trạng thái thanh toán');
+  }
+  return result.data;
+}
+
+interface WaitForPaymentCompletionOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+/**
+ * Poll payment status for a short period because PayOS may return before webhook updates transaction state.
+ */
+export async function waitForPaymentCompletion(
+  orderCode: number,
+  options?: WaitForPaymentCompletionOptions,
+): Promise<PaymentStatusResponse> {
+  const timeoutMs = options?.timeoutMs ?? 15_000;
+  const pollIntervalMs = options?.pollIntervalMs ?? 2_000;
+  const startTime = Date.now();
+
+  while (true) {
+    const status = await getPaymentStatus(orderCode);
+    if (status.status !== PaymentTransactionStatus.Pending) {
+      return status;
+    }
+
+    if (Date.now() - startTime >= timeoutMs) {
+      return status;
+    }
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, pollIntervalMs);
+    });
+  }
 }
