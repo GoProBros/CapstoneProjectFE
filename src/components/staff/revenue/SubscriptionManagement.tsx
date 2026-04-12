@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { API_ENDPOINTS } from "@/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { patch, post } from "@/services/api";
 import statisticService from "@/services/statisticService";
-import { getSubscriptions } from "@/services/subscriptionService";
+import {
+  createSubscription as createSubscriptionRequest,
+  getSubscriptions,
+  toggleSubscriptionStatus,
+  updateSubscriptionById,
+} from "@/services/subscriptionService";
 import type {
   SubscriptionDto,
   SubscriptionStatisticsDto,
@@ -400,21 +403,35 @@ export default function SubscriptionManagement({
     const nextIsActive = !selectedDraft.isActive;
 
     try {
-      await patch<unknown>(
-        API_ENDPOINTS.SUBSCRIPTIONS.UPDATE_STATUS(selectedDraft.id),
-        {},
+      const updatedSubscriptionResponse = await toggleSubscriptionStatus(
+        selectedDraft.id,
       );
 
-      updateSelectedDraftField("isActive", nextIsActive);
+      const nextIsActiveFromResponse = normalizeIsActive(
+        updatedSubscriptionResponse.isActive,
+      );
+
+      const normalizedUpdatedSubscription: SubscriptionWithStatus = {
+        ...updatedSubscriptionResponse,
+        isActive: nextIsActiveFromResponse,
+      };
+
+      updateSelectedDraftField("isActive", nextIsActiveFromResponse);
       setSubscriptions((prev) =>
         prev.map((item) =>
           item.id === selectedDraft.id
-            ? { ...item, isActive: nextIsActive }
+            ? { ...item, ...normalizedUpdatedSubscription }
             : item,
         ),
       );
+
+      setDraftMap((prev) => ({
+        ...prev,
+        [selectedDraft.id]: createDraftFromSubscription(normalizedUpdatedSubscription),
+      }));
+
       setActionMessage(
-        nextIsActive
+        nextIsActiveFromResponse
           ? "Đã kích hoạt nhanh gói subscription"
           : "Đã tạm ngưng nhanh gói subscription",
       );
@@ -441,32 +458,15 @@ export default function SubscriptionManagement({
     }
 
     try {
-      const response = await patch<SubscriptionDto>(
-        API_ENDPOINTS.SUBSCRIPTIONS.UPDATE_PRICE(selectedDraft.id),
+      const updatedSubscriptionResponse = await updateSubscriptionById(
+        selectedDraft.id,
         payload,
       );
 
-      const fallbackSubscription = subscriptions.find(
-        (item) => item.id === selectedDraft.id,
-      );
-
-      const updatedSubscription: SubscriptionWithStatus = response.data
-        ? {
-            ...response.data,
-            isActive: normalizeIsActive(response.data.isActive),
-          }
-        : {
-            id: selectedDraft.id,
-            name: selectedDraft.name,
-            levelOrder: selectedDraft.levelOrder,
-            maxWorkspaces: selectedDraft.maxWorkspaces,
-            price: selectedDraft.price,
-            durationInDays: selectedDraft.durationInDays,
-            allowedModules: selectedDraft.allowedModules,
-            isActive: fallbackSubscription
-              ? fallbackSubscription.isActive
-              : selectedDraft.isActive,
-          };
+      const updatedSubscription: SubscriptionWithStatus = {
+        ...updatedSubscriptionResponse,
+        isActive: normalizeIsActive(updatedSubscriptionResponse.isActive),
+      };
 
       setSubscriptions((prev) =>
         prev.map((item) =>
@@ -520,7 +520,7 @@ export default function SubscriptionManagement({
     setIsCreatingSubscription(true);
 
     try {
-      await post<unknown>(API_ENDPOINTS.SUBSCRIPTIONS.BASE, {
+      await createSubscriptionRequest({
         name: trimmedName,
         levelOrder: createDraft.levelOrder,
         maxWorkspaces: createDraft.maxWorkspaces,

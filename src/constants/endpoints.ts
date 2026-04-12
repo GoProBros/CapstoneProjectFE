@@ -106,7 +106,7 @@ export const API_ENDPOINTS = {
     ME: '/api/v1/subscriptions/me',
     STATISTICS: '/api/v1/subscriptions/statistics',
     UPDATE_STATUS: (id: number) => `/api/v1/subscriptions/${id}/status`,
-    UPDATE_PRICE: (id: number) => `/api/v1/subscriptions/${id}/price`,
+    UPDATE_BY_ID: (id: number) => `/api/v1/subscriptions/${id}`,
   },
 
   // AI Chat endpoints
