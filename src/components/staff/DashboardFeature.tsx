@@ -252,13 +252,22 @@ export default function DashboardFeature() {
         </div>
 
         {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setIsSystemNotificationModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-          >
-            Tạo thông báo
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/SystemManager/macroeconomic-simulation")}
+              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+            >
+              Mô phỏng vĩ mô (DEMO)
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSystemNotificationModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              Tạo thông báo
+            </button>
+          </div>
         )}
       </div>
 

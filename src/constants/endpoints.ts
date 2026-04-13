@@ -134,6 +134,11 @@ export const API_ENDPOINTS = {
     CREATE_STAFF: '/api/v1/users/staff',
   },
 
+  // Macroeconomic data endpoints
+  MACROECONOMIC_DATA: {
+    BASE: '/api/v1/macroeconomic-data',
+  },
+
   // SignalR Hub
   HUBS: {
     MARKET_DATA: '/hubs/marketdata',

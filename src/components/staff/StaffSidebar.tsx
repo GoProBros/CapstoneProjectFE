@@ -13,9 +13,16 @@ export type StaffFeature =
     | 'financial-reports'
     | 'analysis-reports'
     | 'news'
-    | 'data';
+    | 'data'
+    | 'macroeconomic-simulation';
 
-const menuItems: { id: StaffFeature; label: string; href: string; icon: JSX.Element }[] = [
+const menuItems: {
+    id: StaffFeature;
+    label: string;
+    href: string;
+    icon: JSX.Element;
+    requiresAdmin?: boolean;
+}[] = [
     {
         id: 'dashboard',
         label: 'Tổng quan Hệ Thống',
@@ -86,6 +93,17 @@ const menuItems: { id: StaffFeature; label: string; href: string; icon: JSX.Elem
             </svg>
         ),
     },
+    {
+        id: 'macroeconomic-simulation',
+        label: 'Mô Phỏng Vĩ Mô (DEMO)',
+        href: '/SystemManager/macroeconomic-simulation',
+        requiresAdmin: true,
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 18l6-6 4 4 8-8M15 6h6v6" />
+            </svg>
+        ),
+    },
 ];
 
 export default function StaffSidebar() {
@@ -94,6 +112,11 @@ export default function StaffSidebar() {
     const router = useRouter();
     const pathname = usePathname();
     const [activeFeature, setActiveFeature] = useState<StaffFeature>('dashboard');
+    const normalizedRole = user?.role?.trim().toLowerCase() ?? '';
+    const isAdmin =
+        normalizedRole === 'admin' ||
+        normalizedRole === 'administrator' ||
+        normalizedRole === 'quản trị viên';
 
     const handleLogout = async () => {
         try {
@@ -139,7 +162,20 @@ export default function StaffSidebar() {
             setActiveFeature('data');
             return;
         }
+
+        if (pathname.startsWith('/SystemManager/macroeconomic-simulation')) {
+            setActiveFeature('macroeconomic-simulation');
+            return;
+        }
     }, [pathname]);
+
+    const visibleMenuItems = menuItems.filter((item) => {
+        if (!item.requiresAdmin) {
+            return true;
+        }
+
+        return isAdmin;
+    });
 
     return (
         <aside className="w-64 min-w-64 max-w-64 shrink-0 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
@@ -181,7 +217,7 @@ export default function StaffSidebar() {
             </div>
 
             <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-                {menuItems.map((item) => (
+                {visibleMenuItems.map((item) => (
                     <Link
                         key={item.id}
                         href={item.href}
