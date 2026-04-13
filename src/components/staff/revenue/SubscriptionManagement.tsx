@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { API_ENDPOINTS } from "@/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { patch, post } from "@/services/api";
 import statisticService from "@/services/statisticService";
-import { getSubscriptions } from "@/services/subscriptionService";
+import {
+  createSubscription as createSubscriptionRequest,
+  getSubscriptions,
+  toggleSubscriptionStatus,
+  updateSubscriptionById,
+} from "@/services/subscriptionService";
 import type {
+  SubscriptionDto,
   SubscriptionStatisticsDto,
   VipCurrentUserCountDto,
   VipPackageUsageDto,
@@ -399,23 +403,35 @@ export default function SubscriptionManagement({
     const nextIsActive = !selectedDraft.isActive;
 
     try {
-      await patch<unknown>(
-        `${API_ENDPOINTS.SUBSCRIPTIONS.BASE}/${selectedDraft.id}/status`,
-        {
-          isActive: nextIsActive ? 1 : 0,
-        },
+      const updatedSubscriptionResponse = await toggleSubscriptionStatus(
+        selectedDraft.id,
       );
 
-      updateSelectedDraftField("isActive", nextIsActive);
+      const nextIsActiveFromResponse = normalizeIsActive(
+        updatedSubscriptionResponse.isActive,
+      );
+
+      const normalizedUpdatedSubscription: SubscriptionWithStatus = {
+        ...updatedSubscriptionResponse,
+        isActive: nextIsActiveFromResponse,
+      };
+
+      updateSelectedDraftField("isActive", nextIsActiveFromResponse);
       setSubscriptions((prev) =>
         prev.map((item) =>
           item.id === selectedDraft.id
-            ? { ...item, isActive: nextIsActive }
+            ? { ...item, ...normalizedUpdatedSubscription }
             : item,
         ),
       );
+
+      setDraftMap((prev) => ({
+        ...prev,
+        [selectedDraft.id]: createDraftFromSubscription(normalizedUpdatedSubscription),
+      }));
+
       setActionMessage(
-        nextIsActive
+        nextIsActiveFromResponse
           ? "Đã kích hoạt nhanh gói subscription"
           : "Đã tạm ngưng nhanh gói subscription",
       );
@@ -426,18 +442,47 @@ export default function SubscriptionManagement({
     }
   };
 
-  const saveSelectedSubscription = () => {
+  const saveSelectedSubscription = async () => {
     if (!selectedDraft) {
       return;
     }
 
-    console.log(
-      "[SubscriptionManagement] Luu thay doi subscription (chua co API update):",
-      selectedDraft,
-    );
-    setActionMessage(
-      "Đã ghi nhận thao tác Lưu thay đổi. API update chưa sẵn sàng nên chưa gửi lên server.",
-    );
+    setActionMessage(null);
+
+    const payload: { price: number; allowedModules?: string[] } = {
+      price: selectedDraft.price,
+    };
+
+    if (selectedDraft.allowedModules.length > 0) {
+      payload.allowedModules = selectedDraft.allowedModules;
+    }
+
+    try {
+      const updatedSubscriptionResponse = await updateSubscriptionById(
+        selectedDraft.id,
+        payload,
+      );
+
+      const updatedSubscription: SubscriptionWithStatus = {
+        ...updatedSubscriptionResponse,
+        isActive: normalizeIsActive(updatedSubscriptionResponse.isActive),
+      };
+
+      setSubscriptions((prev) =>
+        prev.map((item) =>
+          item.id === selectedDraft.id ? { ...item, ...updatedSubscription } : item,
+        ),
+      );
+
+      setDraftMap((prev) => ({
+        ...prev,
+        [selectedDraft.id]: createDraftFromSubscription(updatedSubscription),
+      }));
+
+      setActionMessage("Đã lưu thay đổi Giá và Allowed module thành công.");
+    } catch {
+      setActionMessage("Lưu thay đổi thất bại. Vui lòng thử lại.");
+    }
   };
 
   const cancelSelectedSubscriptionChanges = () => {
@@ -475,7 +520,7 @@ export default function SubscriptionManagement({
     setIsCreatingSubscription(true);
 
     try {
-      await post<unknown>(API_ENDPOINTS.SUBSCRIPTIONS.BASE, {
+      await createSubscriptionRequest({
         name: trimmedName,
         levelOrder: createDraft.levelOrder,
         maxWorkspaces: createDraft.maxWorkspaces,

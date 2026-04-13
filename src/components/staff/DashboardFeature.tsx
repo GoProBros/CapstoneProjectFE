@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import analysisReportService from "@/services/analysisReportService";
 import { fetchRecentFinancialReports } from "@/services/financialReportService";
 import statisticService from "@/services/statisticService";
+import { useAuth } from "@/contexts/AuthContext";
 import DashboardStatsCards from "@/components/staff/dashboard/DashboardStatsCards";
 import NewUsersChart from "@/components/staff/dashboard/NewUsersChart";
 import RevenueChart from "@/components/staff/dashboard/RevenueChart";
+import SystemNotificationModal from "@/components/staff/dashboard/SystemNotificationModal";
 import type {
   AnalysisReport,
   AnalysisReportCategory,
@@ -106,6 +108,9 @@ function formatTrend(value: number) {
 
 export default function DashboardFeature() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [isSystemNotificationModalOpen, setIsSystemNotificationModalOpen] =
+    useState(false);
   const [statistics, setStatistics] = useState<SubscriptionStatisticsDto | null>(
     null
   );
@@ -134,6 +139,11 @@ export default function DashboardFeature() {
     statistics?.revenueGrowthPercentageByMonth.at(-1) ?? 0;
   const paidUserRatioGrowth =
     totalUsers > 0 ? (paidCustomers * 100) / totalUsers : 0;
+  const normalizedRole = user?.role?.trim().toLowerCase() ?? "";
+  const isAdmin =
+    normalizedRole === "admin" ||
+    normalizedRole === "administrator" ||
+    normalizedRole === "quản trị viên";
 
   const userTrend = formatTrend(latestNewUserGrowth);
   const paidTrend = formatTrend(paidUserRatioGrowth);
@@ -240,7 +250,31 @@ export default function DashboardFeature() {
             Theo dõi nhanh các chỉ số chính, xu hướng người dùng và doanh thu hệ thống.
           </p>
         </div>
+
+        {isAdmin && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/SystemManager/macroeconomic-simulation")}
+              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+            >
+              Mô phỏng vĩ mô (DEMO)
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSystemNotificationModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              Tạo thông báo
+            </button>
+          </div>
+        )}
       </div>
+
+      <SystemNotificationModal
+        isOpen={isSystemNotificationModalOpen}
+        onOpenChange={setIsSystemNotificationModalOpen}
+      />
 
       <DashboardStatsCards
         totalUsers={totalUsers}

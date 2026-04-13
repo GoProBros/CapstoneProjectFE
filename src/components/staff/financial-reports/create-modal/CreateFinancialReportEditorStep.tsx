@@ -44,7 +44,7 @@ export default function CreateFinancialReportEditorStep({
           <div className="px-5 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nguồn dữ liệu</p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-1">PDF Live View / Upload file local</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-1">Xem trực tiếp PDF / Chọn file cục bộ</p>
             </div>
             <button
               type="button"
@@ -86,7 +86,7 @@ export default function CreateFinancialReportEditorStep({
                     <iframe
                       src={localPreviewUrl}
                       className="w-full h-full"
-                      title="PDF live view"
+                      title="Xem trực tiếp PDF"
                     />
                   )}
 
@@ -107,7 +107,7 @@ export default function CreateFinancialReportEditorStep({
         <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Table Live Editor</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bảng chỉnh sửa trực tiếp</p>
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Đơn vị nhập liệu: tỷ đồng</p>
             </div>
             <button

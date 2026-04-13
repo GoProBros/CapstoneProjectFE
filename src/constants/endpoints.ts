@@ -105,6 +105,8 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/subscriptions',
     ME: '/api/v1/subscriptions/me',
     STATISTICS: '/api/v1/subscriptions/statistics',
+    UPDATE_STATUS: (id: number) => `/api/v1/subscriptions/${id}/status`,
+    UPDATE_BY_ID: (id: number) => `/api/v1/subscriptions/${id}`,
   },
 
   // AI Chat endpoints
@@ -113,6 +115,7 @@ export const API_ENDPOINTS = {
     SESSION_BY_ID: (id: number) => `/api/v1/chat/sessions/${id}`,
     SEND_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/messages`,
     SUMMARIZE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/summarize`,
+    SYSTEM_NOTIFICATIONS: '/api/v1/chat/system-notifications',
   },
 
   // Payment endpoints
@@ -129,6 +132,11 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/api/v1/users/${id}`,
     UPDATE_STATUS: (id: string) => `/api/v1/users/${id}/status`,
     CREATE_STAFF: '/api/v1/users/staff',
+  },
+
+  // Macroeconomic data endpoints
+  MACROECONOMIC_DATA: {
+    BASE: '/api/v1/macroeconomic-data',
   },
 
   // SignalR Hub

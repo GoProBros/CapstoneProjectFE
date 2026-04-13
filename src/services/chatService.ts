@@ -55,6 +55,25 @@ export interface CreatedSession {
   updatedAt: string;
 }
 
+export interface SendSystemNotificationRequest {
+  userIds?: string[];
+  sendToAll: boolean;
+  message: string;
+}
+
+export interface SendSystemNotificationResponse {
+  sessionId: number | null;
+  messageId: number | null;
+  userId: string | null;
+  userIds: string[] | null;
+  sentToAll: boolean;
+  sentCount: number;
+  message: string;
+  messageType: number;
+  sessionType: number;
+  createdAt: string;
+}
+
 export async function getChatSessions(): Promise<ApiResponse<ChatSessionListItem[]>> {
   return apiRequest<ChatSessionListItem[]>(API_ENDPOINTS.CHAT.SESSIONS);
 }
@@ -77,5 +96,14 @@ export async function sendChatMessage(
   return apiRequest<SendMessageResponse>(API_ENDPOINTS.CHAT.SEND_MESSAGE(sessionId), {
     method: 'POST',
     body: JSON.stringify({ message }),
+  });
+}
+
+export async function sendSystemNotification(
+  payload: SendSystemNotificationRequest,
+): Promise<ApiResponse<SendSystemNotificationResponse>> {
+  return apiRequest<SendSystemNotificationResponse>(API_ENDPOINTS.CHAT.SYSTEM_NOTIFICATIONS, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
