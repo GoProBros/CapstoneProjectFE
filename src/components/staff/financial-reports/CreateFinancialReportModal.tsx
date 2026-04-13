@@ -1,36 +1,42 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   createFinancialReport,
   fetchSpecificFinancialReportData,
-} from '@/services/financialReportService';
-import fileService from '@/services/fileService';
-import { FileCategory } from '@/types/file';
-import { FinancialPeriodType } from '@/types/financialReport';
-import { DEFAULT_FINANCIAL_REPORT_DATA_TEMPLATE, QUARTER_OPTIONS } from './create-modal/constants';
-import CreateFinancialReportEditorStep from './create-modal/CreateFinancialReportEditorStep';
-import CreateFinancialReportInitStep from './create-modal/CreateFinancialReportInitStep';
+} from "@/services/financialReportService";
+import fileService from "@/services/fileService";
+import { FileCategory } from "@/types/file";
+import { FinancialPeriodType } from "@/types/financialReport";
+import {
+  DEFAULT_FINANCIAL_REPORT_DATA_TEMPLATE,
+  QUARTER_OPTIONS,
+} from "./create-modal/constants";
+import CreateFinancialReportEditorStep from "./create-modal/CreateFinancialReportEditorStep";
+import CreateFinancialReportInitStep from "./create-modal/CreateFinancialReportInitStep";
 import {
   buildEditableRows,
   cloneDeep,
   parseBillionToDong,
   setNestedValue,
-} from './create-modal/utils';
+} from "./create-modal/utils";
 import {
   type CreateFinancialReportModalProps,
   type EditableMetricRow,
   type GroupedMetricGroup,
   type JsonRecord,
-} from './create-modal/types';
+} from "./create-modal/types";
 
 function hasMeaningfulUserValue(row: EditableMetricRow): boolean {
-  return row.inputValueInBillion.trim() !== '';
+  return row.inputValueInBillion.trim() !== "";
 }
 
 function isPdfFile(file: File): boolean {
-  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  return (
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+  );
 }
 
 export default function CreateFinancialReportModal({
@@ -41,15 +47,17 @@ export default function CreateFinancialReportModal({
   const currentYear = new Date().getFullYear();
   const yearOptions = useMemo(
     () => Array.from({ length: 11 }, (_, index) => currentYear - index),
-    [currentYear]
+    [currentYear],
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<'init' | 'editor'>('init');
-  const [ticker, setTicker] = useState('');
+  const [step, setStep] = useState<"init" | "editor">("init");
+  const [ticker, setTicker] = useState("");
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedQuarter, setSelectedQuarter] = useState<FinancialPeriodType>(FinancialPeriodType.FirstQuarter);
+  const [selectedQuarter, setSelectedQuarter] = useState<FinancialPeriodType>(
+    FinancialPeriodType.FirstQuarter,
+  );
 
   const [uploadedLocalFile, setUploadedLocalFile] = useState<File | null>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -61,6 +69,7 @@ export default function CreateFinancialReportModal({
   const [initializing, setInitializing] = useState(false);
   const [fetchingOnline, setFetchingOnline] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -83,10 +92,12 @@ export default function CreateFinancialReportModal({
 
     return Array.from(groups.entries()).map(([groupLabel, subGroups]) => ({
       groupLabel,
-      subGroups: Array.from(subGroups.entries()).map(([subGroupLabel, metrics]) => ({
-        subGroupLabel,
-        metrics,
-      })),
+      subGroups: Array.from(subGroups.entries()).map(
+        ([subGroupLabel, metrics]) => ({
+          subGroupLabel,
+          metrics,
+        }),
+      ),
     }));
   }, [rows]);
 
@@ -111,8 +122,8 @@ export default function CreateFinancialReportModal({
   }, []);
 
   const resetAll = useCallback(() => {
-    setStep('init');
-    setTicker('');
+    setStep("init");
+    setTicker("");
     setSelectedYear(currentYear);
     setSelectedQuarter(FinancialPeriodType.FirstQuarter);
     setUploadedLocalFile(null);
@@ -122,29 +133,36 @@ export default function CreateFinancialReportModal({
     setRows([]);
     setError(null);
     setSuccessMessage(null);
+    setIsCancelConfirmOpen(false);
   }, [currentYear, replacePreviewUrl]);
 
-  const onRequestClose = useCallback(() => {
+  const closeAndReset = useCallback(() => {
+    resetAll();
+    onClose();
+  }, [onClose, resetAll]);
+
+  const openCancelConfirmIfNeeded = useCallback(() => {
     if (submitting) {
       return;
     }
 
-    if (step === 'editor') {
-      const shouldCancel = window.confirm('Hủy quy trình sẽ xóa toàn bộ dữ liệu bạn vừa nhập. Bạn có chắc chắn muốn hủy?');
-      if (!shouldCancel) {
-        return;
-      }
+    if (step === "editor") {
+      setIsCancelConfirmOpen(true);
+      return;
     }
 
-    resetAll();
-    onClose();
-  }, [onClose, resetAll, step, submitting]);
+    closeAndReset();
+  }, [closeAndReset, step, submitting]);
+
+  const onRequestClose = useCallback(() => {
+    openCancelConfirmIfNeeded();
+  }, [openCancelConfirmIfNeeded]);
 
   const onContinueInit = useCallback(() => {
     const normalizedTicker = ticker.trim().toUpperCase();
 
     if (!normalizedTicker) {
-      setError('Vui lòng nhập mã chứng khoán.');
+      setError("Vui lòng nhập mã chứng khoán.");
       return;
     }
 
@@ -158,16 +176,18 @@ export default function CreateFinancialReportModal({
     setTicker(normalizedTicker);
     setBaseReportData(defaultTemplate);
     setRows(templateRows);
-    setStep('editor');
+    setStep("editor");
     setInitializing(false);
-    setSuccessMessage('Đã mở bước nhập dữ liệu. Bạn có thể lấy dữ liệu online hoặc upload file từ máy để đối chiếu và nhập tay.');
+    setSuccessMessage(
+      "Đã mở bước nhập dữ liệu. Bạn có thể lấy dữ liệu online hoặc upload file từ máy để đối chiếu và nhập tay.",
+    );
   }, [ticker]);
 
   const onFetchOnlineData = useCallback(async () => {
     const normalizedTicker = ticker.trim().toUpperCase();
 
     if (!normalizedTicker) {
-      setError('Vui lòng nhập mã chứng khoán.');
+      setError("Vui lòng nhập mã chứng khoán.");
       return;
     }
 
@@ -184,7 +204,7 @@ export default function CreateFinancialReportModal({
 
       const onlineRows = buildEditableRows(data as JsonRecord);
       if (onlineRows.length === 0) {
-        setError('Không có dữ liệu số để điền tự động từ nguồn online.');
+        setError("Không có dữ liệu số để điền tự động từ nguồn online.");
         return;
       }
 
@@ -222,9 +242,13 @@ export default function CreateFinancialReportModal({
         return [...mergedRows, ...customRows];
       });
 
-      setSuccessMessage('Đã lấy dữ liệu online và điền vào bảng. Các ô đã có dữ liệu trước đó được giữ nguyên.');
+      setSuccessMessage(
+        "Đã lấy dữ liệu online và điền vào bảng. Các ô đã có dữ liệu trước đó được giữ nguyên.",
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể lấy dữ liệu online.');
+      setError(
+        err instanceof Error ? err.message : "Không thể lấy dữ liệu online.",
+      );
     } finally {
       setFetchingOnline(false);
     }
@@ -234,53 +258,60 @@ export default function CreateFinancialReportModal({
     fileInputRef.current?.click();
   }, []);
 
-  const onFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (!selectedFile) {
-      return;
-    }
-
-    setError(null);
-    setSuccessMessage(null);
-
-    const previewUrl = window.URL.createObjectURL(selectedFile);
-
-    replacePreviewUrl(previewUrl);
-    setUploadedLocalFile(selectedFile);
-    setIsPreviewPdf(isPdfFile(selectedFile));
-    setSuccessMessage('Đã nạp file từ máy cục bộ để xem live view. File sẽ được upload lên server sau khi tạo báo cáo thành công.');
-
-    if (event.target) {
-      event.target.value = '';
-    }
-  }, [replacePreviewUrl]);
-
-  const onRowValueChange = useCallback((id: string, newValue: string) => {
-    setRows((prevRows) => prevRows.map((row) => {
-      if (row.id !== id) {
-        return row;
+  const onFileInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = event.target.files?.[0];
+      if (!selectedFile) {
+        return;
       }
 
-      const parsedInDong = parseBillionToDong(newValue);
+      setError(null);
+      setSuccessMessage(null);
 
-      return {
-        ...row,
-        inputValueInBillion: newValue,
-        valueInDong: parsedInDong ?? row.valueInDong,
-      };
-    }));
+      const previewUrl = window.URL.createObjectURL(selectedFile);
+
+      replacePreviewUrl(previewUrl);
+      setUploadedLocalFile(selectedFile);
+      setIsPreviewPdf(isPdfFile(selectedFile));
+      setSuccessMessage(
+        "Đã nạp file từ máy cục bộ để xem live view. File sẽ được upload lên server sau khi tạo báo cáo thành công.",
+      );
+
+      if (event.target) {
+        event.target.value = "";
+      }
+    },
+    [replacePreviewUrl],
+  );
+
+  const onRowValueChange = useCallback((id: string, newValue: string) => {
+    setRows((prevRows) =>
+      prevRows.map((row) => {
+        if (row.id !== id) {
+          return row;
+        }
+
+        const parsedInDong = parseBillionToDong(newValue);
+
+        return {
+          ...row,
+          inputValueInBillion: newValue,
+          valueInDong: parsedInDong ?? row.valueInDong,
+        };
+      }),
+    );
   }, []);
 
   const onFinalizeCreate = useCallback(async () => {
     const normalizedTicker = ticker.trim().toUpperCase();
 
     if (!normalizedTicker) {
-      setError('Vui lòng nhập mã chứng khoán.');
+      setError("Vui lòng nhập mã chứng khoán.");
       return;
     }
 
     if (rows.length === 0) {
-      setError('Chưa có dữ liệu để tạo báo cáo.');
+      setError("Chưa có dữ liệu để tạo báo cáo.");
       return;
     }
 
@@ -325,7 +356,11 @@ export default function CreateFinancialReportModal({
       resetAll();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể hoàn tất tạo báo cáo tài chính.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không thể hoàn tất tạo báo cáo tài chính.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -342,37 +377,38 @@ export default function CreateFinancialReportModal({
   ]);
 
   const onCancelProcess = useCallback(() => {
-    if (submitting) {
-      return;
-    }
+    openCancelConfirmIfNeeded();
+  }, [openCancelConfirmIfNeeded]);
 
-    const shouldCancel = window.confirm('Hủy quy trình sẽ xóa toàn bộ dữ liệu bạn vừa nhập. Bạn có chắc chắn muốn hủy?');
-    if (!shouldCancel) {
-      return;
-    }
+  const onCancelConfirmClose = useCallback(() => {
+    setIsCancelConfirmOpen(false);
+  }, []);
 
-    resetAll();
-    onClose();
-  }, [onClose, resetAll, submitting]);
+  const onConfirmCancelProcess = useCallback(() => {
+    setIsCancelConfirmOpen(false);
+    closeAndReset();
+  }, [closeAndReset]);
 
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 pb-6">
       <div className="absolute inset-0" onClick={onRequestClose} />
 
       <div className="relative w-full max-w-6xl max-h-[92vh] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
           <div>
             <h3 className="text-xl font-extrabold font-headline tracking-tight text-gray-900 dark:text-gray-100">
-              {step === 'init' ? 'Tạo báo cáo tài chính mới' : 'Chi tiết báo cáo và chỉnh sửa'}
+              {step === "init"
+                ? "Tạo báo cáo tài chính mới"
+                : "Chi tiết báo cáo và chỉnh sửa"}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {step === 'init'
-                ? 'Nhập thông tin cơ bản trước khi vào bước nhập dữ liệu.'
-                : `${ticker} • ${selectedYear} • ${QUARTER_OPTIONS.find((option) => option.value === selectedQuarter)?.label ?? ''}`}
+              {step === "init"
+                ? "Nhập thông tin cơ bản trước khi vào bước nhập dữ liệu."
+                : `${ticker} • ${selectedYear} • ${QUARTER_OPTIONS.find((option) => option.value === selectedQuarter)?.label ?? ""}`}
             </p>
           </div>
           <button
@@ -397,7 +433,7 @@ export default function CreateFinancialReportModal({
           </div>
         )}
 
-        {step === 'init' && (
+        {step === "init" && (
           <CreateFinancialReportInitStep
             ticker={ticker}
             selectedYear={selectedYear}
@@ -413,7 +449,7 @@ export default function CreateFinancialReportModal({
           />
         )}
 
-        {step === 'editor' && (
+        {step === "editor" && (
           <CreateFinancialReportEditorStep
             uploadedLocalFile={uploadedLocalFile}
             localPreviewUrl={localPreviewUrl}
@@ -432,6 +468,16 @@ export default function CreateFinancialReportModal({
           />
         )}
       </div>
+      <ConfirmDialog
+        isOpen={isCancelConfirmOpen}
+        title="Xác nhận hủy"
+        message="Hủy quy trình sẽ xóa toàn bộ dữ liệu bạn vừa nhập. Bạn có chắc chắn muốn hủy?"
+        confirmText="Xác nhận hủy"
+        cancelText="Tiếp tục chỉnh sửa"
+        variant="danger"
+        onConfirm={onConfirmCancelProcess}
+        onCancel={onCancelConfirmClose}
+      />
     </div>
   );
 }
