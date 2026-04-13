@@ -115,6 +115,7 @@ export const API_ENDPOINTS = {
     SESSION_BY_ID: (id: number) => `/api/v1/chat/sessions/${id}`,
     SEND_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/messages`,
     SUMMARIZE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/summarize`,
+    SYSTEM_NOTIFICATIONS: '/api/v1/chat/system-notifications',
   },
 
   // Payment endpoints
