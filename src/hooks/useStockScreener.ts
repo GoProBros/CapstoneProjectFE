@@ -23,12 +23,19 @@ const FILTER_DEFAULT_PAGE_SIZE = 50;
 const GRID_ROW_HEIGHT = 36;
 const SCROLL_PREFETCH_DEBOUNCE_MS = 120;
 const NEXT_PAGE_LOAD_COOLDOWN_MS = 250;
-const DEFAULT_MARKET_INDEX: MarketIndex = {
-  code: 'VN30',
-  name: 'VN30',
-  exchangeCode: 'HSX',
-  isBenchmark: true,
-  status: 1,
+const DEFAULT_EXCHANGE: ExchangeCode = 'HSX';
+const NEXT_PAGE_PREFETCH_OFFSET = 20;
+
+const getNextPrefetchTriggerRow = (
+  loadedBefore: number,
+  pageTickerCount: number,
+  hasNextPage: boolean,
+): number => {
+  if (!hasNextPage || pageTickerCount <= 0) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return loadedBefore + Math.min(NEXT_PAGE_PREFETCH_OFFSET, pageTickerCount);
 };
 
 type ActiveSymbolSource =
@@ -361,10 +368,11 @@ export function useStockScreener() {
       }
 
       const nextLoadedTickerCount = loadedBefore + nextPageData.pageTickerCount;
-      const nextPrefetchTriggerRow =
-        nextPageData.hasNextPage && nextPageData.pageTickerCount > 0
-          ? loadedBefore + Math.floor(nextPageData.pageTickerCount / 2)
-          : Number.MAX_SAFE_INTEGER;
+      const nextPrefetchTriggerRow = getNextPrefetchTriggerRow(
+        loadedBefore,
+        nextPageData.pageTickerCount,
+        nextPageData.hasNextPage,
+      );
 
       symbolPaginationRef.current = {
         pageIndex: nextPageData.pageIndex,
@@ -472,10 +480,11 @@ export function useStockScreener() {
     ]);
 
     activeSymbolSourceRef.current = source;
-    const firstPageTriggerRow =
-      firstPage.hasNextPage && firstPage.pageTickerCount > 0
-        ? Math.floor(firstPage.pageTickerCount / 2)
-        : Number.MAX_SAFE_INTEGER;
+    const firstPageTriggerRow = getNextPrefetchTriggerRow(
+      0,
+      firstPage.pageTickerCount,
+      firstPage.hasNextPage,
+    );
 
     symbolPaginationRef.current = {
       pageIndex: firstPage.pageIndex,
@@ -578,10 +587,11 @@ export function useStockScreener() {
       }
 
       activeSymbolSourceRef.current = source;
-      const firstPageTriggerRow =
-        firstPage.hasNextPage && firstPage.pageTickerCount > 0
-          ? Math.floor(firstPage.pageTickerCount / 2)
-          : Number.MAX_SAFE_INTEGER;
+      const firstPageTriggerRow = getNextPrefetchTriggerRow(
+        0,
+        firstPage.pageTickerCount,
+        firstPage.hasNextPage,
+      );
 
       symbolPaginationRef.current = {
         pageIndex: firstPage.pageIndex,
@@ -696,7 +706,7 @@ export function useStockScreener() {
   };
 
 
-  // Subscribe to default symbols when connected - default is VN30 index
+  // Subscribe to default symbols when connected - default is HSX exchange
   useEffect(() => {
     if (!isConnected || hasLoadedDefaultSymbols.current) {
       return;
@@ -708,16 +718,19 @@ export function useStockScreener() {
       resetSymbolPagination();
       try {
         const source: ActiveSymbolSource = {
-          mode: 'index',
-          index: DEFAULT_MARKET_INDEX,
+          mode: 'filter',
+          exchange: DEFAULT_EXCHANGE,
+          symbolType: null,
+          sector: null,
         };
         const firstPage = await fetchSymbolsPageBySource(source, 1);
 
         activeSymbolSourceRef.current = source;
-        const firstPageTriggerRow =
-          firstPage.hasNextPage && firstPage.pageTickerCount > 0
-            ? Math.floor(firstPage.pageTickerCount / 2)
-            : Number.MAX_SAFE_INTEGER;
+        const firstPageTriggerRow = getNextPrefetchTriggerRow(
+          0,
+          firstPage.pageTickerCount,
+          firstPage.hasNextPage,
+        );
 
         symbolPaginationRef.current = {
           pageIndex: firstPage.pageIndex,
@@ -731,8 +744,9 @@ export function useStockScreener() {
           return;
         }
 
-        // Set selectedIndex to VN30 so the UI reflects the default selection
-        setSelectedIndex(DEFAULT_MARKET_INDEX);
+        // Set selectedExchange to HSX so the UI reflects the default selection
+        setSelectedExchange(DEFAULT_EXCHANGE);
+        setSelectedIndex(null);
         await subscribeToSymbols(firstPage.tickers);
       } catch (error) {
         console.error('[StockScreener] Error loading default symbols:', error);
@@ -1492,20 +1506,20 @@ export function useStockScreener() {
           // Refresh watch lists
           await fetchWatchLists();
           
-          // If deleted watch list is current, switch back to default subscription (VN30)
+          // If deleted watch list is current, switch back to default subscription (HSX)
           if (currentWatchListId === watchList.id) {
             if (isConnected) {
-              await handleIndexChange(DEFAULT_MARKET_INDEX);
+              await handleExchangeChange(DEFAULT_EXCHANGE);
             } else {
               setCurrentWatchListId(null);
               setCurrentWatchListName('Danh mục của tôi');
               currentWatchListTickers.current.clear();
-              setSelectedExchange(null);
+              setSelectedExchange(DEFAULT_EXCHANGE);
               setSelectedSymbolType(null);
               setSelectedSector(null);
               activeSectorIdRef.current = null;
-              setSelectedIndex(DEFAULT_MARKET_INDEX);
-              hasLoadedDefaultSymbols.current = true;
+              setSelectedIndex(null);
+              hasLoadedDefaultSymbols.current = false;
             }
           }
           
