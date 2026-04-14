@@ -14,14 +14,25 @@ export interface ChatSessionListItem {
 }
 
 export interface ChatMessageSimple {
+  id?: number;
   role: 'user' | 'ai';
   content: string;
+  senderId?: string | null;
+  senderName?: string | null;
+  createdAt?: string;
+  isUnreadForCurrentUser?: boolean;
 }
 
 export interface ChatSessionDetail {
   id: number;
   title: string;
+  sessionType?: number;
   summary: string | null;
+  otherParticipant?: {
+    userId: string;
+    username: string;
+    avatarUrl: string | null;
+  } | null;
   messages: ChatMessageSimple[];
 }
 
@@ -74,6 +85,46 @@ export interface SendSystemNotificationResponse {
   createdAt: string;
 }
 
+// ─── Direct Message types ─────────────────────────────────────────────────────
+
+export interface DirectParticipant {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+}
+
+export interface DirectSessionListItem {
+  sessionId: number;
+  otherParticipant: DirectParticipant;
+  lastMessageContent: string | null;
+  lastMessageSenderId: string | null;
+  lastMessageAt: string | null;
+  myLastReadAt: string | null;
+  myLastReadMessageId: number | null;
+  hasUnread: boolean;
+  updatedAt: string;
+}
+
+export interface DirectChatSessionInfo {
+  sessionId: number;
+  isNew: boolean;
+  otherParticipant: DirectParticipant;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DirectMessage {
+  id: number;
+  sessionId: number;
+  senderId: string;
+  senderName: string;
+  content: string;
+  createdAt: string;
+  isFromCurrentUser: boolean;
+}
+
+// ─── AI Chat functions ────────────────────────────────────────────────────────
+
 export async function getChatSessions(): Promise<ApiResponse<ChatSessionListItem[]>> {
   return apiRequest<ChatSessionListItem[]>(API_ENDPOINTS.CHAT.SESSIONS);
 }
@@ -105,5 +156,36 @@ export async function sendSystemNotification(
   return apiRequest<SendSystemNotificationResponse>(API_ENDPOINTS.CHAT.SYSTEM_NOTIFICATIONS, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+// ─── Direct Message functions ─────────────────────────────────────────────────
+
+export async function getDirectSessions(): Promise<ApiResponse<DirectSessionListItem[]>> {
+  return apiRequest<DirectSessionListItem[]>(API_ENDPOINTS.CHAT.DIRECT);
+}
+
+export async function getOrCreateDirectSession(
+  phoneOrEmail: string,
+): Promise<ApiResponse<DirectChatSessionInfo>> {
+  return apiRequest<DirectChatSessionInfo>(API_ENDPOINTS.CHAT.DIRECT, {
+    method: 'POST',
+    body: JSON.stringify({ phoneOrEmail }),
+  });
+}
+
+export async function sendDirectMessage(
+  sessionId: number,
+  content: string,
+): Promise<ApiResponse<DirectMessage>> {
+  return apiRequest<DirectMessage>(API_ENDPOINTS.CHAT.SEND_DIRECT_MESSAGE(sessionId), {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function markSessionAsRead(sessionId: number): Promise<ApiResponse<void>> {
+  return apiRequest<void>(API_ENDPOINTS.CHAT.MARK_AS_READ(sessionId), {
+    method: 'PATCH',
   });
 }

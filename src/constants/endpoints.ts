@@ -109,13 +109,16 @@ export const API_ENDPOINTS = {
     UPDATE_BY_ID: (id: number) => `/api/v1/subscriptions/${id}`,
   },
 
-  // AI Chat endpoints
+  // AI Chat & Direct Message endpoints
   CHAT: {
     SESSIONS: '/api/v1/chat/sessions',
     SESSION_BY_ID: (id: number) => `/api/v1/chat/sessions/${id}`,
     SEND_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/messages`,
     SUMMARIZE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/summarize`,
     SYSTEM_NOTIFICATIONS: '/api/v1/chat/system-notifications',
+    DIRECT: '/api/v1/chat/direct',
+    SEND_DIRECT_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/direct-messages`,
+    MARK_AS_READ: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/read`,
   },
 
   // Payment endpoints
