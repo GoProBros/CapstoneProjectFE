@@ -28,6 +28,7 @@ export * from './marketIndex';
 export * from './financialReport';
 export * from './systemData';
 export * from './userManagement';
+export * from './news';
 
 export interface PaginationParams {
   page: number;
