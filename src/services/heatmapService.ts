@@ -30,7 +30,7 @@ class HeatmapService {
       }
 
       const queryString = params.toString();
-      const url = `${this.baseUrl}/api/heatmap${queryString ? `?${queryString}` : ''}`;
+      const url = `${this.baseUrl}/api/v1/heatmap${queryString ? `?${queryString}` : ''}`;
 
       const response = await fetch(url, {
         method: 'GET',

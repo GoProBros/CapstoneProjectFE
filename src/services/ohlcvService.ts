@@ -46,7 +46,7 @@ export async function fetchOhlcvData(params: FetchOhlcvParams): Promise<OhlcvRes
     useCache: useCache.toString(),
   });
 
-  const url = `/api/Ohlcv/${ticker}?${queryParams.toString()}`;
+  const url = `/api/v1/ohlcv/${ticker}?${queryParams.toString()}`;
 
   try {
     const response = await get<OhlcvResponse>(url);

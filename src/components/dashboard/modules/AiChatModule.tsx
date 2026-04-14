@@ -33,8 +33,16 @@ interface Message {
 /* ──────────────────────────────────────────────────────────────────────────
    Markdown-lite renderer
 ──────────────────────────────────────────────────────────────────────────── */
+function preprocessContent(text: string): string {
+  return text
+    .replace(/<br\s*\/?>/gi, '\n')  // <br>, <br/>, <br /> → newline
+    .replace(/<\/p>/gi, '\n')       // </p> → newline
+    .replace(/<p>/gi, '')           // strip <p>
+    .replace(/<[^>]+>/g, '');       // strip remaining HTML tags
+}
+
 function renderMarkdown(text: string): React.ReactNode[] {
-  const lines = text.split('\n');
+  const lines = preprocessContent(text).split('\n');
   const nodes: React.ReactNode[] = [];
   let listItems: string[] = [];
   let listType: 'ul' | 'ol' | null = null;
