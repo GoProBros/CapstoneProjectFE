@@ -89,7 +89,7 @@ export const API_ENDPOINTS = {
   
   // OHLCV endpoints
   OHLCV: {
-    BY_TICKER: (ticker: string) => `/api/Ohlcv/${ticker}`,
+    BY_TICKER: (ticker: string) => `/api/v1/ohlcv/${ticker}`,
   },
   
   // Workspace endpoints
@@ -146,7 +146,7 @@ export const API_ENDPOINTS = {
 
   // Heatmap endpoints
   HEATMAP: {
-    BASE: '/api/heatmap',
+    BASE: '/api/v1/heatmap',
   },
 
   // Market general endpoints (Smart Market Board etc.)
