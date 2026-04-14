@@ -187,7 +187,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href={ROUTES.HOME} className="flex items-center gap-2 group">
             <TrendingUp className="text-[#00C805] w-7 h-7 group-hover:scale-110 transition-transform" />
-            <span className="text-xl font-black tracking-tight">Kafi Stock</span>
+            <span className="text-xl font-black tracking-tight">KF Stock</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -311,7 +311,7 @@ export default function Home() {
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_100px_rgba(0,200,5,0.07)]">
               <Image
                 src="/assets/Dashboard/SidebarComponent/BlackHomePage.webp"
-                alt="Kafi Stock Dashboard"
+                alt="KF Stock Dashboard"
                 width={1920}
                 height={1080}
                 className="w-full object-cover"
@@ -520,7 +520,7 @@ export default function Home() {
                 <span className="text-[#00C805]">thị trường?</span>
               </h2>
               <p className="text-slate-400 text-lg mb-10 max-w-lg mx-auto">
-                Hàng nghìn nhà đầu tư đã tin dùng Kafi Stock để theo dõi danh mục và phân tích cổ phiếu mỗi ngày.
+                Hàng nghìn nhà đầu tư đã tin dùng KF Stock để theo dõi danh mục và phân tích cổ phiếu mỗi ngày.
               </p>
               <Link
                 href={ROUTES.LOGIN}
@@ -540,7 +540,7 @@ export default function Home() {
             <div className="col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="text-[#00C805] w-7 h-7" />
-                <span className="text-xl font-black tracking-tight">Kafi Stock</span>
+                <span className="text-xl font-black tracking-tight">KF Stock</span>
               </div>
               <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
                 Nền tảng phân tích chứng khoán thời gian thực. Được xây dựng bởi các nhà đầu tư, cho các nhà đầu tư Việt Nam.
@@ -573,7 +573,7 @@ export default function Home() {
             </div>
           </div>
           <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-slate-600 text-xs">© 2026 Kafi Stock. Đầu tư chứng khoán tiềm ẩn rủi ro đáng kể.</p>
+            <p className="text-slate-600 text-xs">© 2026 KF Stock. Đầu tư chứng khoán tiềm ẩn rủi ro đáng kể.</p>
             <p className="text-slate-600 text-xs">Dữ liệu mang tính tham khảo — không phải tư vấn đầu tư.</p>
           </div>
         </div>
