@@ -7,9 +7,10 @@ import React, {
   useCallback,
   useLayoutEffect,
 } from 'react';
-import { Send, Plus, MessageSquare, ChevronDown, Loader2, Sparkles, History } from 'lucide-react';
+import { Send, Plus, MessageSquare, ChevronDown, Loader2, Sparkles, History, MessagesSquare } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { DirectChatPanel } from './DirectChatPanel';
 import {
   getChatSessions,
   createChatSession,
@@ -236,6 +237,8 @@ export default function AiChatModule() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [isPendingNew, setIsPendingNew] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ai' | 'direct'>('ai');
+  const [directUnread, setDirectUnread] = useState(0);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,9 +274,11 @@ export default function AiChatModule() {
     try {
       const res = await getChatSessions();
       if (res.isSuccess && res.data) {
-        setSessions(res.data);
-        if (res.data.length > 0) {
-          const latest = [...res.data].sort(
+        // Only show AI sessions (sessionType === 1), not System (0) or Direct (2) sessions
+        const aiSessions = res.data.filter(s => s.sessionType === 1);
+        setSessions(aiSessions);
+        if (aiSessions.length > 0) {
+          const latest = [...aiSessions].sort(
             (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           )[0];
           loadSession(latest.id);
@@ -410,17 +415,51 @@ export default function AiChatModule() {
   return (
     <div className={`h-full w-full flex flex-col ${bg} overflow-hidden`}>
 
-      {/* Badge title – same style as other modules */}
-      <div className="module-header flex-none flex items-center justify-center pt-1.5 pb-0.5">
-        <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
-          <svg width="160" height="28" viewBox="0 0 136 22" className="block">
-            <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
-          </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
-            Trợ lý AI
-          </span>
-        </div>
+      {/* Tab header: outer div is the drag zone, buttons use pointer-events-auto to override */}
+      <div className="module-header drag-handle flex-none flex items-center gap-1.5 px-3 pt-2 pb-1.5 cursor-move select-none">
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => setActiveTab('ai')}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold transition-all duration-150 cursor-pointer select-auto ${
+            activeTab === 'ai'
+              ? 'bg-[#4ADE80] text-black shadow-sm'
+              : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Sparkles size={10} />
+          Trợ lý AI
+        </button>
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => setActiveTab('direct')}
+          className={`pointer-events-auto relative flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold transition-all duration-150 cursor-pointer select-auto ${
+            activeTab === 'direct'
+              ? 'bg-[#4ADE80] text-black shadow-sm'
+              : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <MessagesSquare size={10} />
+          Nhắn tin
+          {directUnread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+              {directUnread > 9 ? '9+' : directUnread}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Direct chat tab */}
+      {activeTab === 'direct' && (
+        <DirectChatPanel
+          isDark={isDark}
+          userId={user?.id ?? ''}
+          userName={user?.fullName ?? ''}
+          onUnreadCountChange={setDirectUnread}
+        />
+      )}
+
+      {/* ─── AI tab content ─── */}
+      {activeTab === 'ai' && (<>
 
       {/* Session controls bar */}
       <div className={`flex-none flex items-center justify-between pl-3 pr-10 py-1.5 border-b ${border}`}>
@@ -613,6 +652,8 @@ export default function AiChatModule() {
           </div>
         )}
       </div>
+
+      </>)}
     </div>
   );
 }

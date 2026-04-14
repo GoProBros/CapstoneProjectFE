@@ -60,14 +60,62 @@ function fmtVol(vol: number): string {
   return String(vol);
 }
 
-/** Price change color class based on price vs reference */
+/** Price change color class based on changePercent — 9 intensity levels */
 function getPriceColorClass(item: HeatmapItem, isDark: boolean): string {
   const pct = item.changePercent;
-  if (pct >= 6.5)  return isDark ? 'bg-purple-900/70 text-purple-200' : 'bg-purple-100 text-purple-800';
-  if (pct <= -6.5) return isDark ? 'bg-cyan-900/70 text-cyan-200'   : 'bg-cyan-100 text-cyan-800';
-  if (pct > 0)     return isDark ? 'bg-green-900/50 text-green-300'  : 'bg-green-50 text-green-700';
-  if (pct < 0)     return isDark ? 'bg-red-900/50 text-red-300'      : 'bg-red-50 text-red-700';
-  return isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-600';
+
+  // Trần (ceiling ≥ +6.5%)
+  if (pct >= 6.5)
+    return isDark
+      ? 'bg-purple-800/80 text-purple-100'
+      : 'bg-purple-200 text-purple-900';
+
+  // Tăng mạnh (+3% → <+6.5%)
+  if (pct >= 3)
+    return isDark
+      ? 'bg-green-700/80 text-green-100'
+      : 'bg-green-300 text-green-900';
+
+  // Tăng vừa (+1% → <+3%)
+  if (pct >= 1)
+    return isDark
+      ? 'bg-green-800/60 text-green-200'
+      : 'bg-green-200 text-green-800';
+
+  // Tăng nhẹ (>0 → <+1%)
+  if (pct > 0)
+    return isDark
+      ? 'bg-green-900/50 text-green-400'
+      : 'bg-green-100 text-green-700';
+
+  // Tham chiếu (= 0)
+  if (pct === 0)
+    return isDark
+      ? 'bg-yellow-900/40 text-yellow-300'
+      : 'bg-yellow-50 text-yellow-700';
+
+  // Giảm nhẹ (>-1% → <0)
+  if (pct > -1)
+    return isDark
+      ? 'bg-red-900/50 text-red-400'
+      : 'bg-red-100 text-red-600';
+
+  // Giảm vừa (-3% → >-1%)  (note: pct < -1 here)
+  if (pct > -3)
+    return isDark
+      ? 'bg-red-800/60 text-red-200'
+      : 'bg-red-200 text-red-800';
+
+  // Giảm mạnh (-6.5% → -3%)
+  if (pct > -6.5)
+    return isDark
+      ? 'bg-red-700/80 text-red-100'
+      : 'bg-red-300 text-red-900';
+
+  // Sàn (floor ≤ -6.5%)
+  return isDark
+    ? 'bg-cyan-800/80 text-cyan-100'
+    : 'bg-cyan-200 text-cyan-900';
 }
 
 interface TickerRowProps {
@@ -79,9 +127,33 @@ function TickerRow({ item }: TickerRowProps) {
   const isDark = theme === 'dark';
   const colorCls = getPriceColorClass(item, isDark);
 
+  const prevPriceRef = useRef<number>(item.currentPrice);
+  const [flashClass, setFlashClass] = useState<string>('');
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (item.currentPrice !== prevPriceRef.current) {
+      prevPriceRef.current = item.currentPrice;
+      const pct = item.changePercent;
+      let cls = 'sb-flash-yellow';
+      if (pct >= 6.5)       cls = 'sb-flash-purple';
+      else if (pct <= -6.5) cls = 'sb-flash-cyan';
+      else if (pct > 0)     cls = 'sb-flash-green';
+      else if (pct < 0)     cls = 'sb-flash-red';
+      // Re-trigger animation by clearing then re-setting
+      setFlashClass('');
+      requestAnimationFrame(() => setFlashClass(cls));
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setFlashClass(''), 750);
+    }
+    return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
+  }, [item.currentPrice, item.changePercent]);
+
   return (
     <div
-      className={`grid grid-cols-4 gap-1 px-2 py-1 text-xs rounded mb-0.5 ${colorCls}`}
+      className={`grid grid-cols-4 gap-1 px-2 py-1 text-xs rounded mb-0.5 ${colorCls} ${flashClass}`}
     >
       <span className="font-bold truncate">{item.ticker}</span>
       <span className="text-right tabular-nums">

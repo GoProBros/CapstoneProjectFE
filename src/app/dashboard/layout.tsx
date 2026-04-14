@@ -8,8 +8,7 @@ import AddPageModal from "@/components/dashboard/AddPageModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import { DashboardContext } from "@/contexts/DashboardContext";
-import { SignalRProvider } from "@/contexts/SignalRContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { SignalRProvider } from "@/contexts/SignalRContext";import { NotificationProvider, useNotifications } from '@/contexts/NotificationContext';import { useAuth } from "@/contexts/AuthContext";
 import * as workspaceService from "@/services/workspaceService";
 import { useSubscriptionStore } from "@/stores/subscriptionStore";
 import { WorkspaceType } from "@/types";
@@ -858,6 +857,7 @@ export default function DashboardLayout({
 
   return (
     <ThemeProvider>
+      <NotificationProvider apiUrl={process.env.NEXT_PUBLIC_API_URL}>
       <SignalRProvider
         apiUrl={process.env.NEXT_PUBLIC_API_URL}
         autoConnect={true}
@@ -935,6 +935,10 @@ export default function DashboardLayout({
           </DashboardContext.Provider>
         </FontSizeProvider>
       </SignalRProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }
+
+// ─── System Notification Toasts ───────────────────────────────────────────────
+
