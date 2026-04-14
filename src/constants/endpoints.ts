@@ -86,6 +86,12 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/watch-lists',
     BY_ID: (id: number) => `/api/v1/watch-lists/${id}`,
   },
+
+  // News endpoints
+  NEWS: {
+    BASE: '/api/v1/news',
+    BY_ID: (id: number) => `/api/v1/news/${id}`,
+  },
   
   // OHLCV endpoints
   OHLCV: {
