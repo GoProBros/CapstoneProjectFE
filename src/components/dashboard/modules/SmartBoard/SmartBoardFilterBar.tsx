@@ -110,6 +110,17 @@ export default function SmartBoardFilterBar({
       {/* Divider */}
       <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
 
+      {/* Sector Filter */}
+      <SectorFilter
+        selectedSector={filters.sector}
+        onSectorChange={handleSectorChange}
+        isLoading={isLoading}
+        showAllOption
+      />
+
+      {/* Divider */}
+      <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
+
       {/* Hide not-yet-trading toggle */}
       <button
         onClick={handleHideNoTradingToggle}
@@ -128,17 +139,6 @@ export default function SmartBoardFilterBar({
       >
         <span>Đang GD</span>
       </button>
-
-      {/* Divider */}
-      <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
-
-      {/* Sector Filter */}
-      <SectorFilter
-        selectedSector={filters.sector}
-        onSectorChange={handleSectorChange}
-        isLoading={isLoading}
-        showAllOption
-      />
 
       {/* Divider */}
       <div className={`h-5 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />

@@ -1,16 +1,147 @@
 'use client';
 
-import { Bell, LogIn, LayoutGrid, SquarePlus, X, Menu, Pencil, Share2, Copy, Check } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { Bell, LogIn, LayoutGrid, SquarePlus, X, Menu, Pencil, Share2, Copy, Check, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import type { SystemNotification } from '@/contexts/NotificationContext';
 import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useRouter } from 'next/navigation';
 import * as workspaceService from '@/services/workspaceService';
 import type { Workspace } from '@/types';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { getDashboardPagesStorage, setDashboardPagesStorage } from '@/lib/dashboardStorage';
+
+// ─── Notification item with expand/collapse ─────────────────────────────────
+
+const CLAMP_LINES = 4;
+
+function NotificationItem({
+    notif,
+    isRealtime,
+    theme,
+    onDismiss,
+}: {
+    notif: SystemNotification;
+    isRealtime: boolean;
+    theme: string;
+    onDismiss: (id: string) => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const [isClamped, setIsClamped] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Measure once (in collapsed state) whether the content overflows
+    useLayoutEffect(() => {
+        const el = contentRef.current;
+        if (!el) return;
+        // Temporarily force collapsed state to measure
+        el.style.webkitLineClamp = String(CLAMP_LINES);
+        el.style.display = '-webkit-box';
+        el.style.webkitBoxOrient = 'vertical';
+        el.style.overflow = 'hidden';
+        const clamped = el.scrollHeight > el.clientHeight + 2;
+        setIsClamped(clamped);
+        // Restore display after measurement
+        if (!expanded) {
+            // keep clamped styles
+        } else {
+            el.style.webkitLineClamp = 'unset';
+            el.style.display = 'block';
+            el.style.overflow = 'visible';
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [notif.content]);
+
+    const sourceLabel =
+        notif.source === 'alert' && notif.ticker
+            ? `Cảnh báo · ${notif.ticker}`
+            : 'Hệ thống';
+
+    return (
+        <div
+            className={`relative px-4 py-3 border-b last:border-b-0 ${
+                isRealtime
+                    ? theme === 'dark'
+                        ? 'border-white/[0.06] hover:bg-white/[0.03] bg-[#4ADE80]/[0.04]'
+                        : 'border-gray-100 hover:bg-[#4ADE80]/5 bg-[#4ADE80]/5'
+                    : theme === 'dark'
+                        ? 'border-white/[0.06] hover:bg-white/[0.03]'
+                        : 'border-gray-100 hover:bg-gray-50'
+            } transition-colors`}
+        >
+            {/* Source + dismiss */}
+            <div className="flex items-center justify-between mb-1">
+                <span
+                    className={`text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1 ${
+                        isRealtime
+                            ? 'text-accentGreen'
+                            : notif.source === 'alert'
+                              ? 'text-amber-500'
+                              : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}
+                >
+                    <span className={`w-1.5 h-1.5 rounded-full bg-current ${isRealtime ? 'animate-pulse' : ''}`} />
+                    {sourceLabel}
+                </span>
+                <button
+                    onClick={() => onDismiss(notif.id)}
+                    className={`p-0.5 rounded transition-colors ${
+                        theme === 'dark' ? 'hover:bg-white/10 text-gray-500' : 'hover:bg-gray-200 text-gray-400'
+                    }`}
+                    aria-label="Đóng"
+                >
+                    <X className="w-3 h-3" />
+                </button>
+            </div>
+
+            {/* Content — clamped or expanded */}
+            <div
+                ref={contentRef}
+                className={`text-xs leading-relaxed ${
+                    theme === 'dark'
+                        ? isRealtime ? 'text-gray-200' : 'text-gray-300'
+                        : isRealtime ? 'text-gray-700' : 'text-gray-600'
+                }`}
+                style={{
+                    display: expanded ? 'block' : '-webkit-box',
+                    WebkitLineClamp: expanded ? 'unset' : CLAMP_LINES,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: expanded ? 'visible' : 'hidden',
+                }}
+                dangerouslySetInnerHTML={{ __html: notif.content }}
+            />
+
+            {/* Expand / collapse toggle */}
+            {isClamped && (
+                <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className={`mt-1 flex items-center gap-0.5 text-[10px] font-medium transition-colors ${
+                        theme === 'dark' ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <ChevronDown
+                        className={`w-3 h-3 transition-transform duration-200 ${
+                            expanded ? 'rotate-180' : ''
+                        }`}
+                    />
+                    {expanded ? 'Thu gọn' : 'Xem thêm'}
+                </button>
+            )}
+
+            {/* Timestamp */}
+            <div className={`mt-1 text-[10px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
+                {!isRealtime &&
+                    notif.createdAt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' '}
+                {notif.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: isRealtime ? '2-digit' : undefined })}
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface PageData {
     id: string;
@@ -61,6 +192,28 @@ export default function Sidebar({
     const workspaceMenuRef = useRef<HTMLDivElement>(null);
     const role = user?.role?.trim();
     const canAccessSystemManagement = role === 'Nhân viên' || role === 'Admin' || role === 'Quản trị viên';
+    const { notifications, historicalNotifications, isLoadingHistory, dismissNotification } = useNotifications();
+    const [isNotifPanelOpen, setIsNotifPanelOpen] = useState(false);
+    const notifPanelRef = useRef<HTMLDivElement>(null);
+    const notifBtnRef = useRef<HTMLButtonElement>(null);
+    // Badge shows only realtime (unread) count; history is always accessible
+    const unreadCount = notifications.length;
+
+    // Close notification panel on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (
+                notifPanelRef.current &&
+                !notifPanelRef.current.contains(e.target as Node) &&
+                notifBtnRef.current &&
+                !notifBtnRef.current.contains(e.target as Node)
+            ) {
+                setIsNotifPanelOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     const handleAddModuleClick = () => {
         console.log('Add module button clicked in Sidebar!');
@@ -444,15 +597,96 @@ export default function Sidebar({
                             </div>
                         </div> */}
 
-                        {/* Green Bell Icon with notification dot */}
-                        <div className="relative group">
-                            <button className="w-10 h-10 rounded-full bg-accentGreen flex items-center justify-center hover:bg-green-600 transition-colors relative">
+                        {/* Bell — Notification panel */}
+                        <div className="relative">
+                            <button
+                                ref={notifBtnRef}
+                                onClick={() => setIsNotifPanelOpen(v => !v)}
+                                className="w-10 h-10 rounded-full bg-accentGreen flex items-center justify-center hover:bg-green-600 transition-colors relative"
+                                aria-label="Thông báo hệ thống"
+                            >
                                 <Bell className="w-5 h-5 text-white" strokeWidth={2} fill="transparent" />
-                                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-accentGreen rounded-full border-2 border-notification"></span>
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-gray-900">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
                             </button>
-                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                Thông báo hệ thống
-                            </div>
+
+                            {/* Notification panel */}
+                            {isNotifPanelOpen && (
+                                <div
+                                    ref={notifPanelRef}
+                                    className="absolute left-full ml-3 bottom-0 w-80 max-h-[480px] z-[9999] flex flex-col rounded-xl shadow-2xl overflow-hidden"
+                                    style={{ background: theme === 'dark' ? '#1a1d2e' : '#ffffff', border: '1px solid rgba(74,222,128,0.3)' }}
+                                >
+                                    {/* Header */}
+                                    <div className={`flex items-center justify-between px-4 py-2.5 border-b ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
+                                        <div className="flex items-center gap-2">
+                                            <Bell className="w-4 h-4 text-accentGreen" />
+                                            <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>Thông báo hệ thống</span>
+                                            {unreadCount > 0 && (
+                                                <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">{unreadCount}</span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => setIsNotifPanelOpen(false)}
+                                            className={`p-1 rounded transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 overflow-y-auto">
+                                        {notifications.length === 0 && historicalNotifications.length === 0 && !isLoadingHistory ? (
+                                            <div className={`flex flex-col items-center justify-center py-10 gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                <Bell className="w-8 h-8 opacity-30" />
+                                                <span className="text-xs">Chưa có thông báo nào</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-0">
+                                                {/* ── Realtime notifications ── */}
+                                                {notifications.map((notif) => (
+                                                    <NotificationItem
+                                                        key={notif.id}
+                                                        notif={notif}
+                                                        isRealtime={true}
+                                                        theme={theme}
+                                                        onDismiss={dismissNotification}
+                                                    />
+                                                ))}
+
+                                                {/* ── History section header ── */}
+                                                {historicalNotifications.length > 0 && (
+                                                    <div className={`px-4 py-1.5 flex items-center gap-2 sticky top-0 text-[10px] font-semibold uppercase tracking-wider ${
+                                                        theme === 'dark' ? 'bg-[#1a1d2e] text-gray-500 border-b border-white/[0.05]' : 'bg-gray-50 text-gray-400 border-b border-gray-100'
+                                                    }`}>
+                                                        <span>Lịch sử</span>
+                                                    </div>
+                                                )}
+
+                                                {/* ── Historical notifications ── */}
+                                                {isLoadingHistory && historicalNotifications.length === 0 && (
+                                                    <div className={`flex items-center justify-center py-4 gap-2 text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                        <span className="w-3 h-3 rounded-full border-2 border-accentGreen border-t-transparent animate-spin" />
+                                                        Đang tải lịch sử...
+                                                    </div>
+                                                )}
+                                                {historicalNotifications.map((notif) => (
+                                                    <NotificationItem
+                                                        key={notif.id}
+                                                        notif={notif}
+                                                        isRealtime={false}
+                                                        theme={theme}
+                                                        onDismiss={dismissNotification}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Options Menu Icon - Conditional based on authentication */}
