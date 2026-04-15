@@ -10,6 +10,8 @@ export interface User {
   role: string;
   isEmailVerified: boolean;
   subscriptionLevel: string;
+  telegramChatId: string | null;
+  isTelegramLinked: boolean;
 }
 
 export interface LoginRequest {
