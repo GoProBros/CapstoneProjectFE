@@ -29,6 +29,9 @@ export * from './financialReport';
 export * from './systemData';
 export * from './userManagement';
 export * from './news';
+export * from './telegram';
+export * from './portfolio';
+export * from './alert';
 
 export interface PaginationParams {
   page: number;

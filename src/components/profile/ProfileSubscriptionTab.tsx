@@ -197,11 +197,6 @@ export function ProfileSubscriptionTab() {
                 <section className={`rounded-xl border ${borderCls} p-4 md:p-5 ${bgSub}`}>
                     <div className="flex items-center justify-between gap-3 mb-4">
                         <h3 className={`text-sm md:text-base font-semibold ${textPrimary}`}>Gói đăng ký hiện tại</h3>
-                        {mySubscription && (
-                            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-green-500/20 text-green-500">
-                                {levelOrderLabel(mySubscription.levelOrder)}
-                            </span>
-                        )}
                     </div>
 
                     {loadingMySubscription ? (

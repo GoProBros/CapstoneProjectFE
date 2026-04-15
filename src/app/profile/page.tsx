@@ -11,11 +11,14 @@ import { ROUTES } from "@/constants/routes";
 import { Spinner } from "@/components/profile/Spinner";
 import { AvatarDisplay } from "@/components/profile/AvatarDisplay";
 import { ProfileInfoTab } from "@/components/profile/ProfileInfoTab";
+import { ProfileAlertTab } from "@/components/profile/ProfileAlertTab";
+import { ProfilePortfolioTab } from "@/components/profile/ProfilePortfolioTab";
 import { ProfileSubscriptionTab } from "@/components/profile/ProfileSubscriptionTab";
 import { ProfileTransactionTab } from "@/components/profile/ProfileTransactionTab";
+import { canViewProfileTransactions } from "@/components/profile/helpers";
 import { useProfileTheme } from "@/components/profile/useProfileTheme";
 
-type ProfileTab = "account" | "subscription" | "transactions";
+type ProfileTab = "account" | "subscription" | "portfolio" | "transactions" | "alerts";
 
 function getNameInitials(name: string | undefined): string {
   if (!name) return "U";
@@ -149,10 +152,17 @@ export default function ProfilePage() {
   };
 
   const displayUser = user ?? authUser;
+  const canViewRestrictedTabs = canViewProfileTransactions(displayUser?.role);
   const sidebarBg = isDark ? "bg-[#1e1e26]" : "bg-gray-50";
   const headingBg = isDark
     ? "bg-gradient-to-r from-[#282832] via-[#2f2f3a] to-[#36504a]"
     : "bg-gradient-to-r from-gray-900 via-gray-800 to-green-700";
+
+  useEffect(() => {
+    if (!canViewRestrictedTabs && (activeTab === "transactions" || activeTab === "alerts")) {
+      setActiveTab("account");
+    }
+  }, [activeTab, canViewRestrictedTabs]);
 
   if (authLoading || loadingUser) {
     return (
@@ -236,17 +246,42 @@ export default function ProfilePage() {
             >
               Gói thành viên
             </button>
-
+            {canViewRestrictedTabs && (
+              <button
+                onClick={() => setActiveTab("transactions")}
+                className={`w-full rounded-r-lg border-l-4 px-3 py-3 text-left text-sm transition-all ${
+                  activeTab === "transactions"
+                    ? `${bgCard} border-green-500 font-bold ${textPrimary}`
+                    : `border-transparent ${textSecondary} ${hoverBg}`
+                }`}
+              >
+                Lịch sử giao dịch
+              </button>
+            )}
+            {canViewRestrictedTabs && (
             <button
-              onClick={() => setActiveTab("transactions")}
+              onClick={() => setActiveTab("portfolio")}
               className={`w-full rounded-r-lg border-l-4 px-3 py-3 text-left text-sm transition-all ${
-                activeTab === "transactions"
+                activeTab === "portfolio"
                   ? `${bgCard} border-green-500 font-bold ${textPrimary}`
                   : `border-transparent ${textSecondary} ${hoverBg}`
               }`}
             >
-              Lịch sử giao dịch
+              Danh mục đầu tư
             </button>
+            )}
+            {canViewRestrictedTabs && (
+              <button
+                onClick={() => setActiveTab("alerts")}
+                className={`w-full rounded-r-lg border-l-4 px-3 py-3 text-left text-sm transition-all ${
+                  activeTab === "alerts"
+                    ? `${bgCard} border-green-500 font-bold ${textPrimary}`
+                    : `border-transparent ${textSecondary} ${hoverBg}`
+                }`}
+              >
+                Cảnh báo
+              </button>
+            )}
           </nav>
 
           <button
@@ -260,7 +295,9 @@ export default function ProfilePage() {
         <main
           className={`h-[calc(100vh-64px)] w-full flex-1 overflow-y-auto ${bgPage} p-4 md:p-8`}
         >
-          <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
+          <div
+            className={`mb-4 grid gap-2 ${canViewRestrictedTabs ? "grid-cols-5" : "grid-cols-3"} md:hidden`}
+          >
             <button
               onClick={() => setActiveTab("account")}
               className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
@@ -284,15 +321,41 @@ export default function ProfilePage() {
             </button>
 
             <button
-              onClick={() => setActiveTab("transactions")}
+              onClick={() => setActiveTab("portfolio")}
               className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
-                activeTab === "transactions"
+                activeTab === "portfolio"
                   ? "bg-green-500 text-white"
                   : `${bgCard} ${textSecondary}`
               }`}
             >
-              Giao dịch
+              Danh mục
             </button>
+
+            {canViewRestrictedTabs && (
+              <button
+                onClick={() => setActiveTab("transactions")}
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === "transactions"
+                    ? "bg-green-500 text-white"
+                    : `${bgCard} ${textSecondary}`
+                }`}
+              >
+                Giao dịch
+              </button>
+            )}
+
+            {canViewRestrictedTabs && (
+              <button
+                onClick={() => setActiveTab("alerts")}
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === "alerts"
+                    ? "bg-green-500 text-white"
+                    : `${bgCard} ${textSecondary}`
+                }`}
+              >
+                Cảnh báo
+              </button>
+            )}
           </div>
 
           <div className="mx-auto flex max-w-7xl flex-col gap-6 xl:flex-row">
@@ -457,7 +520,21 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {activeTab === "transactions" && <ProfileTransactionTab />}
+              {activeTab === "portfolio" && (
+                <div
+                  className={`rounded-2xl border ${borderCls} ${bgCard} p-6 shadow-sm md:p-8`}
+                >
+                  <ProfilePortfolioTab />
+                </div>
+              )}
+
+              {activeTab === "transactions" && canViewRestrictedTabs && (
+                <ProfileTransactionTab />
+              )}
+
+              {activeTab === "alerts" && canViewRestrictedTabs && (
+                <ProfileAlertTab />
+              )}
             </section>
           </div>
         </main>

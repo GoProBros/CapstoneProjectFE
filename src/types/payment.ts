@@ -26,6 +26,24 @@ export interface PaymentStatusResponse {
   createdAt: string;
 }
 
+export interface PaymentTransactionDto {
+  id: string;
+  orderCode: number;
+  subscriptionId: number;
+  subscriptionName: string;
+  amount: number;
+  status: PaymentTransactionStatusValue;
+  statusName: string;
+  type: number;
+  typeName: string;
+  paymentProvider: PaymentProviderValue;
+  paymentProviderName: string;
+  providerTransactionId: string | null;
+  checkoutUrl: string | null;
+  description: string | null;
+  createdAt: string;
+}
+
 export interface CreatePaymentLinkRequest {
   subscriptionId: number;
   paymentProvider: number;

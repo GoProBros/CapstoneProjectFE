@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter } from 'next/navigation';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
 import * as authService from '@/services/authService';
+import { getMySubscription } from '@/services/subscriptionService';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import {
   clearAuthStorageItems,
   getAuthStorageItem,
@@ -35,6 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const setMySubscriptionStore = useSubscriptionStore((s) => s.setMySubscription);
+  const clearSubscriptionStore = useSubscriptionStore((s) => s.clearSubscription);
+
+  const syncSubscriptionStore = useCallback(async () => {
+    try {
+      const mySubscription = await getMySubscription();
+      setMySubscriptionStore(mySubscription);
+    } catch (error) {
+      console.error('[Auth] Failed to sync subscription store:', error);
+      setMySubscriptionStore(null);
+    }
+  }, [setMySubscriptionStore]);
 
   /**
    * Save auth data to localStorage
@@ -58,13 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(null);
+    clearSubscriptionStore();
     
     // Clear refresh timer
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
-  }, []);
+  }, [clearSubscriptionStore]);
 
   /**
    * Refresh access token
@@ -133,13 +148,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const authData = await authService.login(data);
       saveAuthData(authData);
+      await syncSubscriptionStore();
       scheduleTokenRefresh(authData.expiresAt);
       router.push('/dashboard');
     } catch (error) {
       console.error('[Auth] Login failed:', error);
       throw error;
     }
-  }, [saveAuthData, scheduleTokenRefresh, router]);
+  }, [saveAuthData, syncSubscriptionStore, scheduleTokenRefresh, router]);
 
   /**
    * Register
@@ -148,13 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const authData = await authService.register(data);
       saveAuthData(authData);
+      await syncSubscriptionStore();
       scheduleTokenRefresh(authData.expiresAt);
       router.push('/dashboard');
     } catch (error) {
       console.error('[Auth] Registration failed:', error);
       throw error;
     }
-  }, [saveAuthData, scheduleTokenRefresh, router]);
+  }, [saveAuthData, syncSubscriptionStore, scheduleTokenRefresh, router]);
 
   /**
    * Login with Google
@@ -163,13 +180,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const authData = await authService.loginWithGoogle(credential);
       saveAuthData(authData);
+      await syncSubscriptionStore();
       scheduleTokenRefresh(authData.expiresAt);
       router.push('/dashboard');
     } catch (error) {
       console.error('[Auth] Google login failed:', error);
       throw error;
     }
-  }, [saveAuthData, scheduleTokenRefresh, router]);
+  }, [saveAuthData, syncSubscriptionStore, scheduleTokenRefresh, router]);
 
   /**
    * Logout
@@ -220,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Token expired or expiring soon, refresh immediately
             if (refreshToken) {
               await refreshAccessToken();
+              await syncSubscriptionStore();
             } else {
               clearAuthData();
             }
@@ -227,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Token still valid
             setUser(userData);
             scheduleTokenRefresh(expiresAt);
+            await syncSubscriptionStore();
           }
         }
       } catch (error) {
@@ -238,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     
     initAuth();
-  }, [scheduleTokenRefresh, refreshAccessToken, clearAuthData]);
+  }, [scheduleTokenRefresh, refreshAccessToken, clearAuthData, syncSubscriptionStore]);
 
   /**
    * Cleanup on unmount

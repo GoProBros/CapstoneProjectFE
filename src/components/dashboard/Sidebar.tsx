@@ -357,15 +357,11 @@ export default function Sidebar({
             <aside className="mt-[5px] ml-[1px] w-[70px] bg-white dark:bg-componentBackground flex flex-col items-center py-6 border-r border-gray-300 dark:border-gray-700/50 rounded-r-full rounded-l-full overflow-visible relative transition-colors duration-300">
                 {/* Top Icons */}
                 <div className="flex flex-col items-center gap-6">
-                    {/* Default Page Icon - Image (TopIcon.webp) */}
                     <div className="relative group">
                         <Link href="/" className="rounded-lg flex items-center justify-center transition-colors shadow-sm overflow-hidden hover:bg-gray-100 dark:hover:bg-transparent p-1">
                             <img 
-                                src={theme === 'dark' 
-                                    ? "/assets/Dashboard/SidebarComponent/TopIcon.webp" 
-                                    : "/assets/Dashboard/SidebarComponent/BlackHomePage.webp"
-                                } 
-                                alt="Top icon" 
+                                src="/assets/Logo/KF Stock_Logo_Transparent.png" 
+                                alt="KF Stock" 
                                 className="w-[40px] h-[40px]" 
                             />
                         </Link>
@@ -416,7 +412,7 @@ export default function Sidebar({
                      * targeting this element’s class if webkit styling is needed.
                      */}
                     <div
-                        className="flex flex-col items-center gap-2 overflow-y-auto w-full"
+                        className="flex flex-col items-center gap-2 overflow-y-auto w-full p-2 rounded-lg"
                         style={{
                             maxHeight: '330px',
                             overflowX: 'hidden',

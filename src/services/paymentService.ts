@@ -5,7 +5,9 @@ import {
   type PaymentLinkResponse,
   type PaymentProviderValue,
   type PaymentStatusResponse,
+  type PaymentTransactionDto,
 } from '@/types/payment';
+import type { PaginatedData } from '@/types';
 
 /**
  * Create a payment link for a subscription
@@ -44,6 +46,39 @@ export async function getPaymentStatus(orderCode: number): Promise<PaymentStatus
   if (!result.data) {
     throw new Error(result.message || 'Không lấy được trạng thái thanh toán');
   }
+  return result.data;
+}
+
+export interface MyTransactionsQuery {
+  pageIndex?: number;
+  pageSize?: number;
+  status?: number;
+  paymentProvider?: number;
+}
+
+export async function getMyTransactions(
+  query: MyTransactionsQuery,
+): Promise<PaginatedData<PaymentTransactionDto>> {
+  const params = new URLSearchParams();
+  params.set('PageIndex', String(query.pageIndex ?? 1));
+  params.set('PageSize', String(query.pageSize ?? 10));
+
+  if (query.status !== undefined) {
+    params.set('Status', String(query.status));
+  }
+
+  if (query.paymentProvider !== undefined) {
+    params.set('PaymentProvider', String(query.paymentProvider));
+  }
+
+  const result = await get<PaginatedData<PaymentTransactionDto>>(
+    `${API_ENDPOINTS.PAYMENTS.MY_TRANSACTIONS}?${params.toString()}`,
+  );
+
+  if (!result.data) {
+    throw new Error(result.message || 'Không lấy được lịch sử giao dịch');
+  }
+
   return result.data;
 }
 
