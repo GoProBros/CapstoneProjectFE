@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
     IMPORT_SYMBOLS_FROM_SSI: '/api/v2/data-fetching/import-symbols-from-ssi',
     MAP_SYMBOLS_SECTORS_FROM_SSI: '/api/v1/data-fetching/map-symbols-sector-from-ssi',
     IMPORT_INDEX_CONSTITUENTS_FROM_SSI: '/api/v1/data-fetching/import-index-constituents-from-ssi',
+    IMPORT_NEWS_FROM_RSS: '/api/v1/data-fetching/import-news-from-rss',
   },
 
   // System log endpoints

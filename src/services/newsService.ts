@@ -3,10 +3,17 @@
  * Handles API calls for news list and details
  */
 
-import { get } from './api';
+import { get, post } from './api';
 import { API_ENDPOINTS } from '@/constants';
 import type { PaginatedData } from '@/types';
 import type { NewsArticle, NewsQueryParams } from '@/types/news';
+
+export interface ImportNewsFromRssResult {
+  fetchedCount: number;
+  insertedCount: number;
+  duplicatedCount: number;
+  message: string;
+}
 
 const normalizeTickerScores = (scores: NewsArticle['tickerScores'] | null | undefined): NewsArticle['tickerScores'] => {
   if (!Array.isArray(scores)) return [];
@@ -36,6 +43,39 @@ const normalizeNewsArticle = (article: NewsArticle): NewsArticle => {
       ? article.tickers.map((ticker) => ticker.toUpperCase())
       : tickersFromScores,
     tickerScores,
+  };
+};
+
+const ensureNonNegativeNumber = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, value);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
+    }
+  }
+
+  return 0;
+};
+
+const normalizeImportNewsData = (data: unknown): Omit<ImportNewsFromRssResult, 'message'> => {
+  if (!data || typeof data !== 'object') {
+    return {
+      fetchedCount: 0,
+      insertedCount: 0,
+      duplicatedCount: 0,
+    };
+  }
+
+  const record = data as Record<string, unknown>;
+
+  return {
+    fetchedCount: ensureNonNegativeNumber(record.fetchedCount ?? record.FetchedCount),
+    insertedCount: ensureNonNegativeNumber(record.insertedCount ?? record.InsertedCount),
+    duplicatedCount: ensureNonNegativeNumber(record.duplicatedCount ?? record.DuplicatedCount),
   };
 };
 
@@ -85,6 +125,24 @@ export const newsService = {
       throw new Error(response.message || `Không thể tải chi tiết tin tức ${id}`);
     } catch (error) {
       console.error(`[NewsService] Error fetching news detail ${id}:`, error);
+      throw error;
+    }
+  },
+
+  async importNewsFromRss(): Promise<ImportNewsFromRssResult> {
+    try {
+      const response = await post<unknown>(API_ENDPOINTS.DATA_FETCHING.IMPORT_NEWS_FROM_RSS, {});
+
+      if (!response.isSuccess) {
+        throw new Error(response.message || 'Không thể thu thập tin tức từ RSS');
+      }
+
+      return {
+        ...normalizeImportNewsData(response.data),
+        message: response.message || 'Thu thập tin tức thành công.',
+      };
+    } catch (error) {
+      console.error('[NewsService] Error importing news from RSS:', error);
       throw error;
     }
   },
