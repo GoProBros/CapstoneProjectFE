@@ -321,20 +321,6 @@ export default function MacroeconomicSimulationFeature() {
         </div>
       </div>
 
-      {message && (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm ${
-            message.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : message.tone === "error"
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-sky-200 bg-sky-50 text-sky-700"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
       <div className="rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 p-5 md:p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">

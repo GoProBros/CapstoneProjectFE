@@ -35,11 +35,12 @@ const menuItems: {
     },
     {
         id: 'revenue',
-        label: 'Quản Lý Doanh Thu',
+        label: 'Theo dõi Doanh Thu',
         href: '/SystemManager/revenue',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17l6-6 4 4 8-8M14 7h7v7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z" />
             </svg>
         ),
     },
@@ -75,7 +76,7 @@ const menuItems: {
     },
     {
         id: 'news',
-        label: 'Quản Lý Tin Tức',
+        label: 'Theo dõi Tin Tức',
         href: '/SystemManager/news',
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

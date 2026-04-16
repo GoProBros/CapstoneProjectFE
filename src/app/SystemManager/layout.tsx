@@ -68,7 +68,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
   }
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
+    <div className="staff-ui h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
       <StaffSidebar />
 
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">

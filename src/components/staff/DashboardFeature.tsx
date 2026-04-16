@@ -1,93 +1,79 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import SystemNotificationModal from "@/components/staff/dashboard/SystemNotificationModal";
+import UserDashboardSection from "@/components/staff/dashboard/UserDashboardSection";
+import RevenueDashboardSection from "@/components/staff/dashboard/RevenueDashboardSection";
+import SystemDashboardSection from "@/components/staff/dashboard/SystemDashboardSection";
 import analysisReportService from "@/services/analysisReportService";
 import { fetchRecentFinancialReports } from "@/services/financialReportService";
+import systemDataService from "@/services/systemDataService";
+import { fetchSymbolsPaginated } from "@/services/symbolService";
 import statisticService from "@/services/statisticService";
-import { useAuth } from "@/contexts/AuthContext";
-import DashboardStatsCards from "@/components/staff/dashboard/DashboardStatsCards";
-import NewUsersChart from "@/components/staff/dashboard/NewUsersChart";
-import RevenueChart from "@/components/staff/dashboard/RevenueChart";
-import SystemNotificationModal from "@/components/staff/dashboard/SystemNotificationModal";
+import type { DataFetchTaskType, SystemLogItem } from "@/types/systemData";
 import type {
   AnalysisReport,
   AnalysisReportCategory,
 } from "@/types/analysisReport";
-import { CommonStatus } from "@/types/file";
-import { FinancialReportStatus, type FinancialReport } from "@/types/financialReport";
-import type { SubscriptionStatisticsDto } from "@/types/subscription";
+import type { FinancialReport } from "@/types/financialReport";
+import type {
+  CustomerRetentionStatisticsDto,
+  InterestedSymbolCountDto,
+  SubscriptionStatisticsDto,
+} from "@/types/subscription";
 
-function formatDate(date?: string) {
-  if (!date) return "--";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "--";
-
-  return parsed.toLocaleDateString("vi-VN");
+interface TrendDisplay {
+  icon: string;
+  className: string;
+  text: string;
 }
 
-function getStatusLabel(status: CommonStatus) {
-  return status === CommonStatus.Active ? "Đã xuất bản" : "Bản nháp";
+interface UserGrowthPoint {
+  label: string;
+  users: number;
 }
 
-function getStatusClass(status: CommonStatus) {
-  if (status === CommonStatus.Active) {
-    return "bg-emerald-100 text-emerald-800";
-  }
-
-  return "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
+interface RevenueMonthlyPoint {
+  label: string;
+  revenue: number;
+  growthPercentage: number;
 }
 
-function getFinancialPeriodLabel(year: number, period: number) {
-  if (period >= 1 && period <= 4) {
-    return `BCTC Quý ${period}/${year}`;
-  }
-
-  return `BCTC Năm ${year}`;
+interface PackageRevenuePoint {
+  name: string;
+  revenue: number;
+  percentage: number;
 }
 
-function getFinancialStatusLabel(status: FinancialReportStatus) {
-  switch (status) {
-    case FinancialReportStatus.Pending:
-      return "Chờ xử lý";
-    case FinancialReportStatus.Processing:
-      return "Đang xử lý";
-    case FinancialReportStatus.Completed:
-      return "Hoàn thành";
-    case FinancialReportStatus.Failed:
-      return "Thất bại";
-    case FinancialReportStatus.Archived:
-      return "Lưu trữ";
-    default:
-      return "Không xác định";
-  }
+interface RetentionDisplayRow {
+  key: string;
+  label: string;
+  users: number;
+  rate: number;
 }
 
-function getFinancialStatusClass(status: FinancialReportStatus) {
-  switch (status) {
-    case FinancialReportStatus.Pending:
-      return "bg-amber-100 text-amber-800";
-    case FinancialReportStatus.Processing:
-      return "bg-sky-100 text-sky-800";
-    case FinancialReportStatus.Completed:
-      return "bg-emerald-100 text-emerald-800";
-    case FinancialReportStatus.Failed:
-      return "bg-red-100 text-red-800";
-    case FinancialReportStatus.Archived:
-      return "bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200";
-    default:
-      return "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
-  }
+interface UserDistributionPoint {
+  name: string;
+  value: number;
+  color: string;
+  [key: string]: string | number;
 }
 
-function formatTrend(value: number) {
+type TaskStatus = "idle" | "loading" | "success" | "failed";
+
+function formatTrend(value: number, mode: "percent" | "number"): TrendDisplay {
   const safeValue = Number.isFinite(value) ? value : 0;
 
   if (safeValue > 0) {
     return {
       icon: "↗",
       className: "text-emerald-600",
-      text: `+${safeValue.toFixed(2)}%`,
+      text:
+        mode === "percent"
+          ? `+${safeValue.toFixed(2)}%`
+          : `+${new Intl.NumberFormat("vi-VN").format(safeValue)}`,
     };
   }
 
@@ -95,15 +81,53 @@ function formatTrend(value: number) {
     return {
       icon: "↘",
       className: "text-red-600",
-      text: `${safeValue.toFixed(2)}%`,
+      text:
+        mode === "percent"
+          ? `${safeValue.toFixed(2)}%`
+          : new Intl.NumberFormat("vi-VN").format(safeValue),
     };
   }
 
   return {
     icon: "→",
     className: "text-slate-500 dark:text-slate-400",
-    text: "0.00%",
+    text: mode === "percent" ? "0.00%" : "0",
   };
+}
+
+function formatDateTime(date?: string): string {
+  if (!date) return "--";
+
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "--";
+
+  return parsed.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatSystemLogMessage(log: SystemLogItem): string {
+  const timestamp = formatDateTime(
+    typeof log.timestamp === "string" ? log.timestamp : undefined
+  );
+  const level =
+    typeof log.level === "string" && log.level.trim().length > 0
+      ? log.level.toUpperCase()
+      : "INFO";
+  const source =
+    typeof log.source === "string" && log.source.trim().length > 0
+      ? `${log.source.trim()}: `
+      : "";
+  const message =
+    typeof log.message === "string" && log.message.trim().length > 0
+      ? log.message.trim()
+      : "Không có nội dung log";
+
+  return `[${timestamp}] [${level}] ${source}${message}`;
 }
 
 export default function DashboardFeature() {
@@ -111,76 +135,82 @@ export default function DashboardFeature() {
   const { user } = useAuth();
   const [isSystemNotificationModalOpen, setIsSystemNotificationModalOpen] =
     useState(false);
+
   const [statistics, setStatistics] = useState<SubscriptionStatisticsDto | null>(
     null
   );
+  const [customerRetention, setCustomerRetention] =
+    useState<CustomerRetentionStatisticsDto | null>(null);
+  const [topInterestedSymbols, setTopInterestedSymbols] = useState<
+    InterestedSymbolCountDto[]
+  >([]);
+  const [totalStocks, setTotalStocks] = useState(0);
   const [isLoadingStatistics, setIsLoadingStatistics] = useState(true);
   const [statisticsError, setStatisticsError] = useState<string | null>(null);
+
   const [financialReports, setFinancialReports] = useState<FinancialReport[]>([]);
   const [isLoadingFinancial, setIsLoadingFinancial] = useState(true);
   const [financialError, setFinancialError] = useState<string | null>(null);
+
   const [analysisReports, setAnalysisReports] = useState<AnalysisReport[]>([]);
   const [analysisCategories, setAnalysisCategories] = useState<
     Record<string, string>
   >({});
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [systemLogs, setSystemLogs] = useState<string[]>([]);
+  const [isLoadingSystemLogs, setIsLoadingSystemLogs] = useState(true);
+  const [systemLogsError, setSystemLogsError] = useState<string | null>(null);
+  const [dataFetchTaskStatusMap, setDataFetchTaskStatusMap] = useState<
+    Record<DataFetchTaskType, TaskStatus>
+  >({
+    "import-sectors": "idle",
+    "import-symbols": "idle",
+    "map-symbols-sectors": "idle",
+    "import-index-constituents": "idle",
+  });
 
-  const totalUsers = statistics?.totalUsers ?? 0;
-  const totalRevenue = statistics?.totalRevenue ?? 0;
-  const paidCustomers = (statistics?.currentUsersByVipLevel ?? []).reduce(
-    (total, current) => total + current.userCount,
-    0
-  );
-
-  const latestNewUserGrowth =
-    statistics?.newUsersGrowthPercentageByMonth.at(-1) ?? 0;
-  const latestRevenueGrowth =
-    statistics?.revenueGrowthPercentageByMonth.at(-1) ?? 0;
-  const paidUserRatioGrowth =
-    totalUsers > 0 ? (paidCustomers * 100) / totalUsers : 0;
   const normalizedRole = user?.role?.trim().toLowerCase() ?? "";
   const isAdmin =
     normalizedRole === "admin" ||
     normalizedRole === "administrator" ||
     normalizedRole === "quản trị viên";
 
-  const userTrend = formatTrend(latestNewUserGrowth);
-  const paidTrend = formatTrend(paidUserRatioGrowth);
-  const revenueTrend = formatTrend(latestRevenueGrowth);
-  const shouldShowStatisticsValue = !isLoadingStatistics && !statisticsError;
-
-  const monthLabels = statistics?.monthLabels ?? [];
-  const newUsersByMonth = statistics?.newUsersByMonth ?? [];
-  const revenueByMonth = statistics?.revenueByMonth ?? [];
-
-  const chartDataLength = Math.max(
-    monthLabels.length,
-    newUsersByMonth.length,
-    revenueByMonth.length
-  );
-
-  const monthlyChartData = Array.from({ length: chartDataLength }, (_, index) => ({
-    label: monthLabels[index] ?? `${String(index + 1).padStart(2, "0")}/--`,
-    newUsers: newUsersByMonth[index] ?? 0,
-    revenue: revenueByMonth[index] ?? 0,
-  }));
-
-  const userChartData = monthlyChartData;
-  const revenueChartData = monthlyChartData;
-
   useEffect(() => {
-    const fetchStatistics = async () => {
+    let isDisposed = false;
+
+    const fetchDashboardStatistics = async () => {
       try {
         setIsLoadingStatistics(true);
         setStatisticsError(null);
 
-        const data = await statisticService.getSubscriptionStatistics();
-        setStatistics(data);
+        const [statisticsData, retentionData, watchlistData, symbolPage] =
+          await Promise.all([
+            statisticService.getSubscriptionStatistics(),
+            statisticService.getCustomerRetentionStatistics(),
+            statisticService.getWatchListTopInterestedSymbols(),
+            fetchSymbolsPaginated({
+              PageIndex: 1,
+              PageSize: 10,
+            }),
+          ]);
+
+        if (isDisposed) return;
+
+        setStatistics(statisticsData);
+        setCustomerRetention(retentionData);
+        setTopInterestedSymbols(watchlistData.top5Symbols ?? []);
+        setTotalStocks(symbolPage.totalCount ?? 0);
       } catch {
-        setStatisticsError("Không thể tải dữ liệu thống kê");
+        if (isDisposed) return;
+
+        setStatisticsError("Không thể tải dữ liệu thống kê dashboard");
         setStatistics(null);
+        setCustomerRetention(null);
+        setTopInterestedSymbols([]);
+        setTotalStocks(0);
       } finally {
+        if (isDisposed) return;
         setIsLoadingStatistics(false);
       }
     };
@@ -191,16 +221,21 @@ export default function DashboardFeature() {
         setFinancialError(null);
 
         const paginated = await fetchRecentFinancialReports(1, 5);
+        if (isDisposed) return;
+
         setFinancialReports(paginated.items ?? []);
       } catch {
+        if (isDisposed) return;
+
         setFinancialError("Không thể tải dữ liệu báo cáo tài chính");
         setFinancialReports([]);
       } finally {
+        if (isDisposed) return;
         setIsLoadingFinancial(false);
       }
     };
 
-    const fetchAnalysisReports = async () => {
+    const fetchAnalysisTable = async () => {
       try {
         setIsLoadingAnalysis(true);
         setAnalysisError(null);
@@ -216,6 +251,8 @@ export default function DashboardFeature() {
           }),
         ]);
 
+        if (isDisposed) return;
+
         const categoryMap = (categoriesPaginated.items ?? []).reduce<
           Record<string, string>
         >((accumulator, category: AnalysisReportCategory) => {
@@ -226,21 +263,219 @@ export default function DashboardFeature() {
         setAnalysisCategories(categoryMap);
         setAnalysisReports(reportsPaginated.items ?? []);
       } catch {
+        if (isDisposed) return;
+
         setAnalysisError("Không thể tải dữ liệu báo cáo phân tích");
         setAnalysisReports([]);
         setAnalysisCategories({});
       } finally {
+        if (isDisposed) return;
         setIsLoadingAnalysis(false);
       }
     };
 
-    fetchStatistics();
+    const fetchSystemLogs = async () => {
+      try {
+        setIsLoadingSystemLogs(true);
+        setSystemLogsError(null);
+
+        const paginatedLogs = await systemDataService.getSystemLogs({
+          pageIndex: 1,
+          pageSize: 10,
+        });
+
+        if (isDisposed) return;
+
+        const formattedLogs = (paginatedLogs.items ?? []).map((log) =>
+          formatSystemLogMessage(log)
+        );
+        setSystemLogs(formattedLogs);
+      } catch (error) {
+        if (isDisposed) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Không thể tải dữ liệu nhật ký hệ thống";
+        setSystemLogsError(message);
+        setSystemLogs([]);
+      } finally {
+        if (isDisposed) return;
+        setIsLoadingSystemLogs(false);
+      }
+    };
+
+    fetchDashboardStatistics();
     fetchFinancialTable();
-    fetchAnalysisReports();
+    fetchAnalysisTable();
+    fetchSystemLogs();
+
+    return () => {
+      isDisposed = true;
+    };
   }, []);
 
+  const activeUsers = statistics?.activeUsers ?? 0;
+  const totalRevenue = statistics?.totalRevenue ?? 0;
+
+  const sortedVipPackageUsages = useMemo(() => {
+    return [...(statistics?.vipPackageUsages ?? [])].sort(
+      (left, right) => right.totalRevenue - left.totalRevenue
+    );
+  }, [statistics?.vipPackageUsages]);
+
+  const sortedCurrentUsersByVipLevel = useMemo(() => {
+    return [...(statistics?.currentUsersByVipLevel ?? [])].sort((left, right) => {
+      if (right.userCount !== left.userCount) {
+        return right.userCount - left.userCount;
+      }
+
+      return left.levelOrder - right.levelOrder;
+    });
+  }, [statistics?.currentUsersByVipLevel]);
+
+  const paidCustomers = sortedCurrentUsersByVipLevel.reduce(
+    (sum, item) => sum + item.userCount,
+    0
+  );
+  const freeUsers = Math.max(activeUsers - paidCustomers, 0);
+  const paidRatio =
+    activeUsers > 0 ? Number(((paidCustomers * 100) / activeUsers).toFixed(1)) : 0;
+
+  const latestNewUsersByMonth = statistics?.newUsersByMonth.at(-1) ?? 0;
+  const latestNewUsersGrowthPercentage =
+    statistics?.newUsersGrowthPercentageByMonth.at(-1) ?? 0;
+  const latestRevenueGrowth =
+    statistics?.revenueGrowthPercentageByMonth.at(-1) ?? 0;
+
+  const userTrend = formatTrend(latestNewUsersByMonth, "number");
+  const userGrowthPercentTrend = formatTrend(
+    latestNewUsersGrowthPercentage,
+    "percent"
+  );
+  const revenueTrend = formatTrend(latestRevenueGrowth, "percent");
+
+  const userGrowthData = useMemo<UserGrowthPoint[]>(() => {
+    const monthLabels = statistics?.monthLabels ?? [];
+    const newUsersByMonth = statistics?.newUsersByMonth ?? [];
+
+    const length = Math.max(monthLabels.length, newUsersByMonth.length);
+
+    return Array.from({ length }, (_, index) => ({
+      label: monthLabels[index] ?? `T${String(index + 1).padStart(2, "0")}`,
+      users: newUsersByMonth[index] ?? 0,
+    }));
+  }, [statistics?.monthLabels, statistics?.newUsersByMonth]);
+
+  const monthlyRevenueData = useMemo<RevenueMonthlyPoint[]>(() => {
+    const monthLabels = statistics?.monthLabels ?? [];
+    const revenueByMonth = statistics?.revenueByMonth ?? [];
+    const revenueGrowth = statistics?.revenueGrowthPercentageByMonth ?? [];
+
+    const length = Math.max(
+      monthLabels.length,
+      revenueByMonth.length,
+      revenueGrowth.length
+    );
+
+    return Array.from({ length }, (_, index) => ({
+      label: monthLabels[index] ?? `T${String(index + 1).padStart(2, "0")}`,
+      revenue: revenueByMonth[index] ?? 0,
+      growthPercentage: revenueGrowth[index] ?? 0,
+    }));
+  }, [
+    statistics?.monthLabels,
+    statistics?.revenueByMonth,
+    statistics?.revenueGrowthPercentageByMonth,
+  ]);
+
+  const packageRevenueChartData = useMemo<PackageRevenuePoint[]>(() => {
+    return sortedVipPackageUsages.map((item) => ({
+      name: item.levelDisplayName,
+      revenue: item.totalRevenue,
+      percentage:
+        totalRevenue > 0
+          ? Number(((item.totalRevenue * 100) / totalRevenue).toFixed(2))
+          : 0,
+    }));
+  }, [sortedVipPackageUsages, totalRevenue]);
+
+  const revenuePerUser = activeUsers > 0 ? Math.round(totalRevenue / activeUsers) : 0;
+  const topRevenuePackage = sortedVipPackageUsages[0];
+
+  const retentionRows = useMemo<RetentionDisplayRow[]>(() => {
+    if (!customerRetention) {
+      return [];
+    }
+
+    return [
+      {
+        key: "at-least-1",
+        label: "Ít nhất 1 lần",
+        users: customerRetention.customersRegisteredAtLeast1Time,
+        rate: customerRetention.customersRegisteredAtLeast1TimeRate,
+      },
+      {
+        key: "at-least-3",
+        label: "Ít nhất 3 lần",
+        users: customerRetention.customersRegisteredAtLeast3Times,
+        rate: customerRetention.customersRegisteredAtLeast3TimesRate,
+      },
+      {
+        key: "at-least-6",
+        label: "Ít nhất 6 lần",
+        users: customerRetention.customersRegisteredAtLeast6Times,
+        rate: customerRetention.customersRegisteredAtLeast6TimesRate,
+      },
+    ];
+  }, [customerRetention]);
+
+  const sortedTopInterestedSymbols = useMemo(() => {
+    return [...topInterestedSymbols].sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      return left.symbol.localeCompare(right.symbol);
+    });
+  }, [topInterestedSymbols]);
+
+  const userDistributionData: UserDistributionPoint[] = [
+    {
+      name: "Người dùng miễn phí",
+      value: freeUsers,
+      color: "#94a3b8",
+    },
+    {
+      name: "Người dùng trả phí",
+      value: paidCustomers,
+      color: "#2563eb",
+    },
+  ];
+
+  const handleRunDataFetchTask = async (taskId: DataFetchTaskType) => {
+    try {
+      setDataFetchTaskStatusMap((previous) => ({
+        ...previous,
+        [taskId]: "loading",
+      }));
+
+      await systemDataService.runDataFetchTask(taskId);
+
+      setDataFetchTaskStatusMap((previous) => ({
+        ...previous,
+        [taskId]: "success",
+      }));
+    } catch {
+      setDataFetchTaskStatusMap((previous) => ({
+        ...previous,
+        [taskId]: "failed",
+      }));
+    }
+  };
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 font-headline mb-2">
@@ -256,239 +491,76 @@ export default function DashboardFeature() {
             <button
               type="button"
               onClick={() => router.push("/SystemManager/macroeconomic-simulation")}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
             >
               Mô phỏng vĩ mô (DEMO)
             </button>
             <button
               type="button"
               onClick={() => setIsSystemNotificationModalOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
             >
               Tạo thông báo
             </button>
           </div>
         )}
       </div>
-
+      
       <SystemNotificationModal
         isOpen={isSystemNotificationModalOpen}
         onOpenChange={setIsSystemNotificationModalOpen}
       />
 
-      <DashboardStatsCards
-        totalUsers={totalUsers}
+      <UserDashboardSection
+        totalUsers={activeUsers}
         paidCustomers={paidCustomers}
-        totalRevenue={totalRevenue}
+        freeUsers={freeUsers}
+        paidRatio={paidRatio}
         userTrend={userTrend}
-        paidTrend={paidTrend}
-        revenueTrend={revenueTrend}
-        shouldShowStatisticsValue={shouldShowStatisticsValue}
+        userGrowthPercentTrend={userGrowthPercentTrend}
+        userGrowthData={userGrowthData}
+        userDistributionData={userDistributionData}
+        retentionRows={retentionRows}
+        retentionTotalCustomers={customerRetention?.totalActiveCustomers ?? 0}
+        isLoadingRetention={isLoadingStatistics}
+        statisticsError={statisticsError}
       />
-      {statisticsError && (
-        <p className="text-sm text-red-600 dark:text-red-400">{statisticsError}</p>
-      )}
-      {/* Charts */}
-      <div className="space-y-8">
-        <div>
-          <NewUsersChart data={userChartData} />
-        </div>
-        <div>
-          <RevenueChart data={revenueChartData} />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Financial Reports Table */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center gap-3">
-            <h3 className="text-base font-bold font-headline text-slate-900 dark:text-slate-100">
-              Quản lý báo cáo tài chính gần đây
-            </h3>
-            <button
-              onClick={() => router.push("/SystemManager/financial-reports")}
-              className="text-slate-900 dark:text-slate-100 text-[11px] font-bold whitespace-nowrap"
-            >
-              Xem tất cả báo cáo
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-700/40">
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Tên báo cáo
-                  </th>
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Mã cổ phiếu
-                  </th>
-                  <th className="w-[130px] px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Trạng thái
-                  </th>
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Ngày cập nhật
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {isLoadingFinancial && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400 text-center"
-                    >
-                      Đang tải dữ liệu...
-                    </td>
-                  </tr>
-                )}
 
-                {!isLoadingFinancial && financialError && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-5 text-sm text-red-600 dark:text-red-400 text-center"
-                    >
-                      {financialError}
-                    </td>
-                  </tr>
-                )}
+      <RevenueDashboardSection
+        totalRevenue={totalRevenue}
+        revenuePerUser={revenuePerUser}
+        revenueTrend={revenueTrend}
+        topPackageName={topRevenuePackage?.levelDisplayName ?? "--"}
+        topPackageRevenue={topRevenuePackage?.totalRevenue ?? 0}
+        monthlyRevenueData={monthlyRevenueData}
+        packageRevenueData={packageRevenueChartData}
+        vipPackageUsages={sortedVipPackageUsages}
+        currentUsersByVipLevel={sortedCurrentUsersByVipLevel}
+        statisticsError={statisticsError}
+      />
 
-                {!isLoadingFinancial &&
-                  !financialError &&
-                  financialReports.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400 text-center"
-                      >
-                        Chưa có dữ liệu báo cáo tài chính
-                      </td>
-                    </tr>
-                  )}
-
-                {!isLoadingFinancial &&
-                  !financialError &&
-                  financialReports.map((report) => (
-                    <tr
-                      key={report.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-                    >
-                      <td className="px-5 py-3 font-medium text-sm text-slate-900 dark:text-slate-100">
-                        {getFinancialPeriodLabel(report.year, report.period)}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-slate-700 dark:text-slate-300">
-                        {report.ticker || "--"}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span
-                          className={`inline-flex min-w-[92px] justify-center px-2 py-1 text-[10px] font-bold rounded-full ${getFinancialStatusClass(
-                            report.status
-                          )}`}
-                        >
-                          {getFinancialStatusLabel(report.status)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-xs font-body text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {formatDate(report.updatedAt || report.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* Recent Analysis Reports Table */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center gap-3">
-            <h3 className="text-base font-bold font-headline text-slate-900 dark:text-slate-100">
-              Báo cáo phân tích gần đây
-            </h3>
-            <button
-              onClick={() => router.push("/SystemManager/analysis-reports")}
-              className="text-slate-900 dark:text-slate-100 text-[11px] font-bold whitespace-nowrap"
-            >
-              Xem tất cả phân tích
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-700/40">
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Tiêu đề báo cáo
-                  </th>
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Phân loại
-                  </th>
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    Trạng thái
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {isLoadingAnalysis && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400 text-center"
-                    >
-                      Đang tải dữ liệu...
-                    </td>
-                  </tr>
-                )}
-
-                {!isLoadingAnalysis && analysisError && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-5 text-sm text-red-600 dark:text-red-400 text-center"
-                    >
-                      {analysisError}
-                    </td>
-                  </tr>
-                )}
-
-                {!isLoadingAnalysis &&
-                  !analysisError &&
-                  analysisReports.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400 text-center"
-                      >
-                        Chưa có dữ liệu báo cáo phân tích
-                      </td>
-                    </tr>
-                  )}
-
-                {!isLoadingAnalysis &&
-                  !analysisError &&
-                  analysisReports.map((report) => (
-                    <tr
-                      key={report.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-                    >
-                      <td className="px-5 py-3 font-medium text-sm text-slate-900 dark:text-slate-100">
-                        {report.title}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-slate-700 dark:text-slate-300">
-                        {analysisCategories[report.categoryId] ||
-                          report.categoryId ||
-                          "--"}
-                      </td>
-                      <td className="w-[130px] px-5 py-3">
-                        <span
-                          className={`inline-flex min-w-[92px] justify-center px-2 py-1 text-[10px] font-bold rounded-full ${getStatusClass(report.status)}`}
-                        >
-                          {getStatusLabel(report.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <SystemDashboardSection
+        isAdmin={isAdmin}
+        onRunDataFetchTask={handleRunDataFetchTask}
+        dataFetchTaskStatusMap={dataFetchTaskStatusMap}
+        onNavigateDataLogs={() => router.push("/SystemManager/data")}
+        onNavigateFinancialReports={() => router.push("/SystemManager/financial-reports")}
+        onNavigateAnalysisReports={() => router.push("/SystemManager/analysis-reports")}
+        totalStocks={totalStocks}
+        topInterestedSymbols={sortedTopInterestedSymbols}
+        isLoadingSystemStatistics={isLoadingStatistics}
+        systemStatisticsError={statisticsError}
+        systemLogs={systemLogs}
+        isLoadingSystemLogs={isLoadingSystemLogs}
+        systemLogsError={systemLogsError}
+        financialReports={financialReports}
+        isLoadingFinancial={isLoadingFinancial}
+        financialError={financialError}
+        analysisReports={analysisReports}
+        analysisCategories={analysisCategories}
+        isLoadingAnalysis={isLoadingAnalysis}
+        analysisError={analysisError}
+      />
     </div>
   );
 }
