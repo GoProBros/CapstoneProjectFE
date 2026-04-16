@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { newsService } from '@/services/newsService';
 import type { NewsArticle, NewsTickerScore } from '@/types/news';
-import NewsFilterBar from './NewsFilterBar';
+import NewsFilterBar from './News/NewsFilterBar';
 import RelatedTickerSelector from './News/RelatedTickerSelector';
 import TickerSentimentCard from './News/TickerSentimentCard';
 

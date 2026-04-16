@@ -19,7 +19,9 @@ export default function NewsFilterBar({
 }: NewsFilterBarProps) {
   return (
     <div
-      className={`grid grid-cols-1 gap-2 px-3 pt-2 sm:grid-cols-[1fr_110px_auto]`}
+      className={`sticky top-0 z-20 grid grid-cols-1 gap-2 px-3 pt-2 backdrop-blur-[1px] sm:grid-cols-[1fr_110px_auto] ${
+        isDark ? 'bg-[#282832]/95' : 'bg-white/95'
+      }`}
     >
       <input
         type="text"
