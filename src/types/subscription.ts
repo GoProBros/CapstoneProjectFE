@@ -57,3 +57,26 @@ export interface SubscriptionStatisticsDto {
   currentUsersByVipLevel: VipCurrentUserCountDto[];
   vipPackageUsages: VipPackageUsageDto[];
 }
+
+export interface CustomerRetentionStatisticsDto {
+  totalActiveCustomers: number;
+  customersRegisteredAtLeast1Time: number;
+  customersRegisteredAtLeast3Times: number;
+  customersRegisteredAtLeast6Times: number;
+  customersRegisteredAtLeast1TimeRate: number;
+  customersRegisteredAtLeast3TimesRate: number;
+  customersRegisteredAtLeast6TimesRate: number;
+}
+
+export interface InterestedSymbolCountDto {
+  symbol: string;
+  count: number;
+}
+
+export interface WatchListTopInterestedSymbolsDto {
+  activeCustomerCount: number;
+  processedWatchListCount: number;
+  totalTickerOccurrences: number;
+  top5Symbols: InterestedSymbolCountDto[];
+  top10Symbols: InterestedSymbolCountDto[];
+}
