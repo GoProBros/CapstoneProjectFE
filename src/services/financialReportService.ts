@@ -9,6 +9,7 @@ import type { PaginatedData } from '@/types';
 import type {
   FinancialReport,
   FinancialReportFilters,
+  FinancialReportIndicatorListItem,
   FinancialReportTableRow,
   FinancialPeriodType,
   FinancialReportStatus,
@@ -432,6 +433,48 @@ export async function fetchFinancialReportsByTicker(
     return { items, totalCount };
   } catch (error) {
     console.error(`Error fetching financial reports for ${ticker}:`, error);
+    return { items: [], totalCount: 0 };
+  }
+}
+
+/**
+ * Fetch financial report indicators by single ticker
+ * @param ticker - Single ticker symbol (required)
+ * @returns Promise with indicator items array and totalCount
+ */
+export async function fetchFinancialReportIndicatorsByTicker(
+  ticker: string
+): Promise<{ items: FinancialReportIndicatorListItem[]; totalCount: number }> {
+  try {
+    const pageIndex = 1;
+    const pageSize = 100;
+    const status = 2;
+
+    const params = new URLSearchParams({
+      Ticker: ticker,
+      Status: status.toString(),
+      PageIndex: pageIndex.toString(),
+      PageSize: pageSize.toString(),
+    });
+
+    const endpoint = `${API_ENDPOINTS.FINANCIAL_REPORTS.INDICATORS}?${params.toString()}`;
+    const response = await get<PaginatedData<FinancialReportIndicatorListItem>>(endpoint);
+
+    if (!response.isSuccess) {
+      console.error('Indicators API returned error:', response.message);
+      return { items: [], totalCount: 0 };
+    }
+
+    if (!response.data || !response.data.items || !Array.isArray(response.data.items)) {
+      return { items: [], totalCount: 0 };
+    }
+
+    const items = response.data.items;
+    const totalCount = response.data.totalCount || items.length;
+
+    return { items, totalCount };
+  } catch (error) {
+    console.error(`Error fetching financial report indicators for ${ticker}:`, error);
     return { items: [], totalCount: 0 };
   }
 }

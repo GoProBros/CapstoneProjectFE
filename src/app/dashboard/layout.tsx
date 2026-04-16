@@ -580,8 +580,8 @@ export default function DashboardLayout({
     else if (
       ["financial-report"].includes(moduleType)
     ) {
-      width = 24; // 24 columns = 25% width
-      height = 14; // 14 units = 280px (tall for tables)
+      width = 33; // 33 columns = 35% width
+      height = 15; // 15 units = 300px (tall for tables)
     }
 
     else if (

@@ -47,6 +47,7 @@ export const API_ENDPOINTS = {
   // Financial Report endpoints (in development)
   FINANCIAL_REPORTS: {
     FINANCIAL_REPORTS: `/api/v1/financial-reports`,
+    INDICATORS: '/api/v1/financial-reports/indicators',
     BY_ID: (id: string) => `/api/v1/financial-reports/${id}`,
   },
 
