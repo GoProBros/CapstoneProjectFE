@@ -6,6 +6,9 @@ import { createPortal } from 'react-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { newsService } from '@/services/newsService';
 import type { NewsArticle, NewsTickerScore } from '@/types/news';
+import NewsFilterBar from './NewsFilterBar';
+import RelatedTickerSelector from './News/RelatedTickerSelector';
+import TickerSentimentCard from './News/TickerSentimentCard';
 
 const NEWS_PAGE_SIZE = 10;
 const DETAIL_POPUP_DEFAULT_WIDTH = 560;
@@ -25,11 +28,6 @@ const clamp = (value: number, min: number, max: number): number => {
   return Math.min(Math.max(value, min), max);
 };
 
-const clampSentimentScore = (score: number | null): number => {
-  if (typeof score !== 'number' || Number.isNaN(score)) return 0;
-  return clamp(score, -1, 1);
-};
-
 const sortTickerScoresByRelevance = (scores: NewsTickerScore[]): NewsTickerScore[] => {
   return [...scores].sort((a, b) => {
     const relevanceA = a.relevanceScore ?? Number.NEGATIVE_INFINITY;
@@ -41,6 +39,12 @@ const sortTickerScoresByRelevance = (scores: NewsTickerScore[]): NewsTickerScore
 
     return a.ticker.localeCompare(b.ticker);
   });
+};
+
+const getTopTickers = (scores: NewsTickerScore[], limit: number): string[] => {
+  return sortTickerScoresByRelevance(scores)
+    .slice(0, limit)
+    .map((score) => score.ticker);
 };
 
 const getDetailPopupPosition = (
@@ -96,57 +100,6 @@ const formatPublishTimeGmt7 = (value: string): string => {
   }).format(date);
 };
 
-function SentimentCortisolChart({ score }: { score: number | null }) {
-  const normalizedScore = clampSentimentScore(score);
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const progress = ((normalizedScore + 1) / 2) * circumference;
-
-  const ringColor =
-    normalizedScore > 0.1
-      ? '#34C85E'
-      : normalizedScore < -0.1
-        ? '#EF4444'
-        : '#F59E0B';
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative h-28 w-28">
-        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke="rgba(148,163,184,0.25)"
-            strokeWidth="12"
-            fill="none"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke={ringColor}
-            strokeWidth="12"
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={`${progress} ${Math.max(0, circumference - progress)}`}
-          />
-        </svg>
-      </div>
-
-      <div className="mt-2 flex w-full items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
-        <span>-1.00</span>
-        <span>1.00</span>
-      </div>
-
-      <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">Sentiment Score</p>
-      <p className="text-base font-bold" style={{ color: ringColor }}>
-        {normalizedScore.toFixed(2)}
-      </p>
-    </div>
-  );
-}
-
 interface EventItem {
   id: string;
   code: string;
@@ -168,7 +121,11 @@ export default function NewsModule() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeNewsDetail, setActiveNewsDetail] = useState<NewsArticle | null>(null);
   const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(null);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedTickers, setSelectedTickers] = useState<string[]>([]);
+  const [searchKeywordInput, setSearchKeywordInput] = useState('');
+  const [tickerInput, setTickerInput] = useState('');
+  const [appliedSearchKeyword, setAppliedSearchKeyword] = useState('');
+  const [appliedTickerFilter, setAppliedTickerFilter] = useState('');
 
   const detailRequestCounterRef = React.useRef(0);
   const popupRef = React.useRef<HTMLDivElement | null>(null);
@@ -188,6 +145,8 @@ export default function NewsModule() {
         const response = await newsService.getNews({
           pageIndex: targetPageIndex,
           pageSize: NEWS_PAGE_SIZE,
+          search: appliedSearchKeyword || undefined,
+          ticker: appliedTickerFilter || undefined,
         });
 
         setNewsItems((prev) => {
@@ -208,19 +167,40 @@ export default function NewsModule() {
         setIsLoadingMore(false);
       }
     },
-    [],
+    [appliedSearchKeyword, appliedTickerFilter],
   );
 
   useEffect(() => {
     if (activeTab !== 'news') return;
-    if (!isInitialLoading && newsItems.length > 0) return;
     void loadNewsPage(1, false);
-  }, [activeTab, isInitialLoading, loadNewsPage, newsItems.length]);
+  }, [activeTab, loadNewsPage]);
 
   const handleLoadMore = useCallback(async () => {
     if (!hasNextPage || isLoadingMore) return;
     await loadNewsPage(pageIndex + 1, true);
   }, [hasNextPage, isLoadingMore, loadNewsPage, pageIndex]);
+
+  useEffect(() => {
+    const debounceId = window.setTimeout(() => {
+      const normalizedSearch = searchKeywordInput.trim();
+      const normalizedTicker = tickerInput.trim().toUpperCase();
+
+      setAppliedSearchKeyword((prev) => (prev === normalizedSearch ? prev : normalizedSearch));
+      setAppliedTickerFilter((prev) => (prev === normalizedTicker ? prev : normalizedTicker));
+    }, 300);
+
+    return () => {
+      window.clearTimeout(debounceId);
+    };
+  }, [searchKeywordInput, tickerInput]);
+
+  const handleResetFilters = useCallback(() => {
+    setSearchKeywordInput('');
+    setTickerInput('');
+    setAppliedSearchKeyword('');
+    setAppliedTickerFilter('');
+    setPageIndex(1);
+  }, []);
 
   const updatePopupPosition = useCallback(() => {
     if (!anchorElementRef.current) return;
@@ -237,9 +217,25 @@ export default function NewsModule() {
     setIsDetailLoading(false);
     setDetailError(null);
     setActiveNewsDetail(null);
-    setSelectedTicker(null);
+    setSelectedTickers([]);
     setPopupPosition(null);
     anchorElementRef.current = null;
+  }, []);
+
+  const handleToggleTicker = useCallback((ticker: string) => {
+    setSelectedTickers((prev) => {
+      const isSelected = prev.includes(ticker);
+
+      if (isSelected) {
+        return prev.filter((item) => item !== ticker);
+      }
+
+      if (prev.length >= 2) {
+        return prev;
+      }
+
+      return [...prev, ticker];
+    });
   }, []);
 
   const handleOpenDetail = useCallback(
@@ -253,8 +249,7 @@ export default function NewsModule() {
       setIsDetailLoading(true);
       setDetailError(null);
       setActiveNewsDetail(item);
-      const initialTopTicker = sortTickerScoresByRelevance(item.tickerScores)[0]?.ticker ?? null;
-      setSelectedTicker(initialTopTicker);
+      setSelectedTickers(getTopTickers(item.tickerScores, 2));
       updatePopupPosition();
 
       const currentRequestId = ++detailRequestCounterRef.current;
@@ -263,8 +258,7 @@ export default function NewsModule() {
         const detail = await newsService.getNewsById(item.id);
         if (detailRequestCounterRef.current !== currentRequestId) return;
         setActiveNewsDetail(detail);
-        const topTicker = sortTickerScoresByRelevance(detail.tickerScores)[0]?.ticker ?? null;
-        setSelectedTicker(topTicker);
+        setSelectedTickers(getTopTickers(detail.tickerScores, 2));
       } catch (error) {
         console.error('[NewsModule] Error loading detail:', error);
         if (detailRequestCounterRef.current === currentRequestId) {
@@ -338,9 +332,9 @@ export default function NewsModule() {
     : [];
   const topThreeTickerScores = sortedTickerScores.slice(0, 3);
   const remainingTickerScores = sortedTickerScores.slice(3);
-  const selectedTickerScore = selectedTicker
-    ? sortedTickerScores.find((score) => score.ticker === selectedTicker) ?? null
-    : null;
+  const selectedTickerScores = selectedTickers
+    .map((ticker) => sortedTickerScores.find((score) => score.ticker === ticker) ?? null)
+    .filter((score): score is NewsTickerScore => score !== null);
 
   // Event data (stock corporate actions)
   const eventData: EventItem[] = [
@@ -404,7 +398,6 @@ export default function NewsModule() {
   const isDark = theme === 'dark';
 
   const relatedTickers = topThreeTickerScores;
-  const remainingTickerCount = remainingTickerScores.length;
 
   return (
     <>
@@ -501,6 +494,15 @@ export default function NewsModule() {
           </>
         ) : (
           <div className="grid gap-4">
+            <NewsFilterBar
+              isDark={isDark}
+              searchKeywordInput={searchKeywordInput}
+              tickerInput={tickerInput}
+              onSearchKeywordInputChange={setSearchKeywordInput}
+              onTickerInputChange={setTickerInput}
+              onReset={handleResetFilters}
+            />
+
             {isInitialLoading && (
               <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-300">
                 Đang tải dữ liệu tin tức...
@@ -649,90 +651,18 @@ export default function NewsModule() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 items-start">
-                  <div className="col-span-1 min-w-0">
-                    <p className="font-semibold mb-1">Mã liên quan</p>
-                    {relatedTickers.length > 0 ? (
-                      <div className="space-y-2">
-                        {relatedTickers.map((tickerScore) => {
-                          const isSelected = selectedTicker === tickerScore.ticker;
+                  <RelatedTickerSelector
+                    relatedTickers={relatedTickers}
+                    remainingTickerScores={remainingTickerScores}
+                    selectedTickers={selectedTickers}
+                    isDark={isDark}
+                    onToggleTicker={handleToggleTicker}
+                  />
 
-                          return (
-                            <button
-                              key={tickerScore.ticker}
-                              type="button"
-                              onClick={() => setSelectedTicker(tickerScore.ticker)}
-                              className={`flex w-full items-center justify-between rounded px-2 py-1 text-left text-[11px] font-medium transition-colors ${
-                                isSelected
-                                  ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/40'
-                                  : isDark
-                                    ? 'bg-cyan-900/20 text-cyan-300 border border-transparent hover:bg-cyan-900/35'
-                                    : 'bg-cyan-100 text-cyan-700 border border-transparent hover:bg-cyan-200'
-                              }`}
-                            >
-                              <span>{tickerScore.ticker}</span>
-                              <span
-                                className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                                  isSelected
-                                    ? 'border-cyan-300 bg-cyan-500/90 text-white'
-                                    : isDark
-                                      ? 'border-cyan-600/50 bg-transparent text-transparent'
-                                      : 'border-cyan-300 bg-transparent text-transparent'
-                                }`}
-                                aria-hidden="true"
-                              >
-                                {isSelected && (
-                                  <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                    <path d="M3.5 8.5l2.5 2.5 6-6" />
-                                  </svg>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-
-                        {remainingTickerCount > 0 && (
-                          <div className="relative inline-block group">
-                            <span
-                              className={`inline-flex rounded px-2 py-1 text-[11px] cursor-default ${
-                                isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              +{remainingTickerCount}
-                            </span>
-
-                            <div
-                              className={`invisible absolute left-0 top-full z-10 mt-1 w-max rounded border p-2 text-[11px] opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100 ${
-                                isDark ? 'border-gray-700 bg-[#1f2430] text-gray-200' : 'border-gray-200 bg-white text-gray-700'
-                              }`}
-                            >
-                              <div className="flex flex-nowrap gap-1.5">
-                                {remainingTickerScores.map((tickerScore) => (
-                                  <span
-                                    key={tickerScore.ticker}
-                                    className={`whitespace-nowrap rounded border px-2 py-1 text-[11px] ${
-                                      isDark ? 'border-cyan-700/40 bg-cyan-900/20 text-cyan-300' : 'border-cyan-200 bg-cyan-50 text-cyan-700'
-                                    }`}
-                                  >
-                                    {tickerScore.ticker}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p>Chưa có mã liên quan.</p>
-                    )}
-                  </div>
-
-                  <div className={`col-span-2 rounded-lg border p-3 ${isDark ? 'border-cyan-700/30 bg-cyan-900/10' : 'border-cyan-100 bg-cyan-50/70'}`}>
-                    <p className="mb-2 text-xs font-semibold">Sentiment Score Card (Demo)</p>
-                    <p className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
-                      {selectedTickerScore ? `Ticker: ${selectedTickerScore.ticker}` : 'Chưa chọn ticker'}
-                    </p>
-                    <SentimentCortisolChart score={selectedTickerScore?.sentimentScore ?? null} />
-                  </div>
+                  <TickerSentimentCard
+                    selectedTickerScores={selectedTickerScores}
+                    isDark={isDark}
+                  />
                 </div>
               </div>
             )}
