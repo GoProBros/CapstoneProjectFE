@@ -186,8 +186,7 @@ export default function Home() {
       }`}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href={ROUTES.HOME} className="flex items-center gap-2 group">
-            <TrendingUp className="text-[#00C805] w-7 h-7 group-hover:scale-110 transition-transform" />
-            <span className="text-xl font-black tracking-tight">KF Stock</span>
+            <img src="/assets/Logo/KF Stock_Logo_L_T.png" alt="KF Stock Logo" className="w-40 h-10" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
