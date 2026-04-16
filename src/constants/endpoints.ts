@@ -119,6 +119,8 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/subscriptions',
     ME: '/api/v1/subscriptions/me',
     STATISTICS: '/api/v1/subscriptions/statistics',
+    CUSTOMER_RETENTION: '/api/v1/subscriptions/statistics/customer-retention',
+    WATCHLIST_TOP_SYMBOLS: '/api/v1/subscriptions/statistics/watchlist-top-symbols',
     UPDATE_STATUS: (id: number) => `/api/v1/subscriptions/${id}/status`,
     UPDATE_BY_ID: (id: number) => `/api/v1/subscriptions/${id}`,
   },
