@@ -126,7 +126,7 @@ export default function FinancialReportsFeature() {
                 </div>
                 <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="px-8 py-2.5 rounded-lg bg-[linear-gradient(135deg,#000011_0%,#0d1c32_100%)] text-white text-sm font-bold inline-flex items-center gap-2"
+                    className="px-8 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold inline-flex items-center gap-2 transition-colors hover:bg-blue-800"
                 >
                     <FilePlus className="w-4 h-4" />
                     Thêm báo cáo

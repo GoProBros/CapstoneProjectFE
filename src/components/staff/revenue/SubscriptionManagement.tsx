@@ -543,16 +543,7 @@ export default function SubscriptionManagement({
 
   return (
     <section className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h4 className="text-xl font-bold font-headline text-slate-900 dark:text-slate-100">
-            Quản lý gói đăng ký (Subscription)
-          </h4>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Chọn một gói để xem chi tiết thống kê và cập nhật cấu hình nhanh.
-          </p>
-        </div>
-
+      <div className="flex items-center justify-end gap-4">
         {isAdmin ? (
           <button
             type="button"

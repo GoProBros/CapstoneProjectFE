@@ -25,19 +25,19 @@ export default function NewsTable({
 
     return (
         <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse">
+            <table className="w-full min-w-[920px] border-collapse">
                 <thead className="bg-gray-100 dark:bg-gray-700/50">
                     <tr>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[63%]">
+                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[55%]">
                             tiêu đề
                         </th>
                         <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[12%]">
                             nguồn
                         </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[15%]">
+                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[16%]">
                             thời gian đăng
                         </th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[10%]">
+                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 w-[17%]">
                             xem chi tiết
                         </th>
                     </tr>
@@ -113,13 +113,13 @@ export default function NewsTable({
                                 {formatDateTime(article.publishedAt)}
                             </td>
 
-                            <td className="px-4 py-3 align-top border border-gray-200 dark:border-gray-700">
+                            <td className="px-4 py-3 align-top border border-gray-200 dark:border-gray-700 whitespace-nowrap">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setSelectedArticle(article);
                                     }}
-                                    className="inline-flex px-3 py-1.5 text-xs border border-blue-300 text-blue-700 dark:text-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                    className="inline-flex min-w-[110px] justify-center px-3 py-1.5 text-xs border border-blue-300 text-blue-700 dark:text-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                                 >
                                     Xem chi tiết
                                 </button>
