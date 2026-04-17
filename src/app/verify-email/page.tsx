@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { verifyEmail } from '@/services/authService'
@@ -38,7 +38,7 @@ const errorVariants = {
   },
 }
 
-const VerifyEmailPage = () => {
+const VerifyEmailContent = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
@@ -274,6 +274,24 @@ const VerifyEmailPage = () => {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+const VerifyEmailFallback = () => {
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#0e0d15] via-[#282832] to-[#0e0d15] flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 border border-slate-700/50 rounded-2xl p-8 shadow-2xl text-center">
+        <p className="text-slate-300 text-sm">Đang tải trang xác thực...</p>
+      </div>
+    </div>
+  )
+}
+
+const VerifyEmailPage = () => {
+  return (
+    <Suspense fallback={<VerifyEmailFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }
 
