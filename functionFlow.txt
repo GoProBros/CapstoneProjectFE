@@ -1,0 +1,31 @@
+flow của action 'Thêm báo cáo' sẽ như sau
+1. user click 'Thêm báo cáo' trên UI
+2. system hiện UI 'Thêm báo cáo tài chính mới'
+3. user nhập Mã chứng khoán, chọn năm báo cáo, kỳ báo cáo
+4. user click 'Tiếp tục'
+5. system hiện UI 
+6. ở đây user sẽ có 2 hướng thực hiện
+6.1. user click "Lấy dữ liệu online"
+6.2. user click "Upload file"
+
+7. (nếu user chọn 6.1) system call API '/api/v1/data-fetching/financial-reports/specific' để lấy dữ liệu thông qua API
+8. system tự lấy data từ API Response để fill vào table có hỗ trợ live editor
+9. ở đây user sẽ có 2 hướng thực hiện
+9.1. user click "Hủy bỏ" để hủy quy trình, system sẽ clear toàn bộ các input vừa nhập và vừa fetch thông API
+9.2. user click "Tạo báo cáo", system call call API POST '/api/v1/financial-reports' để tạo report với data của modal đầu tiên và data của table (phải đảm bảo đúng các group, sub-group, invidiual columns)
+
+10. (nếu user chọn 6.2) system cho user load file từ local device để xem trên live view pdf (không call API upload vì không hề có entityId)
+11. system hiện UI table hỗ trợ live editor cho phép user nhập thủ công những field đọc được từ file
+12.(optional) user click "Lấy dữ liệu online"
+13.(optional) (nếu user chọn 12) system call API '/api/v1/data-fetching/financial-reports/specific' để lấy dữ liệu thông qua API
+14.(optional) (nếu user chọn 12) system tự lấy data từ API Response để fill vào table có hỗ trợ live editor, bỏ qua các field đã có dữ liệu sẵn
+15. ở đây user sẽ có 2 hướng thực hiện
+15.1. user click "Hủy bỏ" để hủy quy trình, system sẽ clear toàn bộ các input vừa nhập và vừa fetch thông API
+15.2. user click "Tạo báo cáo", system call call API POST '/api/v1/financial-reports' để tạo report với data của modal đầu tiên và data của table (phải đảm bảo đúng các group, sub-group, invidiual columns)
+16. trong response của API POST '/api/v1/financial-reports' có Id của report, dùng id để upload file với Category là 1 và RelatedEntityId là id lấy từ response của API POST '/api/v1/financial-reports'
+
+
+
+
+
+

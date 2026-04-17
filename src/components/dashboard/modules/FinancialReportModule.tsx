@@ -1,84 +1,275 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useEffect, useMemo, useState } from 'react';
+import FinancialIndicatorChart, {
+  type FinancialIndicatorChartDataPoint,
+} from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorChart';
+import FinancialIndicatorGroupTabs, {
+  type FinancialIndicatorGroupTabItem,
+} from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorGroupTabs';
+import FinancialIndicatorMetricsTable, {
+  type FinancialIndicatorMetricDisplayRow,
+} from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorMetricsTable';
+import FinancialIndicatorPeriodNavigator from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorPeriodNavigator';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fetchFinancialReportIndicatorsByTicker } from '@/services/financialReportService';
 import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
-import { fetchFinancialReportsByTicker } from '@/services/financialReportService';
-import type { FinancialReportTableRow } from '@/types/financialReport';
+import {
+  FinancialPeriodType,
+  type FinancialReportIndicatorListItem,
+} from '@/types/financialReport';
 
-const BILLION = 1_000_000_000;
+type PeriodTab = 'annual' | 'quarterly';
+type IndicatorGroupKey = 'profitability' | 'growth' | 'financialHealth' | 'efficiencyCashflow';
+type MetricFormat = 'percent' | 'ratio' | 'percent_signed';
+type ChartType = 'line' | 'bar';
 
-type ReportType = 'income' | 'balance' | 'cashflow';
-
-interface MetricRow {
+interface IndicatorMetricDefinition {
   key: string;
   label: string;
-  getValue: (r: FinancialReportTableRow) => number;
+  format: MetricFormat;
+  getValue: (row: FinancialReportIndicatorListItem) => number | null | undefined;
+  showComparisonType?: boolean;
 }
 
-const incomeMetrics: MetricRow[] = [
-  { key: 'netRevenue', label: 'Doanh thu thuần', getValue: r => r.netRevenue ?? 0 },
-  { key: 'grossProfit', label: 'Lợi nhuận gộp', getValue: r => r.grossProfit ?? 0 },
-  { key: 'operatingProfit', label: 'Lợi nhuận hoạt động', getValue: r => r.operatingProfit ?? 0 },
-  { key: 'profitBeforeTax', label: 'Lợi nhuận trước thuế', getValue: r => r.profitBeforeTax },
-  { key: 'netProfit', label: 'Lợi nhuận sau thuế', getValue: r => r.netProfit },
-  { key: 'netInterestIncome', label: 'Thu nhập lãi thuần', getValue: r => r.netInterestIncome ?? 0 },
-  { key: 'serviceFeeIncome', label: 'Lợi nhuận từ dịch vụ', getValue: r => r.serviceFeeIncome ?? 0 },
-  { key: 'tradingIncome', label: 'Thu nhập từ kinh doanh', getValue: r => r.tradingIncome ?? 0 },
+interface IndicatorChartSeriesDefinition {
+  key: string;
+  label: string;
+  color: string;
+  format: MetricFormat;
+  getValue: (row: FinancialReportIndicatorListItem) => number | null | undefined;
+}
+
+interface IndicatorGroupDefinition {
+  key: IndicatorGroupKey;
+  label: string;
+  description: string;
+  accent?: 'default' | 'growth' | 'risk';
+  chartType: ChartType;
+  chartSeries: IndicatorChartSeriesDefinition[];
+  metrics: IndicatorMetricDefinition[];
+}
+
+const INDICATOR_GROUPS: IndicatorGroupDefinition[] = [
+  {
+    key: 'profitability',
+    label: 'Sinh lời',
+    description: 'Công ty kiếm tiền tốt không?',
+    chartType: 'line',
+    chartSeries: [
+      { key: 'roe', label: 'ROE', color: '#84cc16', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roe },
+      { key: 'netMargin', label: 'Biên LN ròng', color: '#22c55e', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.netMargin },
+      { key: 'grossMargin', label: 'Biên LN gộp', color: '#10b981', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.grossMargin },
+    ],
+    metrics: [
+      { key: 'roe', label: 'ROE', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roe },
+      { key: 'roa', label: 'ROA', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roa },
+      { key: 'grossMargin', label: 'Biên LN gộp', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.grossMargin },
+      { key: 'operatingProfitMargin', label: 'Biên LN hoạt động', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.operatingProfitMargin },
+      { key: 'netMargin', label: 'Biên LN ròng', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.netMargin },
+      { key: 'returnOnFixedAssets', label: 'LN trên TSCĐ', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.returnOnFixedAssets },
+    ],
+  },
+  {
+    key: 'growth',
+    label: 'Tăng trưởng',
+    description: 'Công ty có đang phát triển không?',
+    accent: 'growth',
+    chartType: 'bar',
+    chartSeries: [
+      { key: 'revenueGrowth', label: 'Tăng trưởng doanh thu', color: '#10b981', format: 'percent_signed', getValue: (row) => row.indicatorData?.growth?.revenueGrowth },
+      { key: 'grossProfitGrowth', label: 'Tăng trưởng LN gộp', color: '#22c55e', format: 'percent_signed', getValue: (row) => row.indicatorData?.growth?.grossProfitGrowth },
+    ],
+    metrics: [
+      {
+        key: 'revenueGrowth',
+        label: 'Tăng trưởng doanh thu',
+        format: 'percent_signed',
+        getValue: (row) => row.indicatorData?.growth?.revenueGrowth,
+        showComparisonType: true,
+      },
+      {
+        key: 'grossProfitGrowth',
+        label: 'Tăng trưởng LN gộp',
+        format: 'percent_signed',
+        getValue: (row) => row.indicatorData?.growth?.grossProfitGrowth,
+        showComparisonType: true,
+      },
+    ],
+  },
+  {
+    key: 'financialHealth',
+    label: 'Sức khỏe tài chính',
+    description: 'Có rủi ro tài chính không?',
+    accent: 'risk',
+    chartType: 'line',
+    chartSeries: [
+      { key: 'debtToEquity', label: 'Nợ/Vốn chủ (D/E)', color: '#f59e0b', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtToEquity },
+      { key: 'currentRatio', label: 'Thanh toán hiện hành', color: '#f97316', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.currentRatio },
+    ],
+    metrics: [
+      { key: 'debtToEquity', label: 'Nợ/Vốn chủ (D/E)', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtToEquity },
+      { key: 'debtRatio', label: 'Nợ/Tổng tài sản', format: 'percent', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtRatio },
+      { key: 'longTermDebtRatio', label: 'Nợ dài hạn/Tài sản', format: 'percent', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.longTermDebtRatio },
+      { key: 'currentRatio', label: 'Thanh toán hiện hành', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.currentRatio },
+      { key: 'quickRatio', label: 'Thanh toán nhanh', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.quickRatio },
+      { key: 'cashRatio', label: 'Hệ số tiền mặt', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.cashRatio },
+      { key: 'interestCoverageRatio', label: 'Khả năng trả lãi', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.interestCoverageRatio },
+    ],
+  },
+  {
+    key: 'efficiencyCashflow',
+    label: 'Hiệu quả & Dòng tiền',
+    description: 'Vận hành hiệu quả và tiền có thật không?',
+    chartType: 'line',
+    chartSeries: [
+      { key: 'totalAssetTurnover', label: 'Vòng quay tài sản', color: '#14b8a6', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.totalAssetTurnover },
+      { key: 'operatingCashFlowToNetProfit', label: 'Dòng tiền/LN ròng', color: '#06b6d4', format: 'ratio', getValue: (row) => row.indicatorData?.cashFlow?.operatingCashFlowToNetProfit },
+    ],
+    metrics: [
+      { key: 'totalAssetTurnover', label: 'Vòng quay tài sản', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.totalAssetTurnover },
+      { key: 'inventoryTurnover', label: 'Vòng quay tồn kho', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.inventoryTurnover },
+      { key: 'operatingCashFlowToNetProfit', label: 'Dòng tiền/LN ròng', format: 'ratio', getValue: (row) => row.indicatorData?.cashFlow?.operatingCashFlowToNetProfit },
+    ],
+  },
 ];
 
-const balanceMetrics: MetricRow[] = [
-  { key: 'totalAssets', label: 'Tổng tài sản', getValue: r => r.totalAssets },
-  { key: 'shortTermAssets', label: 'Tài sản ngắn hạn', getValue: r => r.shortTermAssets },
-  { key: 'longTermAssets', label: 'Tài sản dài hạn', getValue: r => r.longTermAssets },
-  { key: 'totalLiabilities', label: 'Nợ phải trả', getValue: r => r.totalLiabilities },
-  { key: 'totalEquity', label: 'Vốn chủ sở hữu', getValue: r => r.totalEquity },
-  { key: 'contributedCapital', label: 'Vốn điều lệ', getValue: r => r.contributedCapital ?? 0 },
-  { key: 'retainedEarnings', label: 'Lợi nhuận chưa phân phối', getValue: r => r.retainedEarnings ?? 0 },
-];
+const GROUP_TAB_ITEMS: FinancialIndicatorGroupTabItem[] = INDICATOR_GROUPS.map((group) => ({
+  key: group.key,
+  label: group.label,
+  description: group.description,
+  accent: group.accent,
+}));
 
-const cashflowMetrics: MetricRow[] = [
-  { key: 'operatingCashFlow', label: 'Dòng tiền hoạt động kinh doanh', getValue: r => r.operatingCashFlow },
-  { key: 'investingCashFlow', label: 'Dòng tiền hoạt động đầu tư', getValue: r => r.investingCashFlow },
-  { key: 'financingCashFlow', label: 'Dòng tiền hoạt động tài chính', getValue: r => r.financingCashFlow },
-  { key: 'netCashFlow', label: 'Dòng tiền thuần', getValue: r => r.netCashFlow },
-  { key: 'freeCashFlow', label: 'Dòng tiền tự do', getValue: r => r.operatingCashFlow + r.investingCashFlow },
-];
+function isNumber(value: number | null | undefined): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+function toChartValue(value: number | null | undefined, format: MetricFormat): number | null {
+  if (!isNumber(value)) {
+    return null;
+  }
+
+  if (format === 'ratio') {
+    return Number(value.toFixed(3));
+  }
+
+  return Number((value * 100).toFixed(2));
+}
+
+function formatMetricValue(value: number | null | undefined, format: MetricFormat): string {
+  if (!isNumber(value)) {
+    return '—';
+  }
+
+  if (format === 'ratio') {
+    return value.toFixed(2);
+  }
+
+  const percentValue = value * 100;
+
+  if (format === 'percent_signed') {
+    if (percentValue > 0) {
+      return `↑ +${percentValue.toFixed(1)}%`;
+    }
+
+    if (percentValue < 0) {
+      return `↓ ${percentValue.toFixed(1)}%`;
+    }
+
+    return '0.0%';
+  }
+
+  return `${percentValue.toFixed(1)}%`;
+}
+
+function getMetricTone(
+  value: number | null | undefined,
+  format: MetricFormat
+): 'default' | 'positive' | 'negative' {
+  if (!isNumber(value) || format !== 'percent_signed') {
+    return 'default';
+  }
+
+  if (value > 0) {
+    return 'positive';
+  }
+
+  if (value < 0) {
+    return 'negative';
+  }
+
+  return 'default';
+}
+
+function getPeriodLabel(row: FinancialReportIndicatorListItem): string {
+  if (row.period === FinancialPeriodType.YearToDate) {
+    return `Năm ${row.year}`;
+  }
+
+  return `Q${row.period}/${row.year}`;
+}
 
 export default function FinancialReportModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const selectedSymbol = useSelectedSymbolStore((s) => s.selectedSymbol);
 
-  const [activeTab, setActiveTab] = useState<'annual' | 'quarterly'>('annual');
-  const [reportType, setReportType] = useState<ReportType>('income');
-  const [allData, setAllData] = useState<FinancialReportTableRow[]>([]);
+  const [activePeriodTab, setActivePeriodTab] = useState<PeriodTab>('annual');
+  const [activeGroupKey, setActiveGroupKey] = useState<IndicatorGroupKey>('profitability');
+  const [allData, setAllData] = useState<FinancialReportIndicatorListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
 
   useEffect(() => {
-    if (!selectedSymbol) return;
+    if (!selectedSymbol) {
+      setAllData([]);
+      return;
+    }
+
+    let cancelled = false;
+
     setLoading(true);
     setAllData([]);
-    fetchFinancialReportsByTicker(selectedSymbol)
+
+    fetchFinancialReportIndicatorsByTicker(selectedSymbol)
       .then(({ items }) => {
+        if (cancelled) {
+          return;
+        }
+
         setAllData(items);
         setPageOffset(0);
       })
-      .catch(() => setAllData([]))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) {
+          setAllData([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSymbol]);
 
   useEffect(() => {
     setPageOffset(0);
-  }, [activeTab, reportType]);
+  }, [activePeriodTab, activeGroupKey]);
 
   const filteredData = useMemo(() => {
     return allData
-      .filter(r => (activeTab === 'annual' ? r.period === 5 : r.period !== 5))
+      .filter((row) =>
+        activePeriodTab === 'annual'
+          ? row.period === FinancialPeriodType.YearToDate
+          : row.period !== FinancialPeriodType.YearToDate
+      )
       .sort((a, b) => a.year !== b.year ? a.year - b.year : a.period - b.period);
-  }, [allData, activeTab]);
+  }, [allData, activePeriodTab]);
 
   const totalPeriods = filteredData.length;
   const maxOffset = Math.max(0, totalPeriods - 4);
@@ -88,55 +279,65 @@ export default function FinancialReportModule() {
   const canGoPrev = pageOffset < maxOffset;
   const canGoNext = pageOffset > 0;
 
+  const activeGroup = useMemo(() => {
+    return INDICATOR_GROUPS.find((group) => group.key === activeGroupKey) ?? INDICATOR_GROUPS[0];
+  }, [activeGroupKey]);
+
+  const growthComparisonType = useMemo(() => {
+    const comparisonType = visibleData.find((row) => row.indicatorData?.growth?.comparisonType)
+      ?.indicatorData?.growth?.comparisonType;
+
+    if (comparisonType) {
+      return comparisonType;
+    }
+
+    return activePeriodTab === 'annual' ? 'YoY' : 'QoQ';
+  }, [visibleData, activePeriodTab]);
+
   const chartData = useMemo(() => {
-    if (reportType === 'income') {
-      return visibleData.map(r => ({
-        label: r.periodLabel,
-        'Doanh thu thuần': parseFloat(((r.netRevenue ?? 0) / BILLION).toFixed(2)),
-        'Lợi nhuận gộp': parseFloat(((r.grossProfit ?? 0) / BILLION).toFixed(2)),
-        'Lợi nhuận sau thuế': parseFloat((r.netProfit / BILLION).toFixed(2)),
-      }));
-    }
-    if (reportType === 'balance') {
-      return visibleData.map(r => ({
-        label: r.periodLabel,
-        'Tổng tài sản': parseFloat((r.totalAssets / BILLION).toFixed(2)),
-        'Vốn điều lệ': parseFloat(((r.contributedCapital ?? 0) / BILLION).toFixed(2)),
-        'Vốn chủ sở hữu': parseFloat((r.totalEquity / BILLION).toFixed(2)),
-      }));
-    }
-    return visibleData.map(r => ({
-      label: r.periodLabel,
-      'Dòng tiền KD': parseFloat((r.operatingCashFlow / BILLION).toFixed(2)),
-      'Dòng tiền ĐT': parseFloat((r.investingCashFlow / BILLION).toFixed(2)),
-      'Dòng tiền tự do': parseFloat(((r.operatingCashFlow + r.investingCashFlow) / BILLION).toFixed(2)),
-    }));
-  }, [visibleData, reportType]);
+    return visibleData.map((row) => {
+      const point: FinancialIndicatorChartDataPoint = {
+        label: getPeriodLabel(row),
+      };
 
-  const currentMetrics = reportType === 'income' ? incomeMetrics
-    : reportType === 'balance' ? balanceMetrics
-    : cashflowMetrics;
+      activeGroup.chartSeries.forEach((series) => {
+        point[series.key] = toChartValue(series.getValue(row), series.format);
+      });
 
-  const activeMetrics = currentMetrics.filter(metric =>
-    visibleData.some(r => metric.getValue(r) !== 0)
-  );
+      return point;
+    });
+  }, [visibleData, activeGroup]);
 
-  const btnBase = 'rounded-md px-3 py-1 border border-transparent text-sm';
-  const btnActive = 'bg-accentGreen text-black';
-  const btnInactive = isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-600';
+  const metricRows = useMemo<FinancialIndicatorMetricDisplayRow[]>(() => {
+    return activeGroup.metrics
+      .map((metric) => {
+        const label = metric.showComparisonType
+          ? `${metric.label} (${growthComparisonType})`
+          : metric.label;
 
-  const navBtnBase = 'rounded-full text-xs p-[0.175rem] shadow-sm ring-1 ring-inset inline-flex items-center';
-  const navBtnEnabled = isDark
-    ? 'text-gray-200 bg-gray-800 ring-gray-700 hover:bg-gray-700 cursor-pointer'
-    : 'text-gray-700 bg-white ring-gray-300 hover:bg-gray-50 cursor-pointer';
-  const navBtnDisabled = isDark
-    ? 'text-gray-500 bg-gray-800 ring-gray-700 cursor-not-allowed opacity-50'
-    : 'text-gray-400 bg-gray-100 ring-gray-300 cursor-not-allowed opacity-50';
+        const cells = visibleData.map((row) => {
+          const raw = metric.getValue(row);
+
+          return {
+            key: row.id,
+            text: formatMetricValue(raw, metric.format),
+            tone: getMetricTone(raw, metric.format),
+          };
+        });
+
+        return {
+          key: metric.key,
+          label,
+          cells,
+        };
+      })
+      .filter((row) => row.cells.some((cell) => cell.text !== '—'));
+  }, [activeGroup, visibleData, growthComparisonType]);
+
+  const periodLabels = useMemo(() => visibleData.map((row) => getPeriodLabel(row)), [visibleData]);
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-2xl flex flex-col overflow-hidden text-sm ${
-      isDark ? 'bg-moduleBackground text-white' : 'bg-white text-gray-900'
-    }`}>
+    <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm bg-moduleBackground text-white `}>
       <div className="flex-none flex flex-col">
         <div className="flex items-center justify-center pt-1.5 pb-1">
           <div className="relative flex items-center justify-center">
@@ -149,19 +350,17 @@ export default function FinancialReportModule() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 px-4 pb-2 mt-[6px] overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 whitespace-nowrap">
-            <button onClick={() => setReportType('income')} className={`${btnBase} ${reportType === 'income' ? btnActive : btnInactive}`}>
-              Kết quả kinh doanh
-            </button>
-            <button onClick={() => setReportType('balance')} className={`${btnBase} ${reportType === 'balance' ? btnActive : btnInactive}`}>
-              Bảng cân đối kế toán
-            </button>
-            <button onClick={() => setReportType('cashflow')} className={`${btnBase} ${reportType === 'cashflow' ? btnActive : btnInactive}`}>
-              Bảng dòng tiền
-            </button>
-          </div>
-        </div>
+        <FinancialIndicatorGroupTabs
+          tabs={GROUP_TAB_ITEMS}
+          activeTab={activeGroupKey}
+          onSelectTab={(tab) => {
+            const selectedGroup = INDICATOR_GROUPS.find((group) => group.key === tab);
+            if (selectedGroup) {
+              setActiveGroupKey(selectedGroup.key);
+            }
+          }}
+          isDark={isDark}
+        />
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar">
@@ -175,124 +374,37 @@ export default function FinancialReportModule() {
           </div>
         ) : filteredData.length === 0 ? (
           <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Không có dữ liệu báo cáo
+            Không có dữ liệu chỉ số tài chính
           </div>
         ) : (
           <>
             <div className="px-2 pt-2 pb-1">
-              <ResponsiveContainer width="100%" height={185}>
-                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                  <XAxis dataKey="label" stroke="#e0e0e0" tick={{ fill: isDark ? '#ccc' : '#555', fontSize: 10 }} />
-                  <YAxis stroke="#e0e0e0" tick={{ fill: isDark ? '#ccc' : '#555', fontSize: 10 }} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: isDark ? '#424242' : '#fff', border: 'none', borderRadius: '4px' }}
-                    labelStyle={{ color: isDark ? '#fff' : '#000' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '4px', color: isDark ? '#fff' : '#333' }} iconType="square" />
-                  {reportType === 'income' ? (
-                    <>
-                      <Bar dataKey="Doanh thu thuần" fill="#84cc16" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Lợi nhuận gộp" fill="#22c55e" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Lợi nhuận sau thuế" fill="#10b981" radius={[2, 2, 0, 0]} />
-                    </>
-                  ) : reportType === 'balance' ? (
-                    <>
-                      <Bar dataKey="Tổng tài sản" fill="#84cc16" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Vốn điều lệ" fill="#22c55e" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Vốn chủ sở hữu" fill="#10b981" radius={[2, 2, 0, 0]} />
-                    </>
-                  ) : (
-                    <>
-                      <Bar dataKey="Dòng tiền KD" fill="#84cc16" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Dòng tiền ĐT" fill="#22c55e" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="Dòng tiền tự do" fill="#10b981" radius={[2, 2, 0, 0]} />
-                    </>
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
+              <FinancialIndicatorChart
+                chartType={activeGroup.chartType}
+                data={chartData}
+                series={activeGroup.chartSeries}
+                isDark={isDark}
+              />
             </div>
 
-            <div className="px-6 pt-1">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setActiveTab('annual')}
-                    className={`px-2 py-0.5 text-xs rounded-full ${
-                      activeTab === 'annual' ? 'bg-accentGreen text-black' : isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}
-                  >
-                    Hàng Năm
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('quarterly')}
-                    className={`px-2 py-0.5 text-xs rounded-full ${
-                      activeTab === 'quarterly' ? 'bg-accentGreen text-black' : isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}
-                  >
-                    Hàng Quý
-                  </button>
-                </div>
+            <FinancialIndicatorPeriodNavigator
+              activePeriodTab={activePeriodTab}
+              onChangePeriodTab={setActivePeriodTab}
+              periodLabels={periodLabels}
+              canGoPrev={canGoPrev}
+              canGoNext={canGoNext}
+              onPrev={() => setPageOffset((prev) => Math.min(prev + 1, maxOffset))}
+              onNext={() => setPageOffset((prev) => Math.max(prev - 1, 0))}
+              isDark={isDark}
+            />
 
-                <div className="relative">
-                  <div className="absolute inset-y-0 -left-4 flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => setPageOffset(p => Math.min(p + 1, maxOffset))}
-                      disabled={!canGoPrev}
-                      className={`${navBtnBase} ${canGoPrev ? navBtnEnabled : navBtnDisabled}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="flex gap-2 text-center">
-                    {visibleData.map(r => (
-                      <div key={r.id} className={`font-semibold text-xs w-14 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {r.periodLabel}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="absolute inset-y-0 -right-4 flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => setPageOffset(p => Math.max(p - 1, 0))}
-                      disabled={!canGoNext}
-                      className={`${navBtnBase} ${canGoNext ? navBtnEnabled : navBtnDisabled}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            {metricRows.length > 0 ? (
+              <FinancialIndicatorMetricsTable rows={metricRows} isDark={isDark} />
+            ) : (
+              <div className={`px-6 pb-4 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                Nhóm chỉ số này chưa có dữ liệu trong kỳ đã chọn.
               </div>
-              <div className="my-2" />
-            </div>
-
-            <div className="px-6 pb-4">
-              {activeMetrics.map(metric => (
-                <div key={metric.key} className="flex justify-between items-center py-0.5">
-                  <div className={`flex-shrink-0 w-36 text-sm leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {metric.label}
-                  </div>
-                  <div className="flex gap-2 text-center">
-                    {visibleData.map(r => {
-                      const raw = metric.getValue(r);
-                      const display = raw === 0 ? '—' : (raw / BILLION).toFixed(1);
-                      return (
-                        <div
-                          key={r.id}
-                          className={`w-14 text-sm ${raw < 0 ? 'text-red-400' : isDark ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {display}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
           </>
         )}
       </div>

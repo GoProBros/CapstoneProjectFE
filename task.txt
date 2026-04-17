@@ -1,0 +1,96 @@
+thực hiện các yêu cầu sau
+- sử dụng thêm API '/api/v1/financial-reports/indicators' để lấy dữ liệu
+
+- dữ liệu từ API trả về sẽ được hiển thị tương ứng như sau: 
+{
+  "profitability": {
+    "grossMargin": { "label": "Biên LN gộp", "format": "percent" },
+    "operatingProfitMargin": { "label": "Biên LN hoạt động", "format": "percent" },
+    "netMargin": { "label": "Biên LN ròng", "format": "percent" },
+    "roe": { "label": "ROE", "format": "percent" },
+    "roa": { "label": "ROA", "format": "percent" },
+    "returnOnFixedAssets": { "label": "LN trên TSCĐ", "format": "percent" }
+  },
+
+  "liquidityAndSolvency": {
+    "currentRatio": { "label": "Thanh toán hiện hành", "format": "ratio" },
+    "quickRatio": { "label": "Thanh toán nhanh", "format": "ratio" },
+    "cashRatio": { "label": "Hệ số tiền mặt", "format": "ratio" },
+    "debtToEquity": { "label": "Nợ/Vốn chủ (D/E)", "format": "ratio" },
+    "debtRatio": { "label": "Nợ/Tổng tài sản", "format": "percent" },
+    "longTermDebtRatio": { "label": "Nợ dài hạn/Tài sản", "format": "percent" },
+    "interestCoverageRatio": { "label": "Khả năng trả lãi", "format": "ratio" },
+    "retainedEarningsToTotalAssets": { "label": "LN giữ lại/Tài sản", "format": "percent" }
+  },
+
+  "efficiency": {
+    "totalAssetTurnover": { "label": "Vòng quay tài sản", "format": "ratio" },
+    "inventoryTurnover": { "label": "Vòng quay tồn kho", "format": "ratio" }
+  },
+
+  "growth": {
+    "grossProfitGrowth": { "label": "Tăng trưởng LN gộp", "format": "percent_signed" },
+    "revenueGrowth": { "label": "Tăng trưởng doanh thu", "format": "percent_signed" }
+  },
+
+  "cashFlow": {
+    "operatingCashFlowToNetProfit": { "label": "Dòng tiền/LN ròng", "format": "ratio" }
+  },
+
+  "bankSpecific": {
+    "nim": { "label": "Biên lãi thuần (NIM)", "format": "percent" },
+    "nonInterestIncomeRatio": { "label": "Thu nhập ngoài lãi", "format": "percent" }
+  }
+}
+
+- thay thế các tab content cũ. trên UI sẽ chia thành các nhóm (tab) nội dung như sau:
+1. Sinh lời (Profitability)
+Ý nghĩa: Công ty kiếm tiền tốt không?
+Bao gồm:
+ROE
+ROA
+Biên LN gộp
+Biên LN hoạt động
+Biên LN ròng
+LN trên TSCĐ
+=> Đây là nhóm quan trọng nhất, nên đặt đầu
+2. Tăng trưởng (Growth)
+Ý nghĩa: Công ty có đang phát triển không?
+Bao gồm:
+Tăng trưởng doanh thu
+Tăng trưởng LN gộp
+(kèm label YoY / QoQ)
+=>Nên highlight bằng màu xanh / arrow ↑
+3. Sức khỏe tài chính (Financial Health)
+Ý nghĩa: Có rủi ro tài chính không?
+Bao gồm:
+D/E
+Nợ/Tài sản
+Nợ dài hạn/Tài sản
+Thanh toán hiện hành
+Thanh toán nhanh
+Hệ số tiền mặt
+Khả năng trả lãi
+=> Đây là nhóm “risk”
+4. Hiệu quả & Dòng tiền (Efficiency & Cash Flow)
+Ý nghĩa: Vận hành có hiệu quả và “tiền có thật không”?
+Bao gồm:
+Vòng quay tài sản
+Vòng quay tồn kho
+Dòng tiền/LN ròng
+=> Nhóm này giúp phát hiện:lợi nhuận ảo/doanh nghiệp vận hành kém
+
+- sử dụng các chỉ số sau để vẽ chart tượng trưng cho từng nhóm
+1.Sinh lời (Profitability): Line chart (multi-line)
+ROE
+Biên LN ròng (Net Margin)
+Biên LN gộp (Gross Margin)
+2.Tăng trưởng (Growth): Bar chart (grouped)
+Tăng trưởng doanh thu
+Tăng trưởng LN gộp
+3. Sức khỏe tài chính (Financial Health): line chart
+D/E (Debt to Equity)
+Current Ratio
+4.Hiệu quả & Dòng tiền (Efficiency & Cash Flow): Line chart (2 lines)
+Vòng quay tài sản
+Operating CF / Net Profit

@@ -522,7 +522,8 @@ export function useStockScreener() {
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedIndex(null);
-    hasLoadedDefaultSymbols.current = false;
+    // A manual filter action is in progress; prevent default loader from racing.
+    hasLoadedDefaultSymbols.current = true;
 
     try {
       await fetchAndSubscribeWithFilters({
@@ -652,7 +653,8 @@ export function useStockScreener() {
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedIndex(null);
-    hasLoadedDefaultSymbols.current = false;
+    // A manual filter action is in progress; prevent default loader from racing.
+    hasLoadedDefaultSymbols.current = true;
 
     try {
       // Use the shared helper so Exchange + SymbolType are automatically combined
@@ -687,7 +689,8 @@ export function useStockScreener() {
     setCurrentWatchListName('Danh mục của tôi');
     currentWatchListTickers.current.clear();
     setSelectedIndex(null);
-    hasLoadedDefaultSymbols.current = false;
+    // A manual filter action is in progress; prevent default loader from racing.
+    hasLoadedDefaultSymbols.current = true;
 
     try {
       await fetchAndSubscribeWithFilters({
@@ -717,13 +720,19 @@ export function useStockScreener() {
       hasLoadedDefaultSymbols.current = true;
       resetSymbolPagination();
       try {
+        const currentTickers = Array.from(marketData.keys());
+
         const source: ActiveSymbolSource = {
           mode: 'filter',
           exchange: DEFAULT_EXCHANGE,
           symbolType: null,
           sector: null,
         };
-        const firstPage = await fetchSymbolsPageBySource(source, 1);
+
+        const [firstPage] = await Promise.all([
+          fetchSymbolsPageBySource(source, 1),
+          currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
+        ]);
 
         activeSymbolSourceRef.current = source;
         const firstPageTriggerRow = getNextPrefetchTriggerRow(
@@ -744,8 +753,14 @@ export function useStockScreener() {
           return;
         }
 
-        // Set selectedExchange to HSX so the UI reflects the default selection
+        // Keep UI and state aligned with default HSX source.
+        setCurrentWatchListId(null);
+        setCurrentWatchListName('Danh mục của tôi');
+        currentWatchListTickers.current.clear();
         setSelectedExchange(DEFAULT_EXCHANGE);
+        setSelectedSymbolType(null);
+        setSelectedSector(null);
+        activeSectorIdRef.current = null;
         setSelectedIndex(null);
         await subscribeToSymbols(firstPage.tickers);
       } catch (error) {
@@ -755,7 +770,14 @@ export function useStockScreener() {
     };
 
     loadDefaultSymbols();
-  }, [fetchSymbolsPageBySource, isConnected, resetSymbolPagination, subscribeToSymbols]);
+  }, [
+    fetchSymbolsPageBySource,
+    isConnected,
+    marketData,
+    resetSymbolPagination,
+    subscribeToSymbols,
+    unsubscribeFromSymbols,
+  ]);
 
   /**
    * Global mouseup listener để detect khi user thả chuột sau khi drag ra ngoài grid

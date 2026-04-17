@@ -151,3 +151,18 @@ export async function resetPassword(email: string, resetToken: string, newPasswo
     throw error;
   }
 }
+
+/**
+ * Verify email using token from email link
+ */
+export async function verifyEmail(token: string): Promise<void> {
+  try {
+    const result = await post<null>(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+    if (!result.isSuccess) {
+      throw new Error(result.message || 'Xác thực email thất bại');
+    }
+  } catch (error) {
+    console.error('[AuthService] VerifyEmail error:', error);
+    throw error;
+  }
+}

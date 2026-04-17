@@ -206,6 +206,67 @@ export interface FinancialReport {
   updatedAt: string;
 }
 
+export interface ProfitabilityIndicators {
+  grossMargin?: number | null;
+  operatingProfitMargin?: number | null;
+  netMargin?: number | null;
+  roe?: number | null;
+  roa?: number | null;
+  returnOnFixedAssets?: number | null;
+}
+
+export interface LiquidityAndSolvencyIndicators {
+  currentRatio?: number | null;
+  quickRatio?: number | null;
+  cashRatio?: number | null;
+  debtToEquity?: number | null;
+  debtRatio?: number | null;
+  longTermDebtRatio?: number | null;
+  interestCoverageRatio?: number | null;
+  retainedEarningsToTotalAssets?: number | null;
+}
+
+export interface EfficiencyIndicators {
+  totalAssetTurnover?: number | null;
+  inventoryTurnover?: number | null;
+}
+
+export interface GrowthIndicators {
+  comparisonType?: string | null;
+  grossProfitGrowth?: number | null;
+  revenueGrowth?: number | null;
+}
+
+export interface CashFlowIndicators {
+  operatingCashFlowToNetProfit?: number | null;
+}
+
+export interface BankSpecificIndicators {
+  nim?: number | null;
+  nonInterestIncomeRatio?: number | null;
+}
+
+export interface FinancialReportIndicatorData {
+  profitability?: ProfitabilityIndicators;
+  liquidityAndSolvency?: LiquidityAndSolvencyIndicators;
+  efficiency?: EfficiencyIndicators;
+  growth?: GrowthIndicators;
+  cashFlow?: CashFlowIndicators;
+  bankSpecific?: BankSpecificIndicators;
+  calculatedAt?: string;
+}
+
+export interface FinancialReportIndicatorListItem {
+  id: string;
+  ticker: string;
+  year: number;
+  period: FinancialPeriodType;
+  status: FinancialReportStatus;
+  indicatorData?: FinancialReportIndicatorData;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ===========================
 // API Request/Response Types
 // ===========================
@@ -252,6 +313,15 @@ export interface FetchFinancialReportsListParams {
   period?: FinancialPeriodType;
   status?: FinancialReportStatus;
   year?: number;
+}
+
+export interface FetchFinancialReportIndicatorsListParams {
+  ticker?: string;
+  year?: number;
+  period?: FinancialPeriodType;
+  status?: FinancialReportStatus;
+  pageIndex?: number;
+  pageSize?: number;
 }
 
 // ===========================
