@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { userManagementService } from '@/services/userManagementService';
 import CreateStaffUserForm from './users/CreateStaffUserForm';
 import UserDetailModal from './users/UserDetailModal';
@@ -27,6 +28,7 @@ const isActiveStatus = (status: string): boolean => {
 };
 
 export default function UsersFeature() {
+    const { user } = useAuth();
     const [users, setUsers] = useState<UserManagementListItem[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [pageIndex, setPageIndex] = useState(1);
@@ -57,6 +59,11 @@ export default function UsersFeature() {
     });
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const normalizedRole = user?.role?.trim().toLowerCase() ?? '';
+    const isAdminRole =
+        normalizedRole === 'admin' ||
+        normalizedRole === 'administrator' ||
+        normalizedRole === 'quản trị viên';
 
     const selectedRoleFilter = useMemo<UserManagementRoleFilter | undefined>(() => {
         if (roleFilter === '1') {
@@ -209,30 +216,34 @@ export default function UsersFeature() {
                         Quản lý tài khoản người dùng, phân quyền và xem báo cáo hoạt động
                     </p>
                 </div>
-                <button
-                    onClick={() => {
-                        setIsCreateOpen(true);
-                        setCreateError(null);
-                        setCreateSuccess(null);
-                    }}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                >
-                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Thêm Người Dùng
-                </button>
+                {isAdminRole && (
+                    <button
+                        onClick={() => {
+                            setIsCreateOpen(true);
+                            setCreateError(null);
+                            setCreateSuccess(null);
+                        }}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    >
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Thêm Người Dùng
+                    </button>
+                )}
             </div>
 
-            <CreateStaffUserForm
-                isOpen={isCreateOpen}
-                newStaff={newStaff}
-                creating={creating}
-                createError={createError}
-                onClose={() => setIsCreateOpen(false)}
-                onSubmit={handleCreateStaff}
-                onChange={handleStaffFieldChange}
-            />
+            {isAdminRole && (
+                <CreateStaffUserForm
+                    isOpen={isCreateOpen}
+                    newStaff={newStaff}
+                    creating={creating}
+                    createError={createError}
+                    onClose={() => setIsCreateOpen(false)}
+                    onSubmit={handleCreateStaff}
+                    onChange={handleStaffFieldChange}
+                />
+            )}
 
             {createSuccess && (
                 <div className="px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import statisticService from "@/services/statisticService";
 import type { SubscriptionStatisticsDto } from "@/types/subscription";
 import Revenue from "@/components/staff/revenue/Revenue";
@@ -51,6 +52,7 @@ function formatTrend(value: number): TrendDisplay {
 }
 
 export default function RevenueFeature() {
+  const { user } = useAuth();
   const [statistics, setStatistics] = useState<SubscriptionStatisticsDto | null>(
     null
   );
@@ -133,6 +135,11 @@ export default function RevenueFeature() {
   const revenueTrend = formatTrend(latestRevenueGrowth);
   const revenuePerUser = activeUsers > 0 ? Math.round(totalRevenue / activeUsers) : 0;
   const topRevenuePackage = sortedVipPackageUsages[0];
+  const normalizedRole = user?.role?.trim().toLowerCase() ?? "";
+  const isAdminRole =
+    normalizedRole === "admin" ||
+    normalizedRole === "administrator" ||
+    normalizedRole === "quản trị viên";
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -165,7 +172,7 @@ export default function RevenueFeature() {
         isLoading={isLoading}
       />
 
-      <Subscription isLoading={isLoading} />
+      {isAdminRole && <Subscription isLoading={isLoading} />}
     </div>
   );
 }
