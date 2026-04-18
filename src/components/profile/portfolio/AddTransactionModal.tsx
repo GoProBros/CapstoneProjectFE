@@ -7,13 +7,12 @@ interface AddTransactionModalProps {
   isOpen: boolean;
   isSaving: boolean;
   error: string | null;
+  ticker: string;
   form: {
-    ticker: string;
     side: TransactionSideValue;
     quantity: string;
     price: string;
-    fee: string;
-    tax: string;
+    transactionDate: string;
     note: string;
   };
   onClose: () => void;
@@ -32,6 +31,7 @@ export function AddTransactionModal({
   isOpen,
   isSaving,
   error,
+  ticker,
   form,
   onClose,
   onSubmit,
@@ -72,31 +72,39 @@ export function AddTransactionModal({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Mã chứng khoán</span>
-            <input
-              value={form.ticker}
-              onChange={(event) => onFormChange('ticker', event.target.value)}
-              className={`mt-2 w-full bg-transparent text-sm ${textPrimary} outline-none`}
-              placeholder="VD: VCB"
-            />
-          </label>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row">
+            <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3 md:w-36 md:flex-shrink-0`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Ticker</span>
+              <p className={`mt-2 text-sm font-semibold ${textPrimary}`}>{ticker || '—'}</p>
+            </label>
 
-          <label className={`relative block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Loại giao dịch</span>
-            <select
-              value={form.side}
-              onChange={(event) => onFormChange('side', Number(event.target.value))}
-              className={`mt-2 w-full appearance-none bg-inherit pr-8 text-sm outline-none transition-all pl-2 ${textPrimary}`}
-            >
-              <option value={1}>Mua</option>
-              <option value={2}>Bán</option>
-            </select>
-            <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${textMuted}`}>▾</span>
-          </label>
+            <label className={`relative block rounded-xl border ${borderCls} ${fieldBg} p-3 md:flex-1`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Loại giao dịch</span>
+              <select
+                value={form.side}
+                onChange={(event) => onFormChange('side', Number(event.target.value))}
+                className={`mt-2 w-full appearance-none bg-inherit pr-8 text-sm outline-none transition-all pl-2 ${textPrimary}`}
+              >
+                <option value={1}>Mua</option>
+                <option value={2}>Bán</option>
+              </select>
+              <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${textMuted}`}>▾</span>
+            </label>
 
-          <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
+            <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3 md:flex-1`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Ngày giao dịch</span>
+              <input
+                type="datetime-local"
+                value={form.transactionDate}
+                onChange={(event) => onFormChange('transactionDate', event.target.value)}
+                className={`mt-2 w-full bg-transparent text-sm ${textPrimary} outline-none`}
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Khối lượng</span>
             <input
               value={form.quantity}
@@ -118,27 +126,7 @@ export function AddTransactionModal({
             />
           </label>
 
-          <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Phí sàn</span>
-            <input
-              value={form.fee}
-              onChange={(event) => onFormChange('fee', event.target.value)}
-              inputMode="decimal"
-              className={`mt-2 w-full bg-transparent text-sm ${textPrimary} outline-none`}
-              placeholder="0"
-            />
-          </label>
-
-          <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Thuế</span>
-            <input
-              value={form.tax}
-              onChange={(event) => onFormChange('tax', event.target.value)}
-              inputMode="decimal"
-              className={`mt-2 w-full bg-transparent text-sm ${textPrimary} outline-none`}
-              placeholder="0"
-            />
-          </label>
+          </div>
         </div>
 
         <label className={`mt-4 block rounded-xl border ${borderCls} ${fieldBg} p-3`}>

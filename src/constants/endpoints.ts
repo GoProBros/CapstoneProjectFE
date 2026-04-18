@@ -159,6 +159,7 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/portfolios',
     BY_ID: (id: number) => `/api/v1/portfolios/${id}`,
     TRANSACTIONS: (portfolioId: number) => `/api/v1/portfolios/${portfolioId}/transactions`,
+    INVESTMENT_CAPITAL: '/api/v1/portfolios/investment-capital',
   },
 
   // User Management endpoints
