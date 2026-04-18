@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
-import { getPaymentStatus, syncMomoPayment, waitForPaymentCompletion } from '@/services/paymentService';
+import { getLatestMyTransaction, getPaymentStatus, syncPayment, waitForPaymentCompletion } from '@/services/paymentService';
 import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
-import type { PaymentProviderValue } from '@/types/payment';
+import type { PaymentProviderValue, PaymentTransactionDto } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
 import { formatPrice, levelOrderLabel } from './helpers';
 import { ModulePreviewPanel } from './ModulePreviewPanel';
@@ -71,6 +71,19 @@ function getPayOSPendingFromQuery(): PendingPaymentPayload | null {
     };
 }
 
+function getPendingFromLatestTransaction(
+    latestTransaction: PaymentTransactionDto | null,
+): PendingPaymentPayload | null {
+    if (!latestTransaction || !isPaymentProviderValue(latestTransaction.paymentProvider)) {
+        return null;
+    }
+
+    return {
+        orderCode: latestTransaction.orderCode,
+        provider: latestTransaction.paymentProvider,
+    };
+}
+
 export function ProfileSubscriptionTab() {
     const PREVIEW_POPUP_WIDTH = 340;
     const PREVIEW_POPUP_HEIGHT = 320;
@@ -132,36 +145,45 @@ export function ProfileSubscriptionTab() {
 
             // If returning from a payment gateway, sync the payment status first
             const pendingFromSession = parsePendingPayment(sessionStorage.getItem('pendingPayment'));
-            const pending = pendingFromSession ?? getPayOSPendingFromQuery();
+            const pendingFromQuery = getPayOSPendingFromQuery();
+            const latestTransaction = await getLatestMyTransaction().catch(err => {
+                console.error('[ProfileSubscriptionTab] getLatestMyTransaction error:', err);
+                return null;
+            });
+            const pendingFromLatestTransaction = getPendingFromLatestTransaction(latestTransaction);
+
+            const pending = pendingFromLatestTransaction ?? pendingFromSession ?? pendingFromQuery;
 
             if (pending) {
                 try {
-                    if (pending.provider === PaymentProviderType.Momo) {
-                        await syncMomoPayment(pending.orderCode).catch(err =>
-                            console.error('[ProfileSubscriptionTab] MoMo sync error:', err),
-                        );
+                    await syncPayment(pending.orderCode).catch(err => {
+                        console.error('[ProfileSubscriptionTab] Payment sync error:', err);
+                    });
 
-                        await getPaymentStatus(pending.orderCode).catch(err =>
-                            console.error('[ProfileSubscriptionTab] MoMo status check error:', err),
-                        );
+                    let statusAfterSync = await getPaymentStatus(pending.orderCode).catch(err => {
+                        console.error('[ProfileSubscriptionTab] Payment status check error:', err);
+                        return null;
+                    });
 
-                        if (pendingFromSession) {
-                            sessionStorage.removeItem('pendingPayment');
-                        }
-                    } else {
-                        // PayOS business logic is finalized by backend webhook (server-to-server).
-                        // Frontend only polls transaction status after redirect.
-                        const payOSStatus = await waitForPaymentCompletion(pending.orderCode, {
+                    if (pending.provider === PaymentProviderType.PayOS &&
+                        statusAfterSync?.status === PaymentTransactionStatus.Pending) {
+                        statusAfterSync = await waitForPaymentCompletion(pending.orderCode, {
                             timeoutMs: 30000,
                             pollIntervalMs: 2000,
                         }).catch(err => {
-                            console.error('[ProfileSubscriptionTab] PayOS status check error:', err);
+                            console.error('[ProfileSubscriptionTab] PayOS status polling error:', err);
                             return null;
                         });
+                    }
 
-                        if (pendingFromSession && payOSStatus && payOSStatus.status !== PaymentTransactionStatus.Pending) {
-                            sessionStorage.removeItem('pendingPayment');
-                        }
+                    const hasFinalizedStatus = statusAfterSync && statusAfterSync.status !== PaymentTransactionStatus.Pending;
+                    const isStalePendingOrder =
+                        !!pendingFromSession &&
+                        !!pendingFromLatestTransaction &&
+                        pendingFromSession.orderCode !== pendingFromLatestTransaction.orderCode;
+
+                    if (pendingFromSession && (hasFinalizedStatus || isStalePendingOrder)) {
+                        sessionStorage.removeItem('pendingPayment');
                     }
                 } catch {
                     // ignore malformed data

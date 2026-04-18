@@ -9,6 +9,32 @@ import {
 } from '@/types/payment';
 import type { PaginatedData } from '@/types';
 
+interface BackendPaginatedData<T> {
+  items?: T[];
+  pageIndex?: number;
+  totalPages?: number;
+  totalCount?: number;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
+  Items?: T[];
+  PageIndex?: number;
+  TotalPages?: number;
+  TotalCount?: number;
+  HasPreviousPage?: boolean;
+  HasNextPage?: boolean;
+}
+
+function normalizePaginatedData<T>(payload: BackendPaginatedData<T>): PaginatedData<T> {
+  return {
+    items: payload.items ?? payload.Items ?? [],
+    pageIndex: payload.pageIndex ?? payload.PageIndex ?? 1,
+    totalPages: payload.totalPages ?? payload.TotalPages ?? 1,
+    totalCount: payload.totalCount ?? payload.TotalCount ?? 0,
+    hasPreviousPage: payload.hasPreviousPage ?? payload.HasPreviousPage ?? false,
+    hasNextPage: payload.hasNextPage ?? payload.HasNextPage ?? false,
+  };
+}
+
 /**
  * Create a payment link for a subscription
  * @param subscriptionId - The subscription package ID
@@ -30,11 +56,17 @@ export async function createPaymentLink(
 }
 
 /**
- * Manually sync a Momo payment (useful in sandbox where IPN may not fire).
- * On success, the backend activates the subscription.
+ * Manually sync payment status by order code.
+ */
+export async function syncPayment(orderCode: number): Promise<void> {
+  await post(API_ENDPOINTS.PAYMENTS.SYNC(orderCode), {});
+}
+
+/**
+ * Backward-compatible wrapper.
  */
 export async function syncMomoPayment(orderCode: number): Promise<void> {
-  await post(API_ENDPOINTS.PAYMENTS.MOMO_SYNC(orderCode), {});
+  await syncPayment(orderCode);
 }
 
 /**
@@ -43,7 +75,7 @@ export async function syncMomoPayment(orderCode: number): Promise<void> {
  */
 export async function getPaymentStatus(orderCode: number): Promise<PaymentStatusResponse> {
   const result = await get<PaymentStatusResponse>(API_ENDPOINTS.PAYMENTS.STATUS(orderCode));
-  if (!result.data) {
+  if (!result.isSuccess || !result.data) {
     throw new Error(result.message || 'Không lấy được trạng thái thanh toán');
   }
   return result.data;
@@ -71,15 +103,24 @@ export async function getMyTransactions(
     params.set('PaymentProvider', String(query.paymentProvider));
   }
 
-  const result = await get<PaginatedData<PaymentTransactionDto>>(
+  const result = await get<BackendPaginatedData<PaymentTransactionDto>>(
     `${API_ENDPOINTS.PAYMENTS.MY_TRANSACTIONS}?${params.toString()}`,
   );
 
-  if (!result.data) {
+  if (!result.isSuccess || !result.data) {
     throw new Error(result.message || 'Không lấy được lịch sử giao dịch');
   }
 
-  return result.data;
+  return normalizePaginatedData(result.data);
+}
+
+export async function getLatestMyTransaction(): Promise<PaymentTransactionDto | null> {
+  const paginated = await getMyTransactions({
+    pageIndex: 1,
+    pageSize: 1,
+  });
+
+  return paginated.items[0] ?? null;
 }
 
 interface WaitForPaymentCompletionOptions {

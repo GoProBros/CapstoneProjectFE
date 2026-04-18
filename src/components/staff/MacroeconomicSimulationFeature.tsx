@@ -133,7 +133,9 @@ function normalizeRecordDate(value: string | undefined): string {
   return value.slice(0, 10);
 }
 
-function mapApiDataToForm(data: MacroeconomicData): UpsertMacroeconomicDataRequest {
+function mapApiDataToForm(
+  data: MacroeconomicData,
+): UpsertMacroeconomicDataRequest {
   return {
     recordDate: normalizeRecordDate(data.recordDate),
     govBondsReturn: Number(data.govBondsReturn),
@@ -171,10 +173,13 @@ export default function MacroeconomicSimulationFeature() {
     normalizedRole === "quản trị viên";
 
   const configByKey = useMemo(() => {
-    return FIELD_CONFIGS.reduce<Record<FieldKey, FieldConfig>>((accumulator, config) => {
-      accumulator[config.key] = config;
-      return accumulator;
-    }, {} as Record<FieldKey, FieldConfig>);
+    return FIELD_CONFIGS.reduce<Record<FieldKey, FieldConfig>>(
+      (accumulator, config) => {
+        accumulator[config.key] = config;
+        return accumulator;
+      },
+      {} as Record<FieldKey, FieldConfig>,
+    );
   }, []);
 
   const isDirty = useMemo(() => {
@@ -207,7 +212,9 @@ export default function MacroeconomicSimulationFeature() {
       });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Không thể tải dữ liệu kinh tế vĩ mô";
+        error instanceof Error
+          ? error.message
+          : "Không thể tải dữ liệu kinh tế vĩ mô";
       setMessage({
         tone: "error",
         text: errorMessage,
@@ -253,7 +260,8 @@ export default function MacroeconomicSimulationFeature() {
       setIsUpdating(true);
       setMessage(null);
 
-      const updatedData = await macroeconomicDataService.upsertMacroeconomicData(formValues);
+      const updatedData =
+        await macroeconomicDataService.upsertMacroeconomicData(formValues);
       const mappedData = mapApiDataToForm(updatedData);
       setFormValues(mappedData);
       setBaselineValues(mappedData);
@@ -263,7 +271,9 @@ export default function MacroeconomicSimulationFeature() {
       });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Không thể cập nhật dữ liệu kinh tế vĩ mô";
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật dữ liệu kinh tế vĩ mô";
       setMessage({
         tone: "error",
         text: errorMessage,
@@ -289,7 +299,8 @@ export default function MacroeconomicSimulationFeature() {
             Mô phỏng vĩ mô (DEMO)
           </h2>
           <p className="text-slate-500 dark:text-slate-400 max-w-3xl">
-            Tinh chỉnh nhanh dữ liệu kinh tế vĩ mô bằng thanh kéo và ô nhập số, sau đó cập nhật trực tiếp vào hệ thống để phục vụ mục đích demo.
+            Tinh chỉnh nhanh dữ liệu kinh tế vĩ mô bằng thanh kéo và ô nhập số,
+            sau đó cập nhật trực tiếp vào hệ thống để phục vụ mục đích demo.
           </p>
         </div>
 
@@ -358,11 +369,17 @@ export default function MacroeconomicSimulationFeature() {
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Min: {formatNumericValue(field.min, field.step)}
-                    {field.unit ? ` ${field.unit}` : ""} | Max: {formatNumericValue(field.max, field.step)}
+                    {field.unit ? ` ${field.unit}` : ""} | Max:{" "}
+                    {formatNumericValue(field.max, field.step)}
                     {field.unit ? ` ${field.unit}` : ""}
                   </p>
                 </div>
-
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200 dark:hover:bg-blue-900/50"
+                >
+                  Lấy dữ liệu
+                </button>
                 <div className="flex-1 space-y-3">
                   <input
                     type="range"
@@ -370,13 +387,15 @@ export default function MacroeconomicSimulationFeature() {
                     max={field.max}
                     step={field.step}
                     value={formValues[field.key]}
-                    onChange={(event) => updateNumericField(field.key, event.target.value)}
+                    onChange={(event) =>
+                      updateNumericField(field.key, event.target.value)
+                    }
                     className="w-full h-2 appearance-none rounded-lg cursor-pointer"
                     style={{
                       background: sliderBackground(
                         formValues[field.key],
                         field.min,
-                        field.max
+                        field.max,
                       ),
                     }}
                   />

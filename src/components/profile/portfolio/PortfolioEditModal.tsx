@@ -7,6 +7,7 @@ interface PortfolioEditModalProps {
   isSaving: boolean;
   error: string | null;
   form: {
+    ticker: string;
     name: string;
     description: string;
     status: "1" | "0";
@@ -68,6 +69,15 @@ export function PortfolioEditModal({
         )}
 
         <div className="space-y-4">
+          <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Ticker</span>
+            <input
+              value={form.ticker}
+              onChange={(event) => onFormChange('ticker', event.target.value)}
+              className={`mt-2 w-full bg-transparent text-sm ${textPrimary} outline-none`}
+            />
+          </label>
+
           <label className={`block rounded-xl border ${borderCls} ${fieldBg} p-3`}>
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Tên danh mục</span>
             <input
