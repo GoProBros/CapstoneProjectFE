@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { PortfolioDto } from '@/types/portfolio';
-import { getStatusLabel, formatDateTime } from '../helpers';
+import { formatCurrencyVnd } from '../helpers';
 
 interface PortfolioListProps {
   portfolios: PortfolioDto[];
@@ -31,6 +31,9 @@ export function PortfolioList({
   textMuted,
   hoverBg,
 }: PortfolioListProps) {
+  const formatQuantity = (value: number): string =>
+    new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
+
   return (
     <div className={`rounded-2xl border ${borderCls} ${bgCard} p-4 md:p-5 shadow-sm`}>
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -42,10 +45,10 @@ export function PortfolioList({
           <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
             <thead className={`${bgSub} text-xs uppercase tracking-wider ${textMuted}`}>
               <tr>
-                <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Tên danh mục</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3">Ngày tạo</th>
+                <th className="px-4 py-3">Mã chứng khoán</th>
+                <th className="px-4 py-3">SL còn lại</th>
+                <th className="px-4 py-3">Tổng lợi nhuận</th>
                 <th className="px-4 py-3 text-right">Hành động</th>
               </tr>
             </thead>
@@ -65,18 +68,28 @@ export function PortfolioList({
               ) : (
                 portfolios.map((portfolio) => (
                   <tr key={portfolio.id} className={`transition-colors ${hoverBg}`}>
-                    <td className={`px-4 py-3 font-semibold ${textPrimary}`}>{portfolio.id}</td>
-                    <td className={`px-4 py-3 ${textPrimary}`}>{portfolio.name}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                          portfolio.status === 1 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'
-                        }`}
+                    <td className={`px-4 py-3 ${textPrimary}`}>
+                      <button
+                        type="button"
+                        onClick={() => onPortfolioClick(portfolio)}
+                        className="font-semibold hover:underline"
                       >
-                        {getStatusLabel(portfolio.status)}
-                      </span>
+                        {portfolio.name?.trim() || `Danh mục #${portfolio.id}`}
+                      </button>
                     </td>
-                    <td className={`px-4 py-3 ${textSecondary}`}>{formatDateTime(portfolio.createdAt)}</td>
+                    <td className={`px-4 py-3 font-semibold ${textPrimary}`}>{portfolio.ticker || '—'}</td>
+                    <td className={`px-4 py-3 ${textPrimary}`}>{formatQuantity(portfolio.summary.remainingQuantity)}</td>
+                    <td
+                      className={`px-4 py-3 font-semibold ${
+                        portfolio.overall.totalPnL > 0
+                          ? 'text-emerald-500'
+                          : portfolio.overall.totalPnL < 0
+                            ? 'text-red-500'
+                            : textPrimary
+                      }`}
+                    >
+                      {formatCurrencyVnd(portfolio.overall.totalPnL)}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"

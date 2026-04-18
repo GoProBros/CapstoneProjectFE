@@ -144,6 +144,7 @@ export const API_ENDPOINTS = {
     CREATE_LINK: '/api/v1/payments/create-link',
     STATUS: (orderCode: number) => `/api/v1/payments/status/${orderCode}`,
     CANCEL: (orderCode: number) => `/api/v1/payments/cancel/${orderCode}`,
+    SYNC: (orderCode: number) => `/api/v1/payments/sync/${orderCode}`,
     MOMO_SYNC: (orderCode: number) => `/api/v1/payments/momo/sync/${orderCode}`,
     MY_TRANSACTIONS: '/api/v1/payments/me/transactions',
   },
@@ -158,6 +159,7 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/portfolios',
     BY_ID: (id: number) => `/api/v1/portfolios/${id}`,
     TRANSACTIONS: (portfolioId: number) => `/api/v1/portfolios/${portfolioId}/transactions`,
+    INVESTMENT_CAPITAL: '/api/v1/portfolios/investment-capital',
   },
 
   // User Management endpoints

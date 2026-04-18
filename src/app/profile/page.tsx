@@ -20,16 +20,6 @@ import { useProfileTheme } from "@/components/profile/useProfileTheme";
 
 type ProfileTab = "account" | "subscription" | "portfolio" | "transactions" | "alerts";
 
-function getNameInitials(name: string | undefined): string {
-  if (!name) return "U";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "U";
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-}
-
 export default function ProfilePage() {
   const router = useRouter();
   const { user: authUser, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -159,7 +149,7 @@ export default function ProfilePage() {
     : "bg-gradient-to-r from-gray-900 via-gray-800 to-green-700";
 
   useEffect(() => {
-    if (!canViewRestrictedTabs && (activeTab === "transactions" || activeTab === "alerts")) {
+    if (!canViewRestrictedTabs && (activeTab === "portfolio" || activeTab === "transactions" || activeTab === "alerts")) {
       setActiveTab("account");
     }
   }, [activeTab, canViewRestrictedTabs]);
@@ -320,16 +310,18 @@ export default function ProfilePage() {
               Thành viên
             </button>
 
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
-                activeTab === "portfolio"
-                  ? "bg-green-500 text-white"
-                  : `${bgCard} ${textSecondary}`
-              }`}
-            >
-              Danh mục
-            </button>
+            {canViewRestrictedTabs && (
+              <button
+                onClick={() => setActiveTab("portfolio")}
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === "portfolio"
+                    ? "bg-green-500 text-white"
+                    : `${bgCard} ${textSecondary}`
+                }`}
+              >
+                Danh mục
+              </button>
+            )}
 
             {canViewRestrictedTabs && (
               <button
@@ -520,7 +512,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {activeTab === "portfolio" && (
+              {activeTab === "portfolio" && canViewRestrictedTabs && (
                 <div
                   className={`rounded-2xl border ${borderCls} ${bgCard} p-6 shadow-sm md:p-8`}
                 >
