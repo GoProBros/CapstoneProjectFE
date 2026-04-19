@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchSymbolsPaginated, searchSymbols } from '@/services/symbolService';
+import { fetchSymbolsPaginated, searchSymbols } from '@/services/market/symbolService';
 import {
   createAlert,
   getAlertById,
   getMyAlerts,
   toggleAlertStatus,
-} from '@/services/alertService';
+} from '@/services/notifications/alertService';
 import type { AlertDto, AlertQueryParams, AlertTypeValue, AlertConditionValue } from '@/types/alert';
 import type { SymbolData } from '@/types/symbol';
 import { canViewProfileTransactions } from './helpers';

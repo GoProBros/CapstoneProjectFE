@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyTransactions } from '@/services/paymentService';
+import { getMyTransactions } from '@/services/admin/paymentService';
 import {
     PaymentProviderType,
     PaymentTransactionStatus,

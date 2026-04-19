@@ -26,7 +26,7 @@ import SymbolTypeFilter from "./StockScreener/SymbolTypeFilter";
 import IndexFilter from "./StockScreener/IndexFilter";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Toast, { ToastType } from "@/components/ui/Toast";
-import { fetchSymbolsByExchange, fetchSymbols } from "@/services/symbolService";
+import { fetchSymbolsByExchange, fetchSymbols } from "@/services/market/symbolService";
 import type { ExchangeCode, SymbolType } from "@/types/symbol";
 import { SaveLayoutModal, LayoutSelector } from "@/components/dashboard/layout";
 import WatchListSelector from "@/components/dashboard/layout/WatchListSelector";
@@ -36,7 +36,7 @@ import type {
   ColumnConfig,
 } from "@/types/layout";
 import type { WatchListSummary, WatchListDetail } from "@/types/watchList";
-import * as layoutService from "@/services/layoutService";
+import * as layoutService from "@/services/workspace/layoutService";
 import { useSelectedSymbolStore } from "@/stores/selectedSymbolStore";
 import { watchListService } from "@/services/watchListService";
 import { useStockScreener } from "@/hooks/useStockScreener";

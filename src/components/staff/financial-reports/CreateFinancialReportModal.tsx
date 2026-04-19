@@ -6,8 +6,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   createFinancialReport,
   fetchSpecificFinancialReportData,
-} from "@/services/financialReportService";
-import fileService from "@/services/fileService";
+} from "@/services/financial/financialReportService";
+import fileService from "@/services/files/fileService";
 import { FileCategory } from "@/types/file";
 import { FinancialPeriodType } from "@/types/financialReport";
 import {

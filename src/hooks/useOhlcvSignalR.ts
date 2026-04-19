@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import OhlcvSignalRService, { OhlcvCandle } from '@/services/ohlcvSignalRService';
+import OhlcvSignalRService, { OhlcvCandle } from '@/services/market/ohlcvSignalRService';
 import * as signalR from '@microsoft/signalr';
 
 interface UseOhlcvSignalROptions {

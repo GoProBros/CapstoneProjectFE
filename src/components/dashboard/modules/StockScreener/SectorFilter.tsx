@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSectorStore } from '@/stores/sectorStore';
-import { getSectors } from '@/services/sectorService';
+import { getSectors } from '@/services/market/sectorService';
 import type { Sector } from '@/types/sector';
 
 interface SectorFilterProps {

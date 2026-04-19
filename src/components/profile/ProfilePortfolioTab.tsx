@@ -9,7 +9,7 @@ import {
   getPortfolios,
   updateMyInvestmentCapital,
   updatePortfolio,
-} from "@/services/portfolioService";
+} from "@/services/admin/portfolioService";
 import { PortfolioOverallFilterType } from "@/types/portfolio";
 import type {
   PortfolioDto,

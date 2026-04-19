@@ -5,8 +5,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { HeatmapData, HeatmapFilters } from '@/types/heatmap';
-import { getHeatmapSignalRService } from '@/services/heatmapSignalRService';
-import { heatmapService } from '@/services/heatmapService';
+import { getHeatmapSignalRService } from '@/services/market/heatmapSignalRService';
+import { heatmapService } from '@/services/market/heatmapService';
 
 interface UseHeatmapSignalROptions {
   filters?: HeatmapFilters;

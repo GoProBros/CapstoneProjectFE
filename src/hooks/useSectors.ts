@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useSectorStore } from '@/stores/sectorStore';
-import sectorService from '@/services/sectorService';
+import sectorService from '@/services/market/sectorService';
 import type { GetSectorsParams } from '@/types';
 
 export const useSectors = () => {

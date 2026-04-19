@@ -21,7 +21,7 @@ import React, {
   ReactNode,
 } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { getChatSessions, getChatMessages } from '@/services/chatService';
+import { getChatSessions, getChatMessages } from '@/services/chat/chatService';
 import { getAuthStorageItem } from '@/lib/authStorage';
 
 // ─── Types ───────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fileService } from '@/services/fileService';
+import { fileService } from '@/services/files/fileService';
 import { FileCategory } from '@/types/file';
 
 interface UseAvatarBlobOptions {

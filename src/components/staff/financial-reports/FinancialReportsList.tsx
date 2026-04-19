@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import fileService from '@/services/fileService';
+import fileService from '@/services/files/fileService';
 import { FileCategory } from '@/types/file';
 import { FinancialReport } from '@/types/financialReport';
 import { formatDateTime, getPeriodLabel, getStatusClass, getStatusLabel } from './reportPresentation';

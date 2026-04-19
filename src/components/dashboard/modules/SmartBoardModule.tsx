@@ -12,9 +12,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSignalR } from '@/contexts/SignalRContext';
 import SmartBoardFilterBar from '@/components/dashboard/modules/SmartBoard/SmartBoardFilterBar';
-import { smartBoardService } from '@/services/smartBoardService';
+import { smartBoardService } from '@/services/market/smartBoardService';
 import { watchListService } from '@/services/watchListService';
-import { getIndexConstituents } from '@/services/marketIndexService';
+import { getIndexConstituents } from '@/services/market/marketIndexService';
 import { SMART_BOARD_LS_FILTERS, SMART_BOARD_VOLUME_THRESHOLD } from '@/constants/smartBoard';
 import type { SmartBoardFilters, VolumePeriod } from '@/types/smartBoard';
 import type { HeatmapItem } from '@/types/heatmap';

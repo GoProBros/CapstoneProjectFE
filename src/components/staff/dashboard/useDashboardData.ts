@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import analysisReportService from "@/services/analysisReportService";
-import { fetchRecentFinancialReports } from "@/services/financialReportService";
-import statisticService from "@/services/statisticService";
+import analysisReportService from "@/services/reports/analysisReportService";
+import { fetchRecentFinancialReports } from "@/services/financial/financialReportService";
+import statisticService from "@/services/admin/statisticService";
 import type { AnalysisReport, AnalysisReportCategory } from "@/types/analysisReport";
 import type { FinancialReport } from "@/types/financialReport";
 import type {

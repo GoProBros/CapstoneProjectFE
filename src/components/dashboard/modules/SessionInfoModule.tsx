@@ -6,9 +6,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSignalR } from '@/contexts/SignalRContext';
-import SignalRService from '@/services/signalRService';
-import type { PriceDepthDto } from '@/services/signalRService';
-import { searchSymbols } from '@/services/symbolService';
+import SignalRService from '@/services/market/signalRService';
+import type { PriceDepthDto } from '@/services/market/signalRService';
+import { searchSymbols } from '@/services/market/symbolService';
 import type { SymbolSearchResultDto } from '@/types/symbol';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { User } from '@/types/auth';
-import { getTelegramStartLink } from '@/services/telegramService';
+import { getTelegramStartLink } from '@/services/notifications/telegramService';
 import { ResetPasswordSection } from './ResetPasswordSection';
 import { useProfileTheme } from './useProfileTheme';
 

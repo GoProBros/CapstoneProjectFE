@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import analysisReportService from '@/services/analysisReportService';
+import analysisReportService from '@/services/reports/analysisReportService';
 import type {
     AnalysisReportCategory,
     CreateAnalysisReportCategoryRequest,

@@ -21,7 +21,7 @@ import {
   type DirectSessionListItem,
   type DirectMessage,
   type ChatMessageSimple,
-} from '@/services/chatService';
+} from '@/services/chat/chatService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

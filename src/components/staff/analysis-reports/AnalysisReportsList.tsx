@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import analysisReportService from '@/services/analysisReportService';
+import analysisReportService from '@/services/reports/analysisReportService';
 import UploadFileModal from '@/components/ui/UploadFileModal';
-import { getSectors } from '@/services/sectorService';
-import { fileService } from '@/services/fileService';
+import { getSectors } from '@/services/market/sectorService';
+import { fileService } from '@/services/files/fileService';
 import type {
     AnalysisReport,
     AnalysisReportSource,

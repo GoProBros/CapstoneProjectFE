@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { FilePlus } from 'lucide-react';
-import { fetchFinancialReportsList } from '@/services/financialReportService';
+import { fetchFinancialReportsList } from '@/services/financial/financialReportService';
 import { FinancialPeriodType, FinancialReport, FinancialReportStatus } from '@/types/financialReport';
 import {
     CreateFinancialReportModal,

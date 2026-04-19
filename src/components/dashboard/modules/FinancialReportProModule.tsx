@@ -13,7 +13,7 @@ import { SaveLayoutModal } from '@/components/dashboard/layout';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useModule } from '@/contexts/ModuleContext';
 import { useFinancialReportQuery } from '@/hooks/useFinancialReportQuery';
-import * as layoutService from '@/services/layoutService';
+import * as layoutService from '@/services/workspace/layoutService';
 import {
   FINANCIAL_COLUMN_STRUCTURE,
   useFinancialReportColumnStore,

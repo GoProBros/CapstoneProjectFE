@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useIndexSignalR } from '@/hooks/useIndexSignalR';
 import IndexMiniChart from './IndexModule/IndexMiniChart';
-import { getMarketIndices } from '@/services/marketIndexService';
+import { getMarketIndices } from '@/services/market/marketIndexService';
 import type { LiveIndexData, IndexHistoryPoint } from '@/types/marketIndex';
 
 const DEFAULT_CHART = ['VNINDEX', 'VN30', 'HNX30', 'HNXINDEX'];

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import statisticService from "@/services/statisticService";
+import statisticService from "@/services/admin/statisticService";
 import type { SubscriptionStatisticsDto } from "@/types/subscription";
 import Revenue from "@/components/staff/revenue/Revenue";
 import Subscription from "@/components/staff/revenue/Subscription";

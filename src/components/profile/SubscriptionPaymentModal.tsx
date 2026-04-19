@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import type { SubscriptionDto } from '@/types/subscription';
 import { PaymentProviderType } from '@/types/payment';
 import type { PaymentProviderValue } from '@/types/payment';
-import { createPaymentLink } from '@/services/paymentService';
+import { createPaymentLink } from '@/services/admin/paymentService';
 import { formatPrice } from './helpers';
 import { Spinner } from './Spinner';
 import { useProfileTheme } from './useProfileTheme';

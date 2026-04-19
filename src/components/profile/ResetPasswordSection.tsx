@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { forgotPassword, resetPassword } from "@/services/authService";
+import { forgotPassword, resetPassword } from "@/services/auth/authService";
 import { Spinner } from "./Spinner";
 import { useProfileTheme } from "./useProfileTheme";
 

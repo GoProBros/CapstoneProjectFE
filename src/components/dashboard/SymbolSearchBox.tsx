@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, X, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { searchSymbols } from '@/services/symbolService';
+import { searchSymbols } from '@/services/market/symbolService';
 import { SymbolSearchResultDto } from '@/types/symbol';
 
 interface SymbolSearchBoxProps {

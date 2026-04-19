@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubscriptions, getMySubscription } from '@/services/subscriptionService';
-import { getLatestMyTransaction, getPaymentStatus, syncPayment, waitForPaymentCompletion } from '@/services/paymentService';
+import { getSubscriptions, getMySubscription } from '@/services/admin/subscriptionService';
+import { getLatestMyTransaction, getPaymentStatus, syncPayment, waitForPaymentCompletion } from '@/services/admin/paymentService';
 import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
 import type { PaymentProviderValue, PaymentTransactionDto } from '@/types/payment';
 import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';

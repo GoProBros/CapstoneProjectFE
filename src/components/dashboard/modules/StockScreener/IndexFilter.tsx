@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, TrendingUp } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getMarketIndices } from "@/services/marketIndexService";
+import { getMarketIndices } from "@/services/market/marketIndexService";
 import type { MarketIndex } from "@/types/marketIndex";
 
 export type { MarketIndex };

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { userManagementService } from '@/services/userManagementService';
+import { userManagementService } from '@/services/admin/userManagementService';
 import CreateStaffUserForm from './users/CreateStaffUserForm';
 import UserDetailModal from './users/UserDetailModal';
 import UsersTable from './users/UsersTable';

@@ -5,8 +5,8 @@ import { CheckCircle2, Download, RefreshCw, Upload, X } from 'lucide-react';
 import {
   fetchFinancialReportById,
   updateFinancialReport,
-} from '@/services/financialReportService';
-import fileService from '@/services/fileService';
+} from '@/services/financial/financialReportService';
+import fileService from '@/services/files/fileService';
 import { FileCategory } from '@/types/file';
 import { FinancialReport } from '@/types/financialReport';
 import { formatDateTime, getPeriodLabel, getStatusClass, getStatusLabel } from './reportPresentation';

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
-import analysisReportService from '@/services/analysisReportService';
-import { fileService } from '@/services/fileService';
+import analysisReportService from '@/services/reports/analysisReportService';
+import { fileService } from '@/services/files/fileService';
 import type { AnalysisReport, AnalysisReportSource, AnalysisReportCategory } from '@/types/analysisReport';
 import { FileCategory } from '@/types/file';
 

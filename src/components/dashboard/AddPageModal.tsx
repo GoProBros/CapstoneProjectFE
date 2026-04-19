@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { LayoutGrid, Save, AlertTriangle, X } from 'lucide-react';
-import * as workspaceService from '@/services/workspaceService';
+import * as workspaceService from '@/services/workspace/workspaceService';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 interface AddPageModalProps {

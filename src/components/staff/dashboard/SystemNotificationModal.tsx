@@ -10,8 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { sendSystemNotification } from "@/services/chatService";
-import { userManagementService } from "@/services/userManagementService";
+import { sendSystemNotification } from "@/services/chat/chatService";
+import { userManagementService } from "@/services/admin/userManagementService";
 import type { UserManagementListItem } from "@/types/userManagement";
 import SystemNotificationEditor from "@/components/staff/dashboard/SystemNotificationEditor";
 import {

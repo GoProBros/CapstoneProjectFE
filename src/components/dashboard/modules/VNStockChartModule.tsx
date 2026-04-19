@@ -7,8 +7,8 @@ import { useSignalR } from '@/contexts/SignalRContext';
 import { init, dispose, CandleType, getSupportedOverlays } from 'klinecharts';
 import type { Chart, KLineData, IndicatorCreate } from 'klinecharts';
 import { TrendingUp, TrendingDown, Maximize2, Settings, Download, ZoomIn, ZoomOut, BarChart3, LineChart as LineChartIcon, CandlestickChart, Clock, Calendar, Activity, Minus, TrendingUpIcon, Circle, Square, Type, ArrowRight, Edit3, Triangle, Trash2, Move, SplitSquareVertical, Pencil, MousePointer2, Crosshair, Search, X } from 'lucide-react';
-import { getAllTickers, fetchSymbols } from '@/services/symbolService';
-import ohlcvService from '@/services/ohlcvService';
+import { getAllTickers, fetchSymbols } from '@/services/market/symbolService';
+import ohlcvService from '@/services/market/ohlcvService';
 import type { SymbolData } from '@/types/symbol';
 import { useOhlcvSignalR } from '@/hooks/useOhlcvSignalR';
 

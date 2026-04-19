@@ -12,7 +12,7 @@ import FinancialIndicatorMetricsTable, {
 } from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorMetricsTable';
 import FinancialIndicatorPeriodNavigator from '@/components/dashboard/modules/FinancialReport/FinancialIndicatorPeriodNavigator';
 import { useTheme } from '@/contexts/ThemeContext';
-import { fetchFinancialReportIndicatorsByTicker } from '@/services/financialReportService';
+import { fetchFinancialReportIndicatorsByTicker } from '@/services/financial/financialReportService';
 import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 import {
   FinancialPeriodType,

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/contexts/ThemeContext';
-import { newsService } from '@/services/newsService';
+import { newsService } from '@/services/reports/newsService';
 import type { NewsArticle, NewsTickerScore } from '@/types/news';
 import NewsFilterBar from './News/NewsFilterBar';
 import RelatedTickerSelector from './News/RelatedTickerSelector';

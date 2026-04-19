@@ -18,7 +18,7 @@ import {
   sendChatMessage,
   type ChatSessionListItem,
   type ChatMessageSimple,
-} from '@/services/chatService';
+} from '@/services/chat/chatService';
 
 /* ──────────────────────────────────────────────────────────────────────────
    Types

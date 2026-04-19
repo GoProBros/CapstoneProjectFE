@@ -5,7 +5,7 @@
 
 import { useQueries } from '@tanstack/react-query';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
-import { fetchFinancialReportsByTicker } from '@/services/financialReportService';
+import { fetchFinancialReportsByTicker } from '@/services/financial/financialReportService';
 import type { FinancialReportTableRow } from '@/types/financialReport';
 import { useMemo, useEffect } from 'react';
 

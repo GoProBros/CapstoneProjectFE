@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import statisticService from "@/services/statisticService";
+import statisticService from "@/services/admin/statisticService";
 import {
   createSubscription as createSubscriptionRequest,
   getSubscriptions,
   toggleSubscriptionStatus,
   updateSubscriptionById,
-} from "@/services/subscriptionService";
+} from "@/services/admin/subscriptionService";
 import type {
   SubscriptionDto,
   SubscriptionStatisticsDto,

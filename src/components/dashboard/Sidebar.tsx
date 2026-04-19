@@ -9,7 +9,7 @@ import { useFontSize } from '@/contexts/FontSizeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useRouter } from 'next/navigation';
-import * as workspaceService from '@/services/workspaceService';
+import * as workspaceService from '@/services/workspace/workspaceService';
 import type { Workspace } from '@/types';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { getDashboardPagesStorage, setDashboardPagesStorage } from '@/lib/dashboardStorage';
@@ -730,7 +730,7 @@ export default function Sidebar({
                                                 <button
                                                     onClick={() => {
                                                         setIsOptionsMenuOpen(false);
-                                                        router.push('/SystemManager');
+                                                        router.push('/system-manager');
                                                     }}
                                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                                 >

@@ -4,9 +4,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { searchSymbols } from '@/services/symbolService';
-import SignalRService from '@/services/signalRService';
-import type { RecentTradeDto } from '@/services/signalRService';
+import { searchSymbols } from '@/services/market/symbolService';
+import SignalRService from '@/services/market/signalRService';
+import type { RecentTradeDto } from '@/services/market/signalRService';
 import type { SymbolSearchResultDto } from '@/types/symbol';
 
 interface Trade {

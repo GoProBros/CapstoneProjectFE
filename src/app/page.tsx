@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROUTES } from "@/constants/routes";
-import { getSubscriptions } from "@/services/subscriptionService";
+import { getSubscriptions } from "@/services/admin/subscriptionService";
 import type { SubscriptionDto } from "@/types/subscription";
 
 const MODULE_SHOWCASES = [

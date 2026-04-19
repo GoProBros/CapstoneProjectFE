@@ -12,8 +12,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSignalR } from '@/contexts/SignalRContext';
-import SignalRService from '@/services/signalRService';
-import { fetchLiveIndices, fetchIndexIntraday, DEFAULT_INDEX_CODES } from '@/services/indexService';
+import SignalRService from '@/services/market/signalRService';
+import { fetchLiveIndices, fetchIndexIntraday, DEFAULT_INDEX_CODES } from '@/services/market/indexService';
 import type { LiveIndexData, IndexHistoryPoint } from '@/types/marketIndex';
 
 // Full trading day at 5s intervals ≈ 3,240 pts; keep 4000 as buffer for live SignalR appends

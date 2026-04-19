@@ -6,8 +6,8 @@ import NewsHeader from '@/components/staff/news/NewsHeader';
 import NewsImportStatus, { type NewsImportStatusType } from '@/components/staff/news/NewsImportStatus';
 import NewsPaginationFooter from '@/components/staff/news/NewsPaginationFooter';
 import NewsTable from '@/components/staff/news/NewsTable';
-import newsService from '@/services/newsService';
-import { fetchSymbolsPaginated, searchSymbols } from '@/services/symbolService';
+import newsService from '@/services/reports/newsService';
+import { fetchSymbolsPaginated, searchSymbols } from '@/services/market/symbolService';
 import type { NewsArticle } from '@/types/news';
 
 const NEWS_PAGE_SIZE = 10;

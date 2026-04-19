@@ -7,11 +7,11 @@ import SystemNotificationModal from "@/components/staff/dashboard/SystemNotifica
 import UserDashboardSection from "@/components/staff/dashboard/UserDashboardSection";
 import RevenueDashboardSection from "@/components/staff/dashboard/RevenueDashboardSection";
 import SystemDashboardSection from "@/components/staff/dashboard/SystemDashboardSection";
-import analysisReportService from "@/services/analysisReportService";
-import { fetchRecentFinancialReports } from "@/services/financialReportService";
-import systemDataService from "@/services/systemDataService";
-import { fetchSymbolsPaginated } from "@/services/symbolService";
-import statisticService from "@/services/statisticService";
+import analysisReportService from "@/services/reports/analysisReportService";
+import { fetchRecentFinancialReports } from "@/services/financial/financialReportService";
+import systemDataService from "@/services/admin/systemDataService";
+import { fetchSymbolsPaginated } from "@/services/market/symbolService";
+import statisticService from "@/services/admin/statisticService";
 import type { DataFetchTaskType, SystemLogItem } from "@/types/systemData";
 import type {
   AnalysisReport,
@@ -490,7 +490,7 @@ export default function DashboardFeature() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => router.push("/SystemManager/macroeconomic-simulation")}
+              onClick={() => router.push("/system-manager/macroeconomic-simulation")}
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
             >
               Mô phỏng vĩ mô (DEMO)
@@ -543,9 +543,9 @@ export default function DashboardFeature() {
         isAdmin={isAdmin}
         onRunDataFetchTask={handleRunDataFetchTask}
         dataFetchTaskStatusMap={dataFetchTaskStatusMap}
-        onNavigateDataLogs={() => router.push("/SystemManager/data")}
-        onNavigateFinancialReports={() => router.push("/SystemManager/financial-reports")}
-        onNavigateAnalysisReports={() => router.push("/SystemManager/analysis-reports")}
+        onNavigateDataLogs={() => router.push("/system-manager/data")}
+        onNavigateFinancialReports={() => router.push("/system-manager/financial-reports")}
+        onNavigateAnalysisReports={() => router.push("/system-manager/analysis-reports")}
         totalStocks={totalStocks}
         topInterestedSymbols={sortedTopInterestedSymbols}
         isLoadingSystemStatistics={isLoadingStatistics}

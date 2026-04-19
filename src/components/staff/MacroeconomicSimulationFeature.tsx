@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import macroeconomicDataService from "@/services/macroeconomicDataService";
+import macroeconomicDataService from "@/services/financial/macroeconomicDataService";
 import type {
   MacroeconomicData,
   UpsertMacroeconomicDataRequest,
