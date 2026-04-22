@@ -75,7 +75,7 @@ export function GlobalStockChartModule() {
 
   return (
     <div className={`w-full h-full rounded-lg border overflow-hidden ${
-      isDark ? 'bg-[#282832] border-gray-800' : 'bg-white border-gray-200'
+      isDark ? 'bg-cardBackground border-gray-800' : 'bg-white border-gray-200'
     }`}>
       <div 
         ref={containerRef}

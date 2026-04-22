@@ -11,7 +11,7 @@ export function CanslimModule() {
 
   return (
     <div className={`dashboard-module rounded-lg overflow-hidden h-full w-full text-base flex flex-col justify-between ${
-      isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+      isDark ? 'bg-cardBackground text-white' : 'bg-white text-gray-900'
     }`}>
       {/* Header Section */}
       <div className="px-6 pt-6">

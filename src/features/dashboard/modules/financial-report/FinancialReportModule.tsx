@@ -331,7 +331,7 @@ export function FinancialReportModule() {
   const periodLabels = useMemo(() => visibleData.map((row) => getPeriodLabel(row)), [visibleData]);
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm bg-moduleBackground text-white `}>
+    <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm bg-cardBackground text-white `}>
       <div className="flex-none flex flex-col">
         <div className="flex items-center justify-center pt-1.5 pb-1">
           <div className="relative flex items-center justify-center">

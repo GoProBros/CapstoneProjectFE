@@ -12,7 +12,7 @@ export default function TradingMapModule() {
   return (
     <>
       <div 
-        className="relative w-full h-full bg-[#282832] rounded-lg flex justify-center items-center overflow-hidden"
+        className="relative w-full h-full bg-cardBackground rounded-lg flex justify-center items-center overflow-hidden"
         onClick={() => setIsModalOpen(true)}
       >
         {/* Border decoration - absolute positioned to cover entire container */}

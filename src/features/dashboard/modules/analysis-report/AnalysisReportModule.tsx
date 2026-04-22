@@ -56,7 +56,7 @@ export function AnalysisReportModule() {
 
     const borderCls = isDark ? 'border-gray-700' : 'border-gray-200';
     const textMutedCls = isDark ? 'text-gray-400' : 'text-gray-500';
-    const bgCls = isDark ? 'bg-[#282832]' : 'bg-white';
+    const bgCls = isDark ? 'bg-cardBackground' : 'bg-white';
     const hoverRowCls = isDark ? 'hover:bg-[#2a2a35]' : 'hover:bg-gray-50';
     const textPrimary = isDark ? 'text-white' : 'text-gray-900';
     const textSecondary = isDark ? 'text-gray-300' : 'text-gray-700';

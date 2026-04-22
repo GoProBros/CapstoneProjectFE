@@ -470,7 +470,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
         onClose={() => setToast((previous) => ({ ...previous, isOpen: false }))}
       />
 
-      <div className="relative rounded-finsc overflow-hidden h-full w-full text-base bg-base-300 flex flex-col justify-between">
+      <div className="relative rounded-finsc overflow-hidden h-full w-full text-base bg-cardBackground flex flex-col justify-between">
         <SaveLayoutModal
           isOpen={isSaveModalOpen}
           onClose={() => setIsSaveModalOpen(false)}

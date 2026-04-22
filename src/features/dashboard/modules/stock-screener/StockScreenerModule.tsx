@@ -717,7 +717,7 @@ export function StockScreenerModule() {
 
       <div
         className={`relative w-full h-full rounded-lg overflow-hidden border flex flex-col ${
-          isDark ? "bg-[#282832] border-gray-800" : "bg-white border-gray-200"
+          isDark ? "bg-cardBackground border-gray-800" : "bg-white border-gray-200"
         }`}
       >
         {/* Save Layout Modal - only for creating new layout */}

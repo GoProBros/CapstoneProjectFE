@@ -402,7 +402,7 @@ export function NewsModule() {
   return (
     <>
       <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm ${
-        isDark ? 'bg-[#282832] text-white' : 'bg-white text-gray-900'
+        isDark ? 'bg-cardBackground text-white' : 'bg-white text-gray-900'
       }`}>
       {/* Badge title */}
       <div className="flex-none flex items-center justify-center pt-1.5 pb-1">

@@ -9,7 +9,7 @@ export function OverviewChartModule() {
   
   return (
     <div className={`dashboard-module w-full h-full rounded-lg p-4 border ${
-      isDark ? 'bg-[#282832] border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'
+      isDark ? 'bg-cardBackground border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-900'
     }`}>
       <h3 className="text-white text-lg font-semibold mb-4">Biểu đồ tổng quan</h3>
     </div>
