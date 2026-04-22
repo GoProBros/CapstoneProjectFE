@@ -53,8 +53,8 @@ export default function IndustrySelect() {
             shadow-sm ring-1 ring-inset pe-9 transition-all
             ${
               theme === 'dark'
-                ? 'bg-gray-900 text-white ring-gray-700 focus:ring-primary-400'
-                : 'bg-white ring-gray-300 focus:ring-primary-500'
+                ? 'bg-cardBackground text-white ring-gray-700 focus:ring-green-500'
+                : 'bg-white ring-gray-300 focus:ring-green-500'
             }
             ${!selectedSectorId ? 'text-gray-400' : ''}
           `}

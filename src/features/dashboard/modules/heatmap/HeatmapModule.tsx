@@ -23,6 +23,7 @@ export function HeatmapModule() {
     heatmapItemsVersion,
     marketStats,
     heatmapData,
+    flashingTickers,
     handleExchangeChange,
     handleSectorChange,
     fetchWatchLists,
@@ -197,6 +198,20 @@ export function HeatmapModule() {
           else if (change > -3) color = '#ef4444'; // Red
           else if (change > -6.5) color = '#dc2626'; // Dark Red
           else color = '#06b6d4'; // Cyan - Floor
+
+          // Flash: switch to a much lighter shade of the same color family
+          const isFlashing = flashingTickers.has(stock.name);
+          const flashColorMap: Record<string, string> = {
+            '#9333ea': '#d8b4fe', // Purple → light purple
+            '#16a34a': '#86efac', // Dark Green → light green
+            '#22c55e': '#bbf7d0', // Green → very light green
+            '#4ade80': '#dcfce7', // Light Green → near-white green
+            '#f59e0b': '#fef08a', // Yellow → light yellow
+            '#f87171': '#fee2e2', // Light Red → near-white red
+            '#ef4444': '#fca5a5', // Red → light red
+            '#dc2626': '#fca5a5', // Dark Red → light red
+            '#06b6d4': '#a5f3fc', // Cyan → light cyan
+          };
           
           return {
             name: stock.name,
@@ -206,7 +221,9 @@ export function HeatmapModule() {
             price: stock.price,
             volume: stock.volume,
             totalValue: stock.totalValue,
-            itemStyle: { color },
+            itemStyle: {
+              color: isFlashing ? (flashColorMap[color] ?? '#ffffff') : color,
+            },
           };
         })
       };
@@ -287,14 +304,15 @@ export function HeatmapModule() {
           },
           upperLabel: {
             show: true,
-            height: 32,
+            height: 28,
             color: '#fff',
-            fontSize: 16,
-            fontWeight: 'bold',
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            borderColor: 'rgba(255,255,255,0.2)',
+            fontSize: 12,
+            fontWeight: '600',
+            fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            borderColor: 'rgba(255,255,255,0.15)',
             borderWidth: 1,
-            padding: [0, 10],
+            padding: [0, 8],
             formatter: (params: any) => params.name,
           },
           itemStyle: {
@@ -312,11 +330,12 @@ export function HeatmapModule() {
               },
               upperLabel: {
                 show: true,
-                height: 35,
-                fontSize: 16,
-                fontWeight: 'bold',
+                height: 28,
+                fontSize: 12,
+                fontWeight: '600',
+                fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
                 color: '#fff',
-                padding: [0, 10],
+                padding: [0, 8],
               },
               label: { show: false },
             },
@@ -363,7 +382,7 @@ export function HeatmapModule() {
     });
 
     console.log('[Heatmap] ✅ Chart data updated incrementally (optimized)');
-  }, [heatmapData, isDark]); // Update when data or theme changes
+  }, [heatmapData, flashingTickers, isDark]); // Update when data, flash state, or theme changes
 
   return (
     <div className={`w-full h-full flex flex-col ${isDark ? 'bg-cardBackground text-white' : 'bg-gray-50 text-gray-900'}`}>

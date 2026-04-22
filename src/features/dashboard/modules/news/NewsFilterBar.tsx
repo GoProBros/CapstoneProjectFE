@@ -19,9 +19,7 @@ export default function NewsFilterBar({
 }: NewsFilterBarProps) {
   return (
     <div
-      className={`sticky top-0 z-20 grid grid-cols-1 gap-2 px-3 pt-2 backdrop-blur-[1px] sm:grid-cols-[1fr_110px_auto] ${
-        isDark ? 'bg-[#282832]/95' : 'bg-white/95'
-      }`}
+      className="sticky top-0 z-20 grid grid-cols-1 gap-2 px-3 pt-2 sm:grid-cols-[1fr_110px_auto]"
     >
       <input
         type="text"
@@ -30,8 +28,8 @@ export default function NewsFilterBar({
         placeholder="Tìm theo tiêu đề, nguồn..."
         className={`rounded border px-2 py-1 text-xs outline-none ${
           isDark
-            ? 'border-cyan-700/40 bg-[#1f2430] text-gray-100 placeholder:text-gray-500 focus:border-cyan-500'
-            : 'border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-cyan-400'
+            ? 'border-gray-700 bg-cardBackground text-gray-100 placeholder:text-gray-500 focus:border-green-500'
+            : 'border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-green-500'
         }`}
       />
 
@@ -39,11 +37,11 @@ export default function NewsFilterBar({
         type="text"
         value={tickerInput}
         onChange={(event) => onTickerInputChange(event.target.value.toUpperCase())}
-        placeholder="Ticker"
-        className={`rounded border px-2 py-1 text-xs uppercase outline-none ${
+        placeholder="Mã cổ phiếu"
+        className={`rounded border px-2 py-1 text-xs outline-none ${
           isDark
-            ? 'border-cyan-700/40 bg-[#1f2430] text-gray-100 placeholder:text-gray-500 focus:border-cyan-500'
-            : 'border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-cyan-400'
+            ? 'border-gray-700 bg-cardBackground text-gray-100 placeholder:text-gray-500 focus:border-green-500'
+            : 'border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-green-500'
         }`}
       />
 

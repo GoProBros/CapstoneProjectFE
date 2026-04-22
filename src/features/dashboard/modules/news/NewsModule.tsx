@@ -534,7 +534,11 @@ export function NewsModule() {
                   <div>
                     <button
                       type="button"
-                      className="rounded-full text-xs p-1.5 text-white/80 hover:bg-gray-800 transition-colors"
+                      className="flex items-center rounded-full p-1.5 text-white transition-all hover:scale-105 hover:brightness-110 active:scale-95"
+                      style={{
+                        background: 'linear-gradient(135deg, #34C85E 0%, #06b6d4 100%)',
+                        boxShadow: '0 0 8px rgba(52, 200, 94, 0.55), 0 0 2px rgba(6, 182, 212, 0.4)',
+                      }}
                       aria-label="Mở chi tiết AI"
                       onClick={(event) => {
                         event.preventDefault();
@@ -543,7 +547,7 @@ export function NewsModule() {
                       }}
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"

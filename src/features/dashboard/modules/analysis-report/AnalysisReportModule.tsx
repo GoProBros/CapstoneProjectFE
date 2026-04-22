@@ -286,14 +286,14 @@ export function AnalysisReportModule() {
                         value={searchInput}
                         onChange={e => setSearchInput(e.target.value)}
                         placeholder="Tìm báo cáo..."
-                        className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} placeholder:${textMutedCls} focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                        className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} placeholder:${textMutedCls} focus:outline-none focus:ring-1 focus:ring-green-500`}
                     />
                 </div>
                 {/* Source filter */}
                 <select
                     value={sourceFilter}
                     onChange={e => { setSourceFilter(e.target.value); }}
-                    className={`px-2 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                    className={`px-2 py-1.5 text-xs rounded-lg border ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-green-500`}
                 >
                     <option value="">Tất cả nguồn</option>
                     {allSources.map(s => (
@@ -304,7 +304,7 @@ export function AnalysisReportModule() {
                 <select
                     value={categoryFilter}
                     onChange={e => { setCategoryFilter(e.target.value); }}
-                    className={`px-2 py-1.5 text-xs rounded-lg border max-w-[130px] ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                    className={`px-2 py-1.5 text-xs rounded-lg border max-w-[130px] ${borderCls} ${bgCls} ${textPrimary} focus:outline-none focus:ring-1 focus:ring-green-500`}
                 >
                     <option value="">Tất cả phân loại</option>
                     {allCategories.map(c => (

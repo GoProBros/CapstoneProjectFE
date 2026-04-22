@@ -13,6 +13,7 @@ import {
 import { useChartPreferences, type ChartType, type TimeInterval } from './useChartPreferences';
 import { useChartData, TIMEFRAME_MAP, VISIBLE_BARS_MAP } from './useChartData';
 import { CHART_INDICATORS, DRAWING_TOOL_GROUPS } from './chartConstants';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 
 export function VNStockChartModule() {
   const { theme } = useTheme();
@@ -26,6 +27,16 @@ export function VNStockChartModule() {
     showGrid, setShowGrid,
     activeIndicators, setActiveIndicators,
   } = useChartPreferences();
+
+  const storeSymbol = useSelectedSymbolStore(s => s.selectedSymbol);
+  const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
+
+  // Sync from global store → local symbol (external selection from other modules)
+  useEffect(() => {
+    if (storeSymbol && storeSymbol !== symbol) {
+      setSymbol(storeSymbol);
+    }
+  }, [storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     isLoading,
@@ -911,8 +922,8 @@ export function VNStockChartModule() {
                     placeholder="Nhập mã chứng khoán..."
                     className={`w-full pl-10 pr-4 py-2 rounded-lg border outline-none ${
                       isDark 
-                        ? 'bg-[#2a2a3d] border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                        ? 'bg-cardBackground border-gray-700 text-white placeholder-gray-500 focus:border-green-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-green-500'
                     }`}
                     autoFocus
                   />
@@ -995,6 +1006,7 @@ export function VNStockChartModule() {
                       key={sym.ticker}
                       onClick={() => {
                         setSymbol(sym.ticker);
+                        setSelectedSymbol(sym.ticker);
                         setSymbolSearch('');
                         setShowSymbolModal(false);
                       }}

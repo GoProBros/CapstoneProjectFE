@@ -16,6 +16,7 @@ import type { WatchListSummary, WatchListDetail } from '@/types/watchList';
 import type { MarketSymbolDto } from '@/types/market';
 import type { Sector } from '@/types/sector';
 import { ToastType } from '@/components/ui/Toast';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 
 // Module type constant for Stock Screener
 const MODULE_TYPE_STOCK_SCREENER = 1;
@@ -1617,6 +1618,10 @@ export function useStockScreener() {
       // In watchlist mode: check against watchlist tickers (not marketData which may be stale)
       // In exchange/sector/type mode: check against marketData
       const upperTicker = ticker.toUpperCase();
+
+      // Broadcast to all modules via global store
+      useSelectedSymbolStore.getState().setSelectedSymbol(upperTicker);
+
       const isAlreadyTracked = currentWatchListId !== null
         ? currentWatchListTickers.current.has(upperTicker)
         : marketData.has(upperTicker);

@@ -108,7 +108,7 @@ export function SessionInfoModule() {
   // ── theme tokens ─────────────────────────────────────────────────────────
   const bg     = isDark ? 'bg-cardBackground' : 'bg-gray-50';
   const bgCard = isDark ? 'bg-[#1e2130]'  : 'bg-gray-50';
-  const border = isDark ? 'border-white/8': 'border-gray-200';
+  const border = isDark ? 'border-gray-700': 'border-gray-200';
   const muted  = isDark ? 'text-gray-400' : 'text-gray-500';
   const textPri = isDark ? 'text-gray-100': 'text-gray-800';
 
@@ -116,7 +116,7 @@ export function SessionInfoModule() {
     <div className={`h-full w-full flex flex-col ${bg} overflow-hidden`}>
 
       {/* ── Badge title ────────────────────────────────────────────────── */}
-      <div className="flex-none flex items-center justify-center pt-1.5 pb-1">
+      <div className="flex-none flex items-center justify-center pt-1.5 pb-2">
         <div className="relative flex items-center justify-center">
           <svg width="136" height="22" viewBox="0 0 136 22" className="block">
             <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
@@ -130,7 +130,7 @@ export function SessionInfoModule() {
       {/* ── Search ─────────────────────────────────────────────────────── */}
       <div className="flex-none px-2 pb-1" ref={searchRef}>
         <div className="relative">
-          <div className={`flex items-center gap-1.5 rounded-md border ${border} ${bgCard} px-2 py-[5px]`}>
+          <div className={`flex items-center gap-1.5 rounded-md border ${border} focus-within:border-green-500 ${isDark ? 'bg-cardBackground' : 'bg-white'} px-2 py-[5px]`}>
             <Search size={12} className={muted} />
             <input
               value={inputValue}

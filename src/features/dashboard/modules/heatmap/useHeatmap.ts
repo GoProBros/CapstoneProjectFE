@@ -67,6 +67,7 @@ export function useHeatmap() {
     return saved !== null ? parseInt(saved, 10) : null;
   });
   const [isLoadingWatchlists, setIsLoadingWatchlists] = useState(false);
+  const [flashingTickers, setFlashingTickers] = useState<Set<string>>(new Set());
 
   // Use Map for O(1) lookups and updates instead of array
   const heatmapItemsMapRef = useRef<Map<string, HeatmapItem>>(new Map());
@@ -206,6 +207,7 @@ export function useHeatmap() {
   useEffect(() => {
     const THROTTLE_MS = 500;
     const throttleRef = { current: null as ReturnType<typeof setTimeout> | null };
+    const changedInBatch = new Set<string>();
 
     const unsubscribe = SignalRService.getInstance().onMarketDataReceived((realtimeData) => {
       const ticker = realtimeData.ticker?.toUpperCase();
@@ -231,6 +233,8 @@ export function useHeatmap() {
 
       if (!hasChanged) return;
 
+      changedInBatch.add(ticker);
+
       heatmapItemsMapRef.current.set(ticker, {
         ...existingItem,
         currentPrice: lastPrice,
@@ -244,7 +248,12 @@ export function useHeatmap() {
       if (throttleRef.current === null) {
         throttleRef.current = setTimeout(() => {
           throttleRef.current = null;
+          const snapshot = new Set(changedInBatch);
+          changedInBatch.clear();
+          setFlashingTickers(snapshot);
           setHeatmapItemsVersion(v => v + 1);
+          // Clear flash after 400ms
+          setTimeout(() => setFlashingTickers(new Set()), 400);
         }, THROTTLE_MS);
       }
     });
@@ -362,9 +371,16 @@ export function useHeatmap() {
 
     let filteredItems = items;
 
-    if (selectedSector && selectedSector.symbols.length > 0) {
-      filteredItems = items.filter(item => selectedSector.symbols.includes(item.ticker));
-    } else if (customTickers.length > 0) {
+    const hasSector = selectedSector !== null && selectedSector.symbols.length > 0;
+    const hasWatchlist = customTickers.length > 0;
+
+    if (hasSector && hasWatchlist) {
+      // Both active: intersection — only stocks in both watchlist AND sector
+      const sectorSet = new Set(selectedSector!.symbols);
+      filteredItems = items.filter(item => customTickers.includes(item.ticker) && sectorSet.has(item.ticker));
+    } else if (hasSector) {
+      filteredItems = items.filter(item => selectedSector!.symbols.includes(item.ticker));
+    } else if (hasWatchlist) {
       filteredItems = items.filter(item => customTickers.includes(item.ticker));
     }
 
@@ -438,6 +454,7 @@ export function useHeatmap() {
     symbolMetadataRef,
     marketStats,
     heatmapData,
+    flashingTickers,
     handleExchangeChange,
     handleSectorChange,
     fetchWatchLists,

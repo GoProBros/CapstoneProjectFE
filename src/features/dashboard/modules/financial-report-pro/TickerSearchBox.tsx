@@ -72,8 +72,8 @@ export default function TickerSearchBox() {
             shadow-sm ring-1 ring-inset pe-9 transition-all
             ${
               theme === 'dark'
-                ? 'bg-gray-900 text-white ring-gray-700 focus:ring-primary-400 placeholder-gray-500'
-                : 'bg-white text-gray-900 ring-gray-300 focus:ring-primary-500 placeholder-gray-400'
+                ? 'bg-cardBackground text-white ring-gray-700 focus:ring-green-500 placeholder-gray-500'
+                : 'bg-white text-gray-900 ring-gray-300 focus:ring-green-500 placeholder-gray-400'
             }
           `}
           autoComplete="off"

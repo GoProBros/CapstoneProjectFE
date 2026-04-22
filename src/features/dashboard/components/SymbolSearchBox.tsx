@@ -179,9 +179,9 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
             disabled={!isConnected}
             className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors w-64 ${
               isDark 
-                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 disabled:opacity-50' 
-                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 disabled:opacity-50'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                ? 'bg-cardBackground border-gray-700 text-white placeholder-gray-500 focus:border-green-500 disabled:opacity-50' 
+                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-green-500 disabled:opacity-50'
+            } focus:outline-none focus:ring-2 focus:ring-green-500/20`}
           />
           {isSearching && (
             <div className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${

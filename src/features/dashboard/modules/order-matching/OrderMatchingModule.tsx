@@ -8,6 +8,7 @@ import { searchSymbols } from '@/services/market/symbolService';
 import SignalRService from '@/services/market/signalRService';
 import type { RecentTradeDto } from '@/services/market/signalRService';
 import type { SymbolSearchResultDto } from '@/types/symbol';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 
 interface Trade {
   id: number;
@@ -52,8 +53,11 @@ export function OrderMatchingModule() {
   const isDark = theme === 'dark';
   const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData } = useSignalR();
 
-  const [ticker, setTicker] = useState('FPT');
-  const [inputValue, setInputValue] = useState('FPT');
+  const storeSymbol = useSelectedSymbolStore(s => s.selectedSymbol);
+  const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
+
+  const [ticker, setTicker] = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
+  const [inputValue, setInputValue] = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -151,11 +155,21 @@ export function OrderMatchingModule() {
   }, []);
 
   const selectSymbol = useCallback((t: string) => {
-    setTicker(t.toUpperCase());
-    setInputValue(t.toUpperCase());
+    const upper = t.toUpperCase();
+    setTicker(upper);
+    setInputValue(upper);
     setShowDropdown(false);
     setSearchResults([]);
-  }, []);
+    setSelectedSymbol(upper);
+  }, [setSelectedSymbol]);
+
+  // Sync from global store → local ticker (external selection from other modules)
+  useEffect(() => {
+    if (storeSymbol && storeSymbol !== ticker) {
+      setTicker(storeSymbol);
+      setInputValue(storeSymbol);
+    }
+  }, [storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -186,7 +200,7 @@ export function OrderMatchingModule() {
     <div className={`w-full h-full ${bgCard} rounded-lg overflow-hidden flex flex-col ${textPrimary}`}>
 
       {/* ── Header badge ── */}
-      <div className="flex-none flex justify-center pt-1 pb-0">
+      <div className="flex-none flex justify-center pt-1 pb-2">
         <div className="relative">
           <svg width="180" height="24" viewBox="0 0 180 24">
             <path
@@ -203,7 +217,7 @@ export function OrderMatchingModule() {
       {/* ── Symbol search ── */}
       <div className={`flex-none px-2 pt-1 pb-1`} ref={searchRef}>
         <div className="relative">
-          <div className={`flex items-center gap-1 rounded border ${borderColor} ${isDark ? 'bg-[#1a1d2e]' : 'bg-gray-100'} px-2 py-1`}>
+          <div className={`flex items-center gap-1 rounded border ${borderColor} focus-within:border-green-500 ${isDark ? 'bg-cardBackground' : 'bg-white'} px-2 py-1`}>
             <Search size={12} className={textMuted} />
             <input
               value={inputValue}
