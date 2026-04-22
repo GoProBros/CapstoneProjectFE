@@ -3,7 +3,10 @@
 import React, { useState } from "react";
 import { useColumnStore } from "@/stores/columnStore";
 import { useTheme } from "@/contexts/ThemeContext";
-import { X, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
+import { X, RotateCcw, ChevronDown, ChevronRight, Lock } from "lucide-react";
+
+// Fields that are always visible and cannot be toggled off
+const LOCKED_FIELDS = new Set(['ticker', 'ceilingPrice', 'floorPrice', 'referencePrice']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Column groups & labels — same data as before
@@ -165,8 +168,10 @@ export function ColumnSidebar() {
         <div className="flex-1 overflow-y-auto p-3">
           {columnGroups.map((group) => {
             const isExpanded = expandedGroups[group.title];
+            // Locked fields are always counted as visible; only toggleable fields affect the group checkbox state
+            const toggleableFields = group.fields.filter((f) => !LOCKED_FIELDS.has(f));
             const visibleCount = group.fields.filter(
-              (field) => columns[field]?.visible,
+              (field) => LOCKED_FIELDS.has(field) || columns[field]?.visible,
             ).length;
             const allVisible = visibleCount === group.fields.length;
             const someVisible =
@@ -196,7 +201,7 @@ export function ColumnSidebar() {
                     }}
                     onChange={(e) => {
                       e.stopPropagation();
-                      setGroupVisibility(group.fields, !allVisible);
+                      setGroupVisibility(toggleableFields, !allVisible);
                     }}
                     onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 rounded cursor-pointer"
@@ -237,28 +242,37 @@ export function ColumnSidebar() {
                       isDark ? "border-gray-700" : "border-gray-200"
                     }`}
                   >
-                    {group.fields.map((field) => (
-                      <label
-                        key={field}
-                        className={`flex items-center gap-2 py-1.5 px-3 rounded cursor-pointer transition-colors ${
-                          isDark ? "hover:bg-gray-700/40" : "hover:bg-gray-100"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={columns[field]?.visible || false}
-                          onChange={() => toggleColumnVisibility(field)}
-                          className="w-3.5 h-3.5 rounded cursor-pointer"
-                        />
-                        <span
-                          className={`text-xs ${
-                            isDark ? "text-gray-400" : "text-gray-600"
+                    {group.fields.map((field) => {
+                      const isLocked = LOCKED_FIELDS.has(field);
+                      return (
+                        <label
+                          key={field}
+                          className={`flex items-center gap-2 py-1.5 px-3 rounded transition-colors ${
+                            isLocked
+                              ? 'cursor-not-allowed opacity-60'
+                              : isDark ? 'cursor-pointer hover:bg-gray-700/40' : 'cursor-pointer hover:bg-gray-100'
                           }`}
                         >
-                          {columnLabels[field] || field}
-                        </span>
-                      </label>
-                    ))}
+                          <input
+                            type="checkbox"
+                            checked={isLocked ? true : (columns[field]?.visible || false)}
+                            disabled={isLocked}
+                            onChange={() => !isLocked && toggleColumnVisibility(field)}
+                            className="w-3.5 h-3.5 rounded cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span
+                            className={`text-xs flex-1 ${
+                              isDark ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            {columnLabels[field] || field}
+                          </span>
+                          {isLocked && (
+                            <Lock size={11} className={isDark ? 'text-gray-600' : 'text-gray-400'} />
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>

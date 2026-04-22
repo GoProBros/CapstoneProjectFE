@@ -4,6 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { StaffSidebar } from "@/features/admin/components/StaffSidebar";
+import { SYSTEM_MANAGER_ROLES } from "@/constants/roles";
 
 interface StaffLayoutProps {
   children: ReactNode;
@@ -15,8 +16,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
   const role = user?.role?.trim();
   const AUTH_REDIRECT_SILENT_KEY = "auth_redirect_silent";
   const AUTH_REDIRECT_MESSAGE_KEY = "auth_redirect_message";
-  const canAccessSystemManagement =
-    role === "Nhân viên" || role === "Admin" || role === "Quản trị viên";
+  const canAccessSystemManagement = SYSTEM_MANAGER_ROLES.includes(role ?? '');
 
   useEffect(() => {
     if (isLoading) {

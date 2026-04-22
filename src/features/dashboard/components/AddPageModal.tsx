@@ -23,10 +23,6 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
     const [error, setError] = useState<string | null>(null);
 
     const handleApplyWorkspace = async () => {
-        if (workspaceCount >= maxWorkspaces) {
-            setError(`Bạn đã đạt giới hạn ${maxWorkspaces} workspace. Vui lòng xóa workspace cũ trước khi apply workspace mới.`);
-            return;
-        }
 
         setIsApplying(true);
         setError(null);
@@ -40,9 +36,11 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
                 // Reload page to show new workspace
                 window.location.reload();
             } else {
+                setShowConfirmPopup(false);
                 setError(response.message || 'Có lỗi khi apply workspace');
             }
         } catch (error: any) {
+            setShowConfirmPopup(false);
             setError(error?.message || 'Có lỗi khi apply workspace');
         } finally {
             setIsApplying(false);
@@ -192,12 +190,15 @@ export default function AddPageModal({ isOpen, onClose, onSave, onSwitchPage, wo
 
             {/* Confirmation Popup for Apply Workspace */}
             {showConfirmPopup && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]">
+                <div
+                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div className="bg-gray-900 rounded-2xl border border-yellow-500 p-6 max-w-md mx-4">
                         <div className="flex items-start gap-3 mb-4">
                             <AlertTriangle className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
                             <div>
-                                <h3 className="text-white font-semibold mb-2">Xác nhận Áp dụng Giao diện</h3>
+                                <h3 className="text-white font-semibold mb-2">Xác nhận áp dụng giao diện</h3>
                                 <p className="text-gray-300 text-sm">
                                     Việc áp dụng giao diện được share này tương đương với việc bạn tạo 1 giao diện mới. 
                                     Vui lòng đảm bảo rằng số giao diện không vượt quá cho phép (tối đa {maxWorkspaces} giao diện).

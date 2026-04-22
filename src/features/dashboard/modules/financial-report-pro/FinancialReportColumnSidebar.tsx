@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from "react";
-import { X, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
+import { X, RotateCcw, ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   useFinancialReportColumnStore,
@@ -31,29 +31,37 @@ function FieldRow({
   field,
   label,
   isDark,
+  locked = false,
 }: {
   field: string;
   label: string;
   isDark: boolean;
+  locked?: boolean;
 }) {
   const { fields, toggleField } = useFinancialReportColumnStore();
-  const isVisible = fields[field] !== false;
+  const isVisible = locked ? true : fields[field] !== false;
 
   return (
     <label
-      className={`flex items-center gap-2 py-1.5 px-3 rounded cursor-pointer transition-colors ${
-        isDark ? "hover:bg-gray-700/40" : "hover:bg-gray-100"
+      className={`flex items-center gap-2 py-1.5 px-3 rounded transition-colors ${
+        locked
+          ? 'cursor-not-allowed opacity-60'
+          : isDark ? 'cursor-pointer hover:bg-gray-700/40' : 'cursor-pointer hover:bg-gray-100'
       }`}
     >
       <input
         type="checkbox"
         checked={isVisible}
-        onChange={() => toggleField(field)}
-        className="w-3.5 h-3.5 rounded cursor-pointer"
+        disabled={locked}
+        onChange={() => !locked && toggleField(field)}
+        className="w-3.5 h-3.5 rounded cursor-pointer disabled:cursor-not-allowed"
       />
-      <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+      <span className={`text-xs flex-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
         {label}
       </span>
+      {locked && (
+        <Lock size={11} className={isDark ? 'text-gray-600' : 'text-gray-400'} />
+      )}
     </label>
   );
 }
@@ -295,6 +303,7 @@ function TopGroupSection({
               field={f.field}
               label={f.label}
               isDark={isDark}
+              locked={groupDef.locked}
             />
           ))}
 

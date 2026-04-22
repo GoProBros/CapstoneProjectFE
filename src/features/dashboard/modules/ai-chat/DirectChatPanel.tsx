@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, {
   useState,
@@ -8,6 +8,7 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { Send, Loader2, ArrowLeft, Plus, UserCircle2, X } from 'lucide-react';
+import { useAvatarBlob } from '@/hooks/useAvatarBlob';
 import {
   useNotifications,
   type DirectMessagePayload,
@@ -43,6 +44,24 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+function formatMessageTime(date: Date): string {
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  if (isToday) {
+    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -61,22 +80,33 @@ function formatRelativeTime(dateStr: string | null): string {
 
 function Avatar({
   name,
+  userId,
   size = 32,
   online = false,
 }: {
   name: string;
+  userId?: string;
   size?: number;
   online?: boolean;
 }) {
-  // Stable color from name hash
+  const { avatarBlobUrl, loadingAvatar } = useAvatarBlob(userId, { enabled: Boolean(userId) });
+
+  // Stable color from name hash (fallback when no avatar)
   const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
   const idx = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
   return (
     <div
-      className="relative flex-none rounded-full flex items-center justify-center text-white font-bold select-none"
-      style={{ width: size, height: size, background: colors[idx], fontSize: size * 0.35 }}
+      className="relative flex-none rounded-full flex items-center justify-center text-white font-bold select-none overflow-hidden"
+      style={{ width: size, height: size, background: avatarBlobUrl ? 'transparent' : colors[idx], fontSize: size * 0.35 }}
     >
-      {getInitials(name)}
+      {loadingAvatar ? (
+        <Loader2 className="animate-spin text-white/60" style={{ width: size * 0.5, height: size * 0.5 }} />
+      ) : avatarBlobUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarBlobUrl} alt={name} className="w-full h-full object-cover rounded-full" />
+      ) : (
+        getInitials(name)
+      )}
       {online && (
         <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-400 rounded-full border border-[#0d0d0d]" />
       )}
@@ -90,6 +120,7 @@ interface DirectChatPanelProps {
   isDark: boolean;
   userId: string;
   userName: string;
+  isVisible: boolean;
   onUnreadCountChange: (count: number) => void;
 }
 
@@ -97,6 +128,7 @@ export function DirectChatPanel({
   isDark,
   userId,
   userName,
+  isVisible,
   onUnreadCountChange,
 }: DirectChatPanelProps) {
   const [sessions, setSessions] = useState<DirectSessionListItem[]>([]);
@@ -118,6 +150,8 @@ export function DirectChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Ref to track activeSessionId inside callbacks without stale closures
   const activeSessionIdRef = useRef<number | null>(null);
+  const isVisibleRef = useRef(isVisible);
+  useEffect(() => { isVisibleRef.current = isVisible; }, [isVisible]);
 
   const border = isDark ? 'border-white/[0.07]' : 'border-gray-200';
   const muted = isDark ? 'text-gray-500' : 'text-gray-400';
@@ -179,8 +213,8 @@ export function DirectChatPanel({
         fromMe: isMe,
       };
 
-      if (activeSessionIdRef.current === payload.sessionId) {
-        // Active session → append + mark as read
+      if (activeSessionIdRef.current === payload.sessionId && isVisibleRef.current) {
+        // Active session AND panel is visible → append + mark as read
         setMessages((prev) => [...prev, newMsg]);
         void markSessionAsRead(payload.sessionId);
         setSessions((prev) =>
@@ -189,7 +223,11 @@ export function DirectChatPanel({
           ),
         );
       } else {
-        // Other session → bump unread indicator + update last message
+        // Not visible or different session → always show unread badge
+        // Also append to messages if it's the active session (so they see it when they return)
+        if (activeSessionIdRef.current === payload.sessionId) {
+          setMessages((prev) => [...prev, newMsg]);
+        }
         setSessions((prev) =>
           [...prev]
             .map((s) =>
@@ -389,7 +427,7 @@ export function DirectChatPanel({
               placeholder="Email hoặc SĐT"
               className={`w-full text-[11px] rounded-lg px-2 py-1.5 outline-none border transition-colors ${
                 isDark
-                  ? 'bg-white/[0.06] border-white/10 text-gray-100 placeholder:text-gray-600 focus:border-[#4ADE80]/40'
+                  ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-[#4ADE80]/60'
                   : 'bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 focus:border-[#4ADE80]/60'
               }`}
             />
@@ -399,7 +437,7 @@ export function DirectChatPanel({
             <button
               onClick={() => void handleStartChat()}
               disabled={!newContactInput.trim() || startingChat}
-              className="mt-1.5 w-full py-1 rounded-lg text-[11px] font-semibold text-black bg-[#4ADE80] hover:bg-green-400 disabled:opacity-40 transition-all"
+              className="mt-1.5 w-full py-1 rounded-lg text-[11px] font-semibold text-black bg-[#4ADE80] hover:bg-green-400 disabled:opacity-60 transition-all"
             >
               {startingChat ? '...' : 'Bắt đầu'}
             </button>
@@ -433,7 +471,7 @@ export function DirectChatPanel({
                 }`}
               >
                 <div className="relative flex-none">
-                  <Avatar name={s.otherParticipant.username} size={30} />
+                  <Avatar name={s.otherParticipant.username} userId={s.otherParticipant.userId} size={30} />
                   {s.hasUnread && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#4ADE80] rounded-full border border-[#0d0d0d]" />
                   )}
@@ -515,7 +553,7 @@ export function DirectChatPanel({
               </button>
               {activeSession && (
                 <>
-                  <Avatar name={activeSession.otherParticipant.username} size={26} />
+                  <Avatar name={activeSession.otherParticipant.username} userId={activeSession.otherParticipant.userId} size={26} />
                   <span
                     className={`text-[12px] font-semibold ${
                       isDark ? 'text-gray-100' : 'text-gray-800'
@@ -546,19 +584,31 @@ export function DirectChatPanel({
                     className={`flex items-end gap-1.5 ${msg.fromMe ? 'flex-row-reverse' : 'flex-row'}`}
                   >
                     {!msg.fromMe && (
-                      <Avatar name={msg.senderName || activeSession?.otherParticipant.username || '?'} size={22} />
+                      <Avatar
+                        name={msg.senderName || activeSession?.otherParticipant.username || '?'}
+                        userId={activeSession?.otherParticipant.userId}
+                        size={22}
+                      />
                     )}
-                    <div
-                      className={`max-w-[78%] px-3 py-2 rounded-2xl text-[12px] leading-relaxed shadow-sm ${
-                        msg.fromMe
-                          ? 'rounded-br-[4px] text-black'
-                          : isDark
-                            ? 'rounded-bl-[4px] bg-[#1e2235] text-gray-100 border border-white/[0.06]'
-                            : 'rounded-bl-[4px] bg-white text-gray-800 border border-gray-200'
-                      } ${msg.pending ? 'opacity-60' : ''}`}
-                      style={msg.fromMe ? { background: '#4ADE80' } : undefined}
-                    >
-                      {msg.content}
+                    <div className={`flex flex-col gap-0.5 max-w-[78%] ${msg.fromMe ? 'items-end' : 'items-start'}`}>
+                      <div
+                        className={`px-3 py-2 rounded-2xl text-[12px] leading-relaxed shadow-sm ${
+                          msg.fromMe
+                            ? 'rounded-br-[4px] text-black'
+                            : isDark
+                              ? 'rounded-bl-[4px] bg-[#1e2235] text-gray-100 border border-white/[0.06]'
+                              : 'rounded-bl-[4px] bg-white text-gray-800 border border-gray-200'
+                        } ${msg.pending ? 'opacity-60' : ''}`}
+                        style={msg.fromMe ? { background: '#4ADE80' } : undefined}
+                      >
+                        {/* Render HTML content from backend safely */}
+                        <div dangerouslySetInnerHTML={{ __html: msg.content }} className="prose-chat" />
+                      </div>
+                      {!msg.pending && (
+                        <span className={`text-[9.5px] opacity-40 ${msg.fromMe ? 'pr-1' : 'pl-1'} ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {formatMessageTime(msg.createdAt)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))

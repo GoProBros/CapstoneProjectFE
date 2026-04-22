@@ -61,5 +61,5 @@ export function formatDateTime(date?: string): string {
     return '--';
   }
 
-  return parsed.toLocaleString('vi-VN');
+  return parsed.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }

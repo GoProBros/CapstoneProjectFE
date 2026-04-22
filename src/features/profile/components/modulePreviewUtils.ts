@@ -18,7 +18,7 @@ const MODULE_UI_TITLES: Record<string, string> = {
   'stock-screener': 'Bảng điện chứng khoán',
   heatmap: 'Heatmap - Bản đồ nhiệt',
   'analysis-report': 'Báo cáo phân tích',
-  'ai-chat': 'Trợ lý AI',
+  'ai-chat': 'Trò chuyện',
 
   // Aliases from subscription payload variants
   financialReport: 'Báo cáo tài chính',

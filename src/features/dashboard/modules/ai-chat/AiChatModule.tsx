@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Send, Plus, MessageSquare, ChevronDown, Loader2, Sparkles, History, MessagesSquare } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAvatarBlob } from '@/hooks/useAvatarBlob';
 import { DirectChatPanel } from './DirectChatPanel';
 import { useAiChat, type Message } from './useAiChat';
 
@@ -150,8 +151,30 @@ function SuggestionChip({ label, onClick, isDark }: { label: string; onClick: ()
 /* ──────────────────────────────────────────────────────────────────────────
    Message bubble
 ──────────────────────────────────────────────────────────────────────────── */
-function MessageBubble({ msg, isDark, userName }: { msg: Message; isDark: boolean; userName: string }) {
+function formatMessageTime(ts: Date): string {
+  const now = new Date();
+  const isToday =
+    ts.getFullYear() === now.getFullYear() &&
+    ts.getMonth() === now.getMonth() &&
+    ts.getDate() === now.getDate();
+  if (isToday) {
+    return ts.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  }
+  return ts.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function MessageBubble({ msg, isDark, userName, userAvatarUrl }: { msg: Message; isDark: boolean; userName: string; userAvatarUrl?: string | null }) {
   const isUser = msg.role === 'user';
+
+  // Stable color from name hash for initials avatar
+  const avatarColors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
+  const avatarColorIdx = userName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % avatarColors.length;
 
   if (isUser) {
     return (
@@ -165,15 +188,20 @@ function MessageBubble({ msg, isDark, userName }: { msg: Message; isDark: boolea
           </div>
           {msg.timestamp && (
             <span className="text-[9.5px] opacity-40 pr-1">
-              {msg.timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              {formatMessageTime(msg.timestamp)}
             </span>
           )}
         </div>
         <div
-          className="flex-none w-[26px] h-[26px] rounded-full flex items-center justify-center mb-0.5 shadow-sm flex-shrink-0 text-black font-bold text-[9px]"
-          style={{ background: '#4ADE80' }}
+          className="flex-none w-[26px] h-[26px] rounded-full flex items-center justify-center mb-0.5 shadow-sm flex-shrink-0 overflow-hidden"
+          style={{ background: userAvatarUrl ? 'transparent' : avatarColors[avatarColorIdx] }}
         >
-          {getInitials(userName)}
+          {userAvatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover rounded-full" />
+          ) : (
+            <span className="text-white font-bold text-[9px]">{getInitials(userName)}</span>
+          )}
         </div>
       </div>
     );
@@ -193,7 +221,7 @@ function MessageBubble({ msg, isDark, userName }: { msg: Message; isDark: boolea
         </div>
         {!msg.pending && msg.timestamp && (
           <span className={`text-[9.5px] opacity-40 pl-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            {msg.timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            {formatMessageTime(msg.timestamp)}
           </span>
         )}
       </div>
@@ -208,6 +236,7 @@ export function AiChatModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user } = useAuth();
+  const { avatarBlobUrl: userAvatarBlobUrl } = useAvatarBlob(user?.id);
 
   const [activeTab, setActiveTab] = useState<'ai' | 'direct'>('ai');
   const [directUnread, setDirectUnread] = useState(0);
@@ -274,18 +303,19 @@ export function AiChatModule() {
         </button>
       </div>
 
-      {/* Direct chat tab */}
-      {activeTab === 'direct' && (
+      {/* Direct chat tab — always mounted so SignalR stays active for unread badge */}
+      <div className={`flex-1 min-h-0 overflow-hidden ${activeTab === 'direct' ? 'flex flex-col' : 'hidden'}`}>
         <DirectChatPanel
           isDark={isDark}
           userId={user?.id ?? ''}
           userName={user?.fullName ?? ''}
+          isVisible={activeTab === 'direct'}
           onUnreadCountChange={setDirectUnread}
         />
-      )}
+      </div>
 
       {/* ─── AI tab content ─── */}
-      {activeTab === 'ai' && (<>
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeTab === 'ai' ? '' : 'hidden'}`}>
 
       {/* Session controls bar */}
       <div className={`flex-none flex items-center justify-between pl-3 pr-10 py-1.5 border-b ${border}`}>
@@ -430,7 +460,7 @@ export function AiChatModule() {
           </div>
         )}
         {!loadingHistory && messages.map(msg => (
-          <MessageBubble key={msg.id} msg={msg} isDark={isDark} userName={user?.fullName ?? 'User'} />
+          <MessageBubble key={msg.id} msg={msg} isDark={isDark} userName={user?.fullName ?? 'User'} userAvatarUrl={userAvatarBlobUrl} />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -479,7 +509,7 @@ export function AiChatModule() {
         )}
       </div>
 
-      </>)}
+      </div>
     </div>
   );
 }

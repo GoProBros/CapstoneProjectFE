@@ -347,7 +347,7 @@ const MODULE_NAME_MAP: Record<string, string> = {
   "financial-report": "Báo cáo tài chính",
   "order-matching": "Khớp lệnh",
   "smart-board": "Bảng điện thông minh",
-  "ai-chat": "Trợ lý AI",
+  "ai-chat": "Trò chuyện",
   "fa-advisor": "FA Advisor",
   "ta-advisor": "TA Advisor",
 };

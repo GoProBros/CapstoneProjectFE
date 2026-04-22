@@ -13,6 +13,7 @@ import * as workspaceService from '@/services/workspace/workspaceService';
 import type { Workspace } from '@/types';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { getDashboardPagesStorage, setDashboardPagesStorage } from '@/lib/dashboardStorage';
+import { SYSTEM_MANAGER_ROLES } from '@/constants/roles';
 
 // ─── Notification item ───────────────────────────────────────────────────────
 
@@ -177,7 +178,7 @@ export default function Sidebar({
     const [copiedCode, setCopiedCode] = useState(false);
     const workspaceMenuRef = useRef<HTMLDivElement>(null);
     const role = user?.role?.trim();
-    const canAccessSystemManagement = role === 'Nhân viên' || role === 'Admin' || role === 'Quản trị viên';
+    const canAccessSystemManagement = SYSTEM_MANAGER_ROLES.includes(role ?? '');
     const { notifications, historicalNotifications, isLoadingHistory, dismissNotification } = useNotifications();
     const [isNotifPanelOpen, setIsNotifPanelOpen] = useState(false);
     const [selectedNotif, setSelectedNotif] = useState<SystemNotification | null>(null);
@@ -469,6 +470,7 @@ export default function Sidebar({
                             <>
                                 <div className="fixed inset-0 z-[9990]" onClick={() => setIsWorkspaceMenuOpen(false)} />
                                 <div className="absolute left-full ml-2 top-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[200px] z-[9991]">
+                                    {pages.length > 0 && (
                                     <button
                                         onClick={handleOpenRenameModal}
                                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
@@ -476,6 +478,8 @@ export default function Sidebar({
                                         <Pencil className="w-4 h-4" />
                                         Đổi tên workspace
                                     </button>
+                                    )}
+                                    {pages.length > 0 && (
                                     <button
                                         onClick={handleOpenShareCodeModal}
                                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
@@ -483,6 +487,7 @@ export default function Sidebar({
                                         <Share2 className="w-4 h-4" />
                                         Lấy share code
                                     </button>
+                                    )}
                                     <button
                                         onClick={() => { setIsWorkspaceMenuOpen(false); onAddPage(); }}
                                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"

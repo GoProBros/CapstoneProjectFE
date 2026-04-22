@@ -27,9 +27,11 @@ export default function DataTaskCard({
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl flex flex-col justify-between shadow-sm border border-slate-100 dark:border-slate-700 transition-all hover:-translate-y-0.5">
       <div className="flex justify-between items-start mb-6">
         <div className={`p-3 rounded-lg ${iconBgClass} ${iconTextClass}`}>{icon}</div>
-        <span className={`px-2 py-1 text-[10px] font-bold rounded uppercase tracking-wider ${getStatusClass(taskStatus)}`}>
-          {getStatusLabel(taskStatus)}
-        </span>
+        {taskStatus !== 'idle' && (
+          <span className={`px-2 py-1 text-[10px] font-bold rounded uppercase tracking-wider ${getStatusClass(taskStatus)}`}>
+            {getStatusLabel(taskStatus)}
+          </span>
+        )}
       </div>
 
       <div>

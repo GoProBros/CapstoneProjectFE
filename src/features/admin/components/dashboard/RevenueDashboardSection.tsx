@@ -121,7 +121,13 @@ export default function RevenueDashboardSection({
             <p className="mt-3 text-center font-headline text-2xl font-black leading-tight text-slate-900 dark:text-slate-100">
               {formatCurrency(totalRevenue)}
             </p>
-   
+            <p className="mt-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+              So với tháng trước:&nbsp;
+              <span className={`ml-1 ${revenueTrend.className}`}>
+                <span>{revenueTrend.icon}</span>
+                <span>{revenueTrend.text}</span>
+              </span>
+            </p>
           </div>
           {/* Doanh thu / người dùng */}
           <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800 xl:col-start-1 xl:col-span-3 xl:row-start-2 xl:row-span-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import type { AlertDto } from "@/types/alert";
 import {
@@ -44,6 +44,8 @@ export function AlertDetailModal({
   textMuted,
   hoverBg,
 }: AlertDetailModalProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -67,7 +69,7 @@ export function AlertDetailModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => void onToggleStatus()}
+              onClick={() => setShowConfirm(true)}
               disabled={!alert || isChangingStatus}
               className={`rounded-xl px-4 py-2 mr-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                 alert?.isActive
@@ -150,6 +152,48 @@ export function AlertDetailModal({
           </div>
         ) : null}
       </div>
+
+      {/* Confirmation popup */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`w-full max-w-sm rounded-2xl border ${borderCls} ${bgCard} p-6 shadow-2xl`}>
+            <h4 className={`mb-2 text-base font-bold ${textPrimary}`}>Xác nhận đổi trạng thái</h4>
+            <p className={`mb-5 text-sm ${textSecondary}`}>
+              Bạn có chắc muốn{" "}
+              <span className="font-semibold">
+                {alert?.isActive ? "tắt" : "bật"}
+              </span>{" "}
+              cảnh báo <span className="font-semibold">#{alert?.id}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                disabled={isChangingStatus}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${hoverBg} ${textPrimary}`}
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                disabled={isChangingStatus}
+                onClick={async () => {
+                  await onToggleStatus();
+                  setShowConfirm(false);
+                }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                  alert?.isActive ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+                }`}
+              >
+                {isChangingStatus ? "Đang xử lý..." : "Xác nhận"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );

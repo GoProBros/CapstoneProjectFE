@@ -132,47 +132,47 @@ function createDefaultCreateDraft(): CreateSubscriptionDraft {
 const MODULE_LIBRARY: ModuleLibraryItem[] = [
   {
     id: "smart-board",
-    title: "Bảng điện thông minh",
+    title: "Bảng Điện Thông Minh",
     preview: "/assets/Dashboard/ModulePreviews/heatmap.png",
   },
   {
     id: "index",
-    title: "Chỉ số thị trường",
+    title: "Chỉ Số Thị Trường",
     preview: "/assets/Dashboard/ModulePreviews/overview-chart.png",
   },
   {
     id: "vn-stock-chart",
-    title: "Biểu đồ chứng khoán Việt Nam",
+    title: "Biểu Đồ Chứng Khoán Việt Nam",
     preview: "/assets/Dashboard/ModulePreviews/vn-stock-chart.png",
   },
   {
     id: "global-stock-chart",
-    title: "Biểu đồ chứng khoán thế giới",
+    title: "Biểu Đồ Chứng Khoán Thế Giới",
     preview: "/assets/Dashboard/ModulePreviews/global-stock-chart.png",
   },
   {
     id: "financial-report",
-    title: "Báo cáo tài chính",
+    title: "Báo Cáo Tài Chính",
     preview: "/assets/Dashboard/ModulePreviews/financial-report.png",
   },
   {
     id: "financial-report-pro",
-    title: "Báo cáo tài chính Pro",
+    title: "Báo Cáo Tài Chính Pro",
     preview: "/assets/Dashboard/ModulePreviews/financial-report-pro.png",
   },
   {
     id: "news",
-    title: "Tin tức",
+    title: "Tin Tức",
     preview: "/assets/Dashboard/ModulePreviews/news.png",
   },
   {
     id: "session-info",
-    title: "Thông tin phiên giao dịch",
+    title: "Thông Tin Phiên Giao Dịch",
     preview: "/assets/Dashboard/ModulePreviews/session-info.png",
   },
   {
     id: "order-matching",
-    title: "Khớp lệnh",
+    title: "Khớp Lệnh",
     preview: "/assets/Dashboard/ModulePreviews/order-matching.png",
   },
   {
@@ -182,7 +182,7 @@ const MODULE_LIBRARY: ModuleLibraryItem[] = [
   },
   {
     id: "stock-screener",
-    title: "Bảng điện chứng khoán",
+    title: "Bảng Điện Chứng Khoán",
     preview: "/assets/Dashboard/ModulePreviews/stock-screener.png",
   },
   {
@@ -192,12 +192,12 @@ const MODULE_LIBRARY: ModuleLibraryItem[] = [
   },
   {
     id: "analysis-report",
-    title: "Báo cáo phân tích",
+    title: "Báo Cáo Phân Tích",
     preview: "/assets/Dashboard/ModulePreviews/analysis-report.png",
   },
   {
     id: "ai-chat",
-    title: "Trợ lý AI",
+    title: "Trò chuyện",
     preview: "/assets/Dashboard/ModulePreviews/AIAssistantModule.jpg",
   },
 ];

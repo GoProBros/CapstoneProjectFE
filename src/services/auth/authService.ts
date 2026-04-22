@@ -3,6 +3,15 @@
  */
 
 import { post, get } from '@/services/api';
+
+/** Thrown when registration succeeds but requires email verification (no token returned) */
+export class RegistrationSuccessNotification extends Error {
+  readonly isRegistrationSuccess = true;
+  constructor(message: string) {
+    super(message);
+    this.name = 'RegistrationSuccessNotification';
+  }
+}
 import { API_ENDPOINTS } from '@/constants';
 import { clearAuthStorageItems } from '@/lib/authStorage';
 import type { ApiResponse } from '@/types';
@@ -23,6 +32,8 @@ export async function register(data: RegisterRequest): Promise<AuthResponse> {
     
     if (result.isSuccess && result.data) {
       return result.data;
+    } else if (result.isSuccess) {
+      throw new RegistrationSuccessNotification(result.message || 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
     } else {
       throw new Error(result.message || 'Registration failed');
     }

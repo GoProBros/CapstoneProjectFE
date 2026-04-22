@@ -189,7 +189,7 @@ export default function ModuleSelectorModal({
     },
     {
       id: "ai-chat",
-      title: "Trợ lý AI",
+      title: "Trò chuyện",
       preview: "/assets/Dashboard/ModulePreviews/AIAssistantModule.jpg",
     },
     {

@@ -550,6 +550,12 @@ export default function DashboardLayout({
   };
 
   const addModule = async (moduleType: string, moduleTitle: string) => {
+    if (!currentPage) {
+      setNotification('Vui lòng tạo giao diện làm việc trước khi thêm module');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
     const newModule: Module = {
       id: `${moduleType}-${Date.now()}`,
       type: moduleType,

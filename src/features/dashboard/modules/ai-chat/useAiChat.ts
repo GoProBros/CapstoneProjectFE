@@ -87,7 +87,7 @@ export function useAiChat() {
             id: `hist-${i}`,
             role: m.role === 'user' ? 'user' : 'ai',
             content: m.content,
-            timestamp: new Date(),
+            timestamp: m.createdAt ? new Date(m.createdAt) : undefined,
           }))
         );
       }

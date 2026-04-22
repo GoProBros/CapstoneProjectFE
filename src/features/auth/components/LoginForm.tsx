@@ -4,7 +4,8 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { RegistrationSuccessNotification } from '@/services/auth/authService';
 
 const passRules = [
   { label: 'Tối thiểu 6 ký tự', test: (p: string) => p.length >= 6 },
@@ -34,11 +35,13 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [registerFullName, setRegisterFullName] = useState('');
   const [registerPhoneNumber, setRegisterPhoneNumber] = useState('');
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const switchTab = (signup: boolean) => {
     setIsSignUp(signup);
     setError(null);
+    setSuccessMsg(null);
     setPassword('');
     setEmail('');
     setRegisterFullName('');
@@ -67,6 +70,7 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
     if (isSignUp) {
       const v = validatePassword(password);
       if (!v.isValid) { setError('Mật khẩu không đáp ứng yêu cầu.'); return; }
@@ -80,7 +84,11 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
         await authLogin({ email, password });
       }
     } catch (err: any) {
-      setError(err.message || (isSignUp ? 'Đăng ký thất bại. Vui lòng thử lại.' : 'Đăng nhập thất bại. Vui lòng kiểm tra lại.'));
+      if (err instanceof RegistrationSuccessNotification) {
+        setSuccessMsg(err.message);
+      } else {
+        setError(err.message || (isSignUp ? 'Đăng ký thất bại. Vui lòng thử lại.' : 'Đăng nhập thất bại. Vui lòng kiểm tra lại.'));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +143,7 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
           </button>
         </div>
 
-        {/* Error Banner — CourtSync shake */}
+        {/* Error Banner */}
         <AnimatePresence initial={false}>
           {error && (
             <motion.div
@@ -148,6 +156,19 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
             >
               <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
               <p className="text-red-300 text-xs">{error}</p>
+            </motion.div>
+          )}
+          {successMsg && (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.4 }}
+              className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 flex items-center gap-2 mb-4"
+            >
+              <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <p className="text-green-300 text-xs">{successMsg}</p>
             </motion.div>
           )}
         </AnimatePresence>
