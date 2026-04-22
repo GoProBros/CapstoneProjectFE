@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardFeature from "@/components/staff/DashboardFeature";
+import { DashboardFeature } from "@/features/admin/components/DashboardFeature";
 
 export default function StaffDashboardPage() {
   return <DashboardFeature />;

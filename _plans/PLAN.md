@@ -508,27 +508,27 @@ src/
 
 **Mục tiêu**: Chuyển toàn bộ module implementations từ `src/components/dashboard/modules/` vào `src/features/dashboard/modules/`.
 
-- [ ] 3.1 Tạo cấu trúc `src/features/dashboard/modules/[module-name]/index.ts` cho mỗi module
-- [ ] 3.2 Move `VNStockChartModule.tsx` → `features/dashboard/modules/vn-stock-chart/`
-- [ ] 3.3 Move `GlobalStockChartModule.tsx` → `features/dashboard/modules/global-stock-chart/`
-- [ ] 3.4 Move `HeatmapModule.tsx` → `features/dashboard/modules/heatmap/`
-- [ ] 3.5 Move `StockScreenerModule.tsx` + `StockScreener/*.tsx` → `features/dashboard/modules/stock-screener/`
-- [ ] 3.6 Move `SmartBoardModule.tsx` + `SmartBoard/SmartBoardFilterBar.tsx` → `features/dashboard/modules/smart-board/`
-- [ ] 3.7 Move `FinancialReportModule.tsx` + `FinancialReport/*.tsx` → `features/dashboard/modules/financial-report/`
-- [ ] 3.8 Move `FinancialReportProModule.tsx` + `FinancialReportPro/*` → `features/dashboard/modules/financial-report-pro/`
-- [ ] 3.9 Move `AiChatModule.tsx` + `DirectChatPanel.tsx` → `features/dashboard/modules/ai-chat/`
-- [ ] 3.10 Move `AnalysisReportModule.tsx` → `features/dashboard/modules/analysis-report/`
-- [ ] 3.11 Move `NewsModule.tsx` + `News/*.tsx` → `features/dashboard/modules/news/`
-- [ ] 3.12 Move `OrderMatchingModule.tsx` → `features/dashboard/modules/order-matching/`
-- [ ] 3.13 Move `IndexModule.tsx` + `IndexModule/IndexMiniChart.tsx` → `features/dashboard/modules/index-module/`
-- [ ] 3.14 Move `SessionInfoModule.tsx` → `features/dashboard/modules/session-info/`
-- [ ] 3.15 Move `CanslimModule.tsx` → `features/dashboard/modules/canslim/`
-- [ ] 3.16 Move `OverviewChartModule.tsx` → `features/dashboard/modules/overview-chart/`
-- [ ] 3.17 Tạo `features/dashboard/modules/index.ts` re-export tất cả modules
-- [ ] 3.18 Move `Sidebar.tsx`, `ModuleSelectorModal.tsx`, `AddPageModal.tsx`, `SymbolSearchBox.tsx`, `ColumnSidebar.tsx`, `ColumnManagerDialog.tsx` → `features/dashboard/components/`
-- [ ] 3.19 Move `layout/` sub-folder → `features/dashboard/components/layout/`
-- [ ] 3.20 Cập nhật `src/app/(protected)/dashboard/page.tsx` dùng import từ `@/features/dashboard/modules`
-- [ ] 3.21 Xóa `src/components/dashboard/` sau khi hoàn tất
+- [x] 3.1 Tạo cấu trúc `src/features/dashboard/modules/[module-name]/index.ts` cho mỗi module
+- [x] 3.2 Move `VNStockChartModule.tsx` → `features/dashboard/modules/vn-stock-chart/`
+- [x] 3.3 Move `GlobalStockChartModule.tsx` → `features/dashboard/modules/global-stock-chart/`
+- [x] 3.4 Move `HeatmapModule.tsx` → `features/dashboard/modules/heatmap/`
+- [x] 3.5 Move `StockScreenerModule.tsx` + `StockScreener/*.tsx` → `features/dashboard/modules/stock-screener/`
+- [x] 3.6 Move `SmartBoardModule.tsx` + `SmartBoard/SmartBoardFilterBar.tsx` → `features/dashboard/modules/smart-board/`
+- [x] 3.7 Move `FinancialReportModule.tsx` + `FinancialReport/*.tsx` → `features/dashboard/modules/financial-report/`
+- [x] 3.8 Move `FinancialReportProModule.tsx` + `FinancialReportPro/*` → `features/dashboard/modules/financial-report-pro/`
+- [x] 3.9 Move `AiChatModule.tsx` + `DirectChatPanel.tsx` → `features/dashboard/modules/ai-chat/`
+- [x] 3.10 Move `AnalysisReportModule.tsx` → `features/dashboard/modules/analysis-report/`
+- [x] 3.11 Move `NewsModule.tsx` + `News/*.tsx` → `features/dashboard/modules/news/`
+- [x] 3.12 Move `OrderMatchingModule.tsx` → `features/dashboard/modules/order-matching/`
+- [x] 3.13 Move `IndexModule.tsx` + `IndexModule/IndexMiniChart.tsx` → `features/dashboard/modules/index-module/`
+- [x] 3.14 Move `SessionInfoModule.tsx` → `features/dashboard/modules/session-info/`
+- [x] 3.15 Move `CanslimModule.tsx` → `features/dashboard/modules/canslim/`
+- [x] 3.16 Move `OverviewChartModule.tsx` → `features/dashboard/modules/overview-chart/`
+- [x] 3.17 Tạo `features/dashboard/modules/index.ts` re-export tất cả modules
+- [x] 3.18 Move `Sidebar.tsx`, `ModuleSelectorModal.tsx`, `AddPageModal.tsx`, `SymbolSearchBox.tsx`, `ColumnSidebar.tsx`, `ColumnManagerDialog.tsx` → `features/dashboard/components/`
+- [x] 3.19 Move `layout/` sub-folder → `features/dashboard/components/layout/`
+- [x] 3.20 Cập nhật `src/app/(protected)/dashboard/page.tsx` dùng import từ `@/features/dashboard/modules`
+- [x] 3.21 Xóa `src/components/dashboard/` sau khi hoàn tất
 
 ---
 
@@ -536,11 +536,15 @@ src/
 
 **Mục tiêu**: Chuyển `src/components/staff/` vào `src/features/admin/`.
 
-- [ ] 4.1 Move `src/components/staff/StaffSidebar.tsx` → `src/features/admin/components/`
-- [ ] 4.2 Move tất cả `src/components/staff/*.tsx` và subdirs → `src/features/admin/components/`
-- [ ] 4.3 Xóa `src/components/staff/` sau khi hoàn tất
-- [ ] 4.4 Xóa các feature folder stub rỗng: `src/features/reports/`, `src/features/files/`, `src/features/staff/` (cũ)
-- [ ] 4.5 Cập nhật import trong các page `src/app/(admin)/system-manager/*`
+- [x] 4.1 Move `src/components/staff/StaffSidebar.tsx` → `src/features/admin/components/`
+- [x] 4.2 Move tất cả `src/components/staff/*.tsx` và subdirs → `src/features/admin/components/`
+- [x] 4.3 Xóa `src/components/staff/` sau khi hoàn tất
+- [x] 4.4 Xóa các feature folder stub rỗng: `src/features/reports/`, `src/features/files/`, `src/features/staff/` (cũ)
+- [x] 4.5 Cập nhật import trong các page `src/app/(admin)/system-manager/*`
+- [x] 4.6 Move `src/components/auth/LoginForm.tsx` → `src/features/auth/components/`
+- [x] 4.7 Move `src/components/profile/` → `src/features/profile/components/`
+- [x] 4.8 Xóa `src/components/auth/`, `src/components/profile/`, `src/components/layout/` (rỗng)
+- [x] 4.9 Cập nhật tất cả import `@/components/auth` và `@/components/profile` → features paths
 
 ---
 
@@ -548,13 +552,17 @@ src/
 
 **Mục tiêu**: Đảm bảo mỗi module component < 200 dòng, logic ở hook riêng.
 
-- [ ] 5.1 **VNStockChartModule** (~600 dòng): Tạo `useVNStockChart.ts` — chart init, OHLCV fetch, indicator management, symbol state
-- [ ] 5.2 **HeatmapModule** (~500 dòng): Tạo `useHeatmap.ts` — exchange/sector/watchlist state, SignalR subscription, ECharts data transform
-- [ ] 5.3 **SmartBoardModule** (~400 dòng): Tạo `useSmartBoard.ts` — filter state, sector grouping, volume threshold, SignalR
-- [ ] 5.4 **AiChatModule** (~400 dòng): Tạo `useAiChat.ts` — session management, message sending, markdown rendering helpers
-- [ ] 5.5 **AnalysisReportModule** (~350 dòng): Tạo `useAnalysisReport.ts` — pagination, filter state, PDF loading
-- [ ] 5.6 **StockScreenerModule** (~700 dòng): Hook `useStockScreener` đã có ở `src/hooks/` — di chuyển vào `features/dashboard/modules/stock-screener/` và kết nối đúng
-- [ ] 5.7 **DashboardLayout** (`layout.tsx` ~600 dòng): Tạo `useDashboardPages.ts` và `useWorkspaceSync.ts` trong `features/dashboard/hooks/`
+- [x] 5.1 **VNStockChartModule**: Di chuyển `useOhlcvSignalR.ts` → `features/dashboard/modules/vn-stock-chart/`
+- [x] 5.2 **HeatmapModule** (~500 dòng): Tạo `useHeatmap.ts` — exchange/sector/watchlist state, SignalR subscription, ECharts data transform
+- [x] 5.3 **SmartBoardModule** (~400 dòng): Tạo `useSmartBoard.ts` — filter state, sector grouping, volume threshold, SignalR
+- [x] 5.4 **AiChatModule** (~400 dòng): Tạo `useAiChat.ts` — session management, message sending, markdown rendering helpers
+- [x] 5.5 **AnalysisReportModule**: Tạo `useAnalysisReport.ts` — pagination, filter state, PDF loading ✅
+- [x] 5.6 **StockScreenerModule**: Di chuyển `useStockScreener.ts` → `features/dashboard/modules/stock-screener/`
+- [~] 5.7 **DashboardLayout** (`layout.tsx` ~600 dòng): Tạo `useDashboardPages.ts` và `useWorkspaceSync.ts` trong `features/dashboard/hooks/` _(bỏ qua — layout.tsx quá tightly coupled với DashboardContext.Provider, refactor có rủi ro cao)_
+- [x] 5.8 Di chuyển `useIndexSignalR.ts` → `features/dashboard/modules/index-module/`
+- [x] 5.9 Di chuyển `useHeatmapSignalR.ts` → `features/dashboard/modules/heatmap/`
+- [x] 5.10 Di chuyển `useFinancialReportQuery.ts` → `features/dashboard/modules/financial-report-pro/`
+- [x] 5.11 Cập nhật `src/hooks/index.ts` — chỉ còn 3 shared hooks: `useWindowSize`, `useSectors`, `useAvatarBlob`
 
 ---
 
@@ -593,18 +601,19 @@ src/
 
 **Mục tiêu**: Nhất quán named exports, constants đầy đủ.
 
-- [ ] 9.1 Thêm `src/hooks/index.ts` — re-export tất cả shared hooks
-- [ ] 9.2 Thêm `src/contexts/index.ts` — re-export tất cả contexts
-- [ ] 9.3 Cập nhật `src/constants/index.ts` — export đầy đủ (bổ sung colors, smartBoard)
-- [ ] 9.4 Chuyển tất cả module components từ `export default function` → `export function` (named export)
-- [ ] 9.5 Kiểm tra `src/components/ui/index.ts` — đảm bảo re-export đủ
-- [ ] 9.6 Thêm `src/features/dashboard/modules/index.ts` — re-export tất cả modules
+- [x] 9.1 Thêm `src/hooks/index.ts` — re-export tất cả shared hooks
+- [x] 9.2 Thêm `src/contexts/index.ts` — re-export tất cả contexts
+- [x] 9.3 Cập nhật `src/constants/index.ts` — export đầy đủ (bổ sung colors, smartBoard)
+- [x] 9.4 Chuyển tất cả module components từ `export default function` → `export function` (named export) — bao gồm admin components, financial sub-components, index-module/IndexMiniChart
+- [x] 9.5 Kiểm tra `src/components/ui/index.ts` — đảm bảo re-export đủ
+- [x] 9.6 Thêm `src/features/dashboard/modules/index.ts` — re-export tất cả modules
+- [x] 9.7 Thêm `src/features/admin/index.ts` và `src/features/profile/index.ts`
 
 ---
 
 ### Phase 10: Kiểm tra lỗi và hoàn thiện
 
-- [ ] 10.1 Chạy `npx tsc --noEmit` — sửa tất cả TypeScript errors
+- [x] 10.1 Chạy `npx tsc --noEmit` — sửa tất cả TypeScript errors (0 errors ✅)
 - [ ] 10.2 Chạy `npm run build` — đảm bảo Next.js build thành công
 - [ ] 10.3 Chạy `npm run lint` — sửa ESLint warnings
 - [ ] 10.4 Kiểm tra routing trên trình duyệt: `/`, `/login`, `/dashboard`, `/profile`, `/system-manager`

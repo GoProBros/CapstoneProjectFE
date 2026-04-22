@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/dashboard/Sidebar";
-import ModuleSelectorModal from "@/components/dashboard/ModuleSelectorModal";
-import AddPageModal from "@/components/dashboard/AddPageModal";
+import Sidebar from "@/features/dashboard/components/Sidebar";
+import ModuleSelectorModal from "@/features/dashboard/components/ModuleSelectorModal";
+import AddPageModal from "@/features/dashboard/components/AddPageModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import { DashboardContext } from "@/contexts/DashboardContext";

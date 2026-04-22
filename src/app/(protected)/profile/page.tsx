@@ -8,15 +8,15 @@ import { getMe } from "@/services/auth/authService";
 import { FileCategory } from "@/types/file";
 import type { User } from "@/types/auth";
 import { ROUTES } from "@/constants/routes";
-import { Spinner } from "@/components/profile/Spinner";
-import { AvatarDisplay } from "@/components/profile/AvatarDisplay";
-import { ProfileInfoTab } from "@/components/profile/ProfileInfoTab";
-import { ProfileAlertTab } from "@/components/profile/ProfileAlertTab";
-import { ProfilePortfolioTab } from "@/components/profile/ProfilePortfolioTab";
-import { ProfileSubscriptionTab } from "@/components/profile/ProfileSubscriptionTab";
-import { ProfileTransactionTab } from "@/components/profile/ProfileTransactionTab";
-import { canViewProfileTransactions } from "@/components/profile/helpers";
-import { useProfileTheme } from "@/components/profile/useProfileTheme";
+import { Spinner } from "@/features/profile/components/Spinner";
+import { AvatarDisplay } from "@/features/profile/components/AvatarDisplay";
+import { ProfileInfoTab } from "@/features/profile/components/ProfileInfoTab";
+import { ProfileAlertTab } from "@/features/profile/components/ProfileAlertTab";
+import { ProfilePortfolioTab } from "@/features/profile/components/ProfilePortfolioTab";
+import { ProfileSubscriptionTab } from "@/features/profile/components/ProfileSubscriptionTab";
+import { ProfileTransactionTab } from "@/features/profile/components/ProfileTransactionTab";
+import { canViewProfileTransactions } from "@/features/profile/components/helpers";
+import { useProfileTheme } from "@/features/profile/components/useProfileTheme";
 
 type ProfileTab = "account" | "subscription" | "portfolio" | "transactions" | "alerts";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import UsersFeature from "@/components/staff/UsersFeature";
+import { UsersFeature } from "@/features/admin/components/UsersFeature";
 
 export default function StaffUsersPage() {
   return <UsersFeature />;

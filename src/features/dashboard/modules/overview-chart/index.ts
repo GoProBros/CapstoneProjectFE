@@ -1,0 +1,1 @@
+export { OverviewChartModule } from './OverviewChartModule';

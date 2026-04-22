@@ -3,7 +3,7 @@
 import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import StaffSidebar from "@/components/staff/StaffSidebar";
+import { StaffSidebar } from "@/features/admin/components/StaffSidebar";
 
 interface StaffLayoutProps {
   children: ReactNode;

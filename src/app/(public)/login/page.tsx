@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import LoginForm from '@/components/auth/LoginForm'
+import LoginForm from '@/features/auth/components/LoginForm'
 import { fetchOhlcvData, OhlcvDataPoint } from '@/services/market/ohlcvService'
 
 // Background Effects Component

@@ -1,6 +1,6 @@
 "use client";
 
-import FinancialReportsFeature from "@/components/staff/FinancialReportsFeature";
+import { FinancialReportsFeature } from "@/features/admin/components/FinancialReportsFeature";
 
 export default function StaffFinancialReportsPage() {
   return <FinancialReportsFeature />;

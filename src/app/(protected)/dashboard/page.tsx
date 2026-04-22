@@ -1,7 +1,7 @@
 "use client";
 
 import { useDashboard } from "@/contexts/DashboardContext";
-import * as Modules from "@/components/dashboard/modules";
+import * as Modules from "@/features/dashboard/modules";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
