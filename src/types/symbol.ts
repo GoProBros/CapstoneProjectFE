@@ -24,14 +24,6 @@ export interface SymbolSearchParams {
   pageSize: number;
 }
 
-export interface ApiResponse<T> {
-  isSuccess: boolean;
-  message: string;
-  data: T;
-  errors?: string[];
-  responseTime?: string;
-}
-
 /**
  * Symbol List API Types (for Exchange filter)
  */

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { fileService } from '@/services/fileService';
+import { fileService } from '@/services/files/fileService';
 import type { FileResponse } from '@/types/file';
 import { FileCategory } from '@/types/file';
 

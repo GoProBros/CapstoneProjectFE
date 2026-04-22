@@ -6,6 +6,7 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/features/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/hooks/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/services/**/*.{js,ts,jsx,tsx,mdx}",
   ],
@@ -43,7 +44,7 @@ const config: Config = {
         borderGray: '#374151',
         borderDark: '#1f2937',
         // Add Page Modal colors
-        moduleBackground: '#282832',
+        moduleBackground: '#0d0d0d',
         skeletonLine: '#2F2F2F',
         // Light mode colors
         light: {

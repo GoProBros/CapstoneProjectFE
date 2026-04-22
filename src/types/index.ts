@@ -1,21 +1,6 @@
-// Common TypeScript types and interfaces
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
-
-export interface ApiResponse<T> {
-  isSuccess: boolean;
-  message: string;
-  validationErrors?: Record<string, string[]>;
-  responseTime: string;
-  data: T;
-}
-
-// Re-export all types
+// Re-export all types — do not define anything here
+export * from './api';
+export * from './auth';
 export * from './market';
 export * from './symbol';
 export * from './layout';
@@ -32,25 +17,3 @@ export * from './news';
 export * from './telegram';
 export * from './portfolio';
 export * from './alert';
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
-}
-
-/**
- * Paginated data structure from backend
- */
-export interface PaginatedData<T> {
-  items: T[];
-  pageIndex: number;
-  totalPages: number;
-  totalCount: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-}
-
-/**
- * API Response with paginated data
- */
-export type PaginatedResponse<T> = ApiResponse<PaginatedData<T>>;

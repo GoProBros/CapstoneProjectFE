@@ -139,6 +139,13 @@ html {
 .sb-flash-purple { animation: sbFlashPurple 0.7s ease-out; }
 .sb-flash-cyan   { animation: sbFlashCyan   0.7s ease-out; }
 
+/* Stock Screener — static gray highlight for the searched row (stays until next search) */
+.ag-theme-alpine-dark .ag-row.ss-row-highlight,
+.ag-theme-alpine .ag-row.ss-row-highlight {
+  background-color: rgba(156, 163, 175, 0.22) !important;
+  border-left: 2px solid rgba(156, 163, 175, 0.60) !important;
+}
+
 /* Hide row drag grip icon but keep drag functionality */
 .ag-theme-alpine .ag-row-drag,
 .ag-theme-alpine-dark .ag-row-drag {
