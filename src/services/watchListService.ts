@@ -4,7 +4,7 @@
  * All endpoints require authentication
  */
 
-import { get, post, put, del } from './api';
+import { get, post, put, del } from '@/services/api';
 import { API_ENDPOINTS } from '@/constants';
 import type {
   WatchListSummary,

@@ -11,7 +11,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo, useRef } from 'react';
-import SignalRService from '@/services/signalRService';
+import SignalRService from '@/services/market/signalRService';
 import { MarketSymbolDto, ConnectionState } from '@/types/market';
 
 /**

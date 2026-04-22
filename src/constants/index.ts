@@ -6,6 +6,9 @@
 // Re-export from specific constant files
 export { API_ENDPOINTS } from './endpoints';
 export { ROUTES } from './routes';
+export * from './colors';
+export * from './smartBoard';
+export * from './roles';
 
 // Application metadata
 export const APP_NAME = 'kafi-stock';

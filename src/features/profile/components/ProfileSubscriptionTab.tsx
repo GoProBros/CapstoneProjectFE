@@ -1,0 +1,370 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getSubscriptions, getMySubscription } from '@/services/admin/subscriptionService';
+import { getLatestMyTransaction, getPaymentStatus, syncPayment, waitForPaymentCompletion } from '@/services/admin/paymentService';
+import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
+import type { PaymentProviderValue, PaymentTransactionDto } from '@/types/payment';
+import type { SubscriptionDto, UserSubscriptionDto } from '@/types/subscription';
+import { formatPrice, levelOrderLabel } from './helpers';
+import { ModulePreviewPanel } from './ModulePreviewPanel';
+import {
+    normalizeAllowedModulesWithPreview,
+    type ModulePreviewItem,
+} from './modulePreviewUtils';
+import { Spinner } from './Spinner';
+import { SubscriptionDetailModal } from './SubscriptionDetailModal';
+import { SubscriptionPaymentModal } from './SubscriptionPaymentModal';
+import { useProfileTheme } from './useProfileTheme';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
+
+interface PendingPaymentPayload {
+    orderCode: number;
+    provider: PaymentProviderValue;
+}
+
+function isPaymentProviderValue(value: unknown): value is PaymentProviderValue {
+    return value === PaymentProviderType.PayOS || value === PaymentProviderType.Momo;
+}
+
+function parsePendingPayment(raw: string | null): PendingPaymentPayload | null {
+    if (!raw) return null;
+
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== 'object' || parsed === null) return null;
+
+        const orderCodeRaw = (parsed as Record<string, unknown>).orderCode;
+        const providerRaw = (parsed as Record<string, unknown>).provider;
+
+        if (typeof orderCodeRaw !== 'number' || !Number.isFinite(orderCodeRaw) || orderCodeRaw <= 0) {
+            return null;
+        }
+
+        if (!isPaymentProviderValue(providerRaw)) {
+            return null;
+        }
+
+        return {
+            orderCode: orderCodeRaw,
+            provider: providerRaw,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function getPayOSPendingFromQuery(): PendingPaymentPayload | null {
+    if (typeof window === 'undefined') return null;
+
+    const params = new URLSearchParams(window.location.search);
+    const orderCodeRaw = params.get('orderCode') ?? params.get('ordercode');
+    if (!orderCodeRaw) return null;
+
+    const orderCode = Number(orderCodeRaw);
+    if (!Number.isFinite(orderCode) || orderCode <= 0) return null;
+
+    return {
+        orderCode,
+        provider: PaymentProviderType.PayOS,
+    };
+}
+
+function getPendingFromLatestTransaction(
+    latestTransaction: PaymentTransactionDto | null,
+): PendingPaymentPayload | null {
+    if (!latestTransaction || !isPaymentProviderValue(latestTransaction.paymentProvider)) {
+        return null;
+    }
+
+    return {
+        orderCode: latestTransaction.orderCode,
+        provider: latestTransaction.paymentProvider,
+    };
+}
+
+export function ProfileSubscriptionTab() {
+    const PREVIEW_POPUP_WIDTH = 340;
+    const PREVIEW_POPUP_HEIGHT = 320;
+    const PREVIEW_POPUP_OFFSET = 14;
+    const PREVIEW_POPUP_MARGIN = 12;
+
+    const { isAuthenticated } = useAuth();
+    const { borderCls, textPrimary, textSecondary, textMuted, hoverBg, fieldBg, bgSub } = useProfileTheme();
+    const setMySubscriptionStore = useSubscriptionStore(s => s.setMySubscription);
+
+    const [subscriptions, setSubscriptions] = useState<SubscriptionDto[]>([]);
+    const [mySubscription, setMySubscription] = useState<UserSubscriptionDto | null>(null);
+    const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
+    const [loadingMySubscription, setLoadingMySubscription] = useState(false);
+    const [detailSub, setDetailSub] = useState<SubscriptionDto | null>(null);
+    const [paymentSub, setPaymentSub] = useState<SubscriptionDto | null>(null);
+    const [hoveredModulePreview, setHoveredModulePreview] = useState<ModulePreviewItem | null>(null);
+    const [previewPopupPosition, setPreviewPopupPosition] = useState({ x: 0, y: 0 });
+
+    const updatePreviewPopupPosition = (clientX: number, clientY: number) => {
+        if (typeof window === 'undefined') return;
+
+        const maxX = window.innerWidth - PREVIEW_POPUP_WIDTH - PREVIEW_POPUP_MARGIN;
+        const maxY = window.innerHeight - PREVIEW_POPUP_HEIGHT - PREVIEW_POPUP_MARGIN;
+
+        const nextX = Math.max(PREVIEW_POPUP_MARGIN, Math.min(clientX + PREVIEW_POPUP_OFFSET, maxX));
+        const nextY = Math.max(PREVIEW_POPUP_MARGIN, Math.min(clientY + PREVIEW_POPUP_OFFSET, maxY));
+
+        setPreviewPopupPosition({ x: nextX, y: nextY });
+    };
+
+    const showModulePreviewFromMouse = (
+        moduleItem: ModulePreviewItem,
+        event: React.MouseEvent<HTMLButtonElement>,
+    ) => {
+        setHoveredModulePreview(moduleItem);
+        updatePreviewPopupPosition(event.clientX, event.clientY);
+    };
+
+    const showModulePreviewFromFocus = (
+        moduleItem: ModulePreviewItem,
+        event: React.FocusEvent<HTMLButtonElement>,
+    ) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setHoveredModulePreview(moduleItem);
+        updatePreviewPopupPosition(rect.right, rect.bottom);
+    };
+
+    const currentModuleItems = useMemo(() => {
+        return normalizeAllowedModulesWithPreview(mySubscription?.allowedModules);
+    }, [mySubscription?.allowedModules]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const initialize = async () => {
+            setLoadingSubscriptions(true);
+            setLoadingMySubscription(true);
+
+            // If returning from a payment gateway, sync the payment status first
+            const pendingFromSession = parsePendingPayment(sessionStorage.getItem('pendingPayment'));
+            const pendingFromQuery = getPayOSPendingFromQuery();
+            const latestTransaction = await getLatestMyTransaction().catch(err => {
+                console.error('[ProfileSubscriptionTab] getLatestMyTransaction error:', err);
+                return null;
+            });
+            const pendingFromLatestTransaction = getPendingFromLatestTransaction(latestTransaction);
+
+            const pending = pendingFromLatestTransaction ?? pendingFromSession ?? pendingFromQuery;
+
+            if (pending) {
+                try {
+                    await syncPayment(pending.orderCode).catch(err => {
+                        console.error('[ProfileSubscriptionTab] Payment sync error:', err);
+                    });
+
+                    let statusAfterSync = await getPaymentStatus(pending.orderCode).catch(err => {
+                        console.error('[ProfileSubscriptionTab] Payment status check error:', err);
+                        return null;
+                    });
+
+                    if (pending.provider === PaymentProviderType.PayOS &&
+                        statusAfterSync?.status === PaymentTransactionStatus.Pending) {
+                        statusAfterSync = await waitForPaymentCompletion(pending.orderCode, {
+                            timeoutMs: 30000,
+                            pollIntervalMs: 2000,
+                        }).catch(err => {
+                            console.error('[ProfileSubscriptionTab] PayOS status polling error:', err);
+                            return null;
+                        });
+                    }
+
+                    const hasFinalizedStatus = statusAfterSync && statusAfterSync.status !== PaymentTransactionStatus.Pending;
+                    const isStalePendingOrder =
+                        !!pendingFromSession &&
+                        !!pendingFromLatestTransaction &&
+                        pendingFromSession.orderCode !== pendingFromLatestTransaction.orderCode;
+
+                    if (pendingFromSession && (hasFinalizedStatus || isStalePendingOrder)) {
+                        sessionStorage.removeItem('pendingPayment');
+                    }
+                } catch {
+                    // ignore malformed data
+                }
+            }
+
+            await Promise.allSettled([
+                getSubscriptions()
+                    .then(data => setSubscriptions(data))
+                    .catch(err => console.error('[ProfileSubscriptionTab] getSubscriptions error:', err))
+                    .finally(() => setLoadingSubscriptions(false)),
+                getMySubscription()
+                    .then(data => {
+                        setMySubscription(data);
+                        setMySubscriptionStore(data);
+                    })
+                    .catch(err => console.error('[ProfileSubscriptionTab] getMySubscription error:', err))
+                    .finally(() => setLoadingMySubscription(false)),
+            ]);
+        };
+
+        initialize();
+    }, [isAuthenticated, setMySubscriptionStore]);
+
+    return (
+        <>
+            <div className="space-y-6">
+
+                <div className="flex items-center justify-between">
+                    <h2 className={`text-base font-semibold ${textPrimary}`}>Quản lý gói thành viên</h2>
+                </div>
+
+                <section className={`rounded-xl border ${borderCls} p-4 md:p-5 ${bgSub}`}>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <h3 className={`text-sm md:text-base font-semibold ${textPrimary}`}>Gói đăng ký hiện tại</h3>
+                    </div>
+
+                    {loadingMySubscription ? (
+                        <div className="flex items-center gap-2 py-6">
+                            <Spinner className="w-5 h-5 text-green-500" />
+                            <span className={`text-sm ${textSecondary}`}>Đang tải thông tin gói hiện tại...</span>
+                        </div>
+                    ) : mySubscription ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                            <div className="lg:col-span-7 space-y-2">
+                                {(
+                                    [
+                                        ['Tên gói', mySubscription.subscriptionName || '—'],
+                                        ['Workspace tối đa', mySubscription.maxWorkspaces != null ? mySubscription.maxWorkspaces.toString() : '—'],
+                                        ['Ngày bắt đầu', mySubscription.startDate ? new Date(mySubscription.startDate).toLocaleDateString('vi-VN') : '—'],
+                                        ['Ngày kết thúc', mySubscription.endDate ? new Date(mySubscription.endDate).toLocaleDateString('vi-VN') : '—'],
+                                    ] as [string, string][]
+                                ).map(([label, value]) => (
+                                    <div key={label} className={`rounded-lg border ${borderCls} ${fieldBg} px-3 py-2`}>
+                                        <p className={`text-[10px] uppercase tracking-wider font-medium ${textMuted}`}>{label}</p>
+                                        <p className={`text-sm font-semibold ${textPrimary}`}>{value}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className={`lg:col-span-5 rounded-lg border ${borderCls} ${fieldBg} p-3`}>
+                                <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${textMuted}`}>Modules được phép</p>
+                                {currentModuleItems.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2 max-h-[184px] overflow-y-auto pr-1">
+                                        {currentModuleItems.map(moduleItem => (
+                                            <button
+                                                type="button"
+                                                key={`${moduleItem.key}-${moduleItem.label}`}
+                                                onMouseEnter={event => showModulePreviewFromMouse(moduleItem, event)}
+                                                onMouseMove={event => updatePreviewPopupPosition(event.clientX, event.clientY)}
+                                                onMouseLeave={() => setHoveredModulePreview(null)}
+                                                onFocus={event => showModulePreviewFromFocus(moduleItem, event)}
+                                                onBlur={() => setHoveredModulePreview(null)}
+                                                className={`w-full text-left rounded-md border ${borderCls} px-2.5 py-1.5 text-xs ${textPrimary} truncate ${hoverBg} transition-colors`}
+                                                title={moduleItem.label}
+                                            >
+                                                {moduleItem.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className={`text-xs ${textSecondary}`}>Chưa có cấu hình module cho gói hiện tại.</p>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={`rounded-lg border ${borderCls} p-4 text-sm ${textSecondary}`}>
+                            Bạn chưa đăng ký gói thành viên nào.
+                        </div>
+                    )}
+                </section>
+
+                <section className={`rounded-xl border ${borderCls} p-4 md:p-5 ${bgSub}`}>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className={`text-sm md:text-base font-semibold ${textPrimary}`}>Các gói có thể nâng cấp</h3>
+                        <span className={`text-xs ${textMuted}`}>Vuốt ngang để xem thêm (nếu có)</span>
+                    </div>
+
+                    {loadingSubscriptions ? (
+                        <div className="flex items-center gap-2 py-6">
+                            <Spinner className="w-5 h-5 text-green-500" />
+                            <span className={`text-sm ${textSecondary}`}>Đang tải danh sách gói...</span>
+                        </div>
+                    ) : subscriptions.length === 0 ? (
+                        <p className={`text-sm ${textSecondary}`}>Không có gói thành viên nào.</p>
+                    ) : (
+                        <div className="overflow-x-auto pb-2">
+                            <div className="flex gap-4 min-w-max">
+                                {subscriptions.map(sub => (
+                                    <div
+                                        key={sub.id}
+                                        className={`w-[230px] rounded-xl border ${borderCls} ${fieldBg} p-4 flex flex-col justify-between gap-4`}
+                                    >
+                                        <div className="space-y-2">
+                                            <p className={`font-bold text-base ${textPrimary}`}>{sub.name}</p>
+                                            <p className={`text-sm ${textSecondary}`}>
+                                                Workspace tối đa: <span className={`font-semibold ${textPrimary}`}>{sub.maxWorkspaces}</span>
+                                            </p>
+                                            <p className={`text-sm ${textSecondary}`}>
+                                                Thời hạn: <span className={`font-semibold ${textPrimary}`}>{sub.durationInDays} ngày</span>
+                                            </p>
+                                            <p className="text-lg font-bold text-green-500">{formatPrice(sub.price)}</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <button
+                                                onClick={() => setDetailSub(sub)}
+                                                className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors ${borderCls} ${textSecondary} ${hoverBg}`}
+                                            >
+                                                Chi tiết
+                                            </button>
+                                            <button
+                                                onClick={() => setPaymentSub(sub)}
+                                                className="w-full py-2 rounded-lg text-sm font-medium bg-green-500 hover:bg-green-600 text-white transition-colors"
+                                            >
+                                                Nâng cấp
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </section>
+            </div>
+
+            {hoveredModulePreview && (
+                <div className="fixed inset-0 z-50 pointer-events-none">
+                    <div
+                        className="absolute w-[340px] max-w-[calc(100vw-1.5rem)]"
+                        style={{
+                            left: `${previewPopupPosition.x}px`,
+                            top: `${previewPopupPosition.y}px`,
+                        }}
+                    >
+                        <ModulePreviewPanel
+                            moduleItem={hoveredModulePreview}
+                            borderCls={borderCls}
+                            bgSub={bgSub}
+                            textPrimary={textPrimary}
+                            textMuted={textMuted}
+                            hintText="Rê chuột vào module khác để xem preview nhanh."
+                            className="shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {detailSub && (
+                <SubscriptionDetailModal
+                    sub={detailSub}
+                    onClose={() => setDetailSub(null)}
+                    onUpgrade={selectedSub => {
+                        setDetailSub(null);
+                        setPaymentSub(selectedSub);
+                    }}
+                />
+            )}
+            {paymentSub && (
+                <SubscriptionPaymentModal sub={paymentSub} onClose={() => setPaymentSub(null)} />
+            )}
+        </>
+    );
+}

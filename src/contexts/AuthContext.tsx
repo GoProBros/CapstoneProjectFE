@@ -3,8 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
-import * as authService from '@/services/authService';
-import { getMySubscription } from '@/services/subscriptionService';
+import * as authService from '@/services/auth/authService';
+import { getMySubscription } from '@/services/admin/subscriptionService';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import {
   clearAuthStorageItems,
