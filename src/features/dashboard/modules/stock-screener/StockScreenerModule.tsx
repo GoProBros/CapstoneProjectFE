@@ -16,7 +16,7 @@ import { useDashboard } from "@/contexts/DashboardContext";
 import { useModule } from "@/contexts/ModuleContext";
 import { useColumnStore } from "@/stores/columnStore";
 import { ColumnSidebar } from "@/features/dashboard/components/ColumnSidebar";
-import { Wifi, WifiOff, Table2 } from "lucide-react";
+import { Wifi, WifiOff, Table2, Link2, Link2Off } from "lucide-react";
 import { useSignalR } from "@/contexts/SignalRContext";
 import { MarketSymbolDto } from "@/types/market";
 import SymbolSearchBox from "@/features/dashboard/components/SymbolSearchBox";
@@ -199,7 +199,17 @@ export function StockScreenerModule() {
     // Helper
     canEditLayout,
     highlightedTicker,
+    setIsLinked,
+    setTickerHighlight,
   } = useStockScreener();
+
+  const [isLinked, setIsLinkedLocal] = useState(true);
+  const handleToggleLink = useCallback(() => {
+    setIsLinkedLocal(v => {
+      setIsLinked(!v);
+      return !v;
+    });
+  }, [setIsLinked]);
 
   // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
   // QUAN TRỌANG: deps là [] để columnDefs không bao giờ được recreate khi columns visibility thay đổi.
@@ -730,16 +740,18 @@ export function StockScreenerModule() {
 
         {/* Badge title (drag zone) */}
         <div className="module-header flex items-center justify-center pt-1.5 pb-1">
-          <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
-            <svg width="220" height="34" viewBox="0 0 136 22" className="block">
-              <path
-                d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z"
-                fill="#4ADE80"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-black tracking-wide">
-              Bảng giá
-            </span>
+          <div className="flex items-center gap-1.5">
+            <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
+              <svg width="220" height="34" viewBox="0 0 136 22" className="block">
+                <path
+                  d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z"
+                  fill="#4ADE80"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-black tracking-wide">
+                Bảng giá
+              </span>
+            </div>
           </div>
         </div>
 
@@ -751,6 +763,20 @@ export function StockScreenerModule() {
               <SymbolSearchBox
                 isConnected={isConnected}
                 onSymbolSelect={handleSymbolSelect}
+                trailingSlot={
+                  <button
+                    type="button"
+                    onClick={handleToggleLink}
+                    title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
+                    className={`rounded p-1 transition-colors ${
+                      isLinked
+                        ? 'text-green-400 hover:bg-green-500/15'
+                        : 'text-gray-500 hover:bg-white/8'
+                    }`}
+                  >
+                    {isLinked ? <Link2 size={13} /> : <Link2Off size={13} />}
+                  </button>
+                }
               />
 
               {/* Watch List Selector */}
@@ -869,9 +895,12 @@ export function StockScreenerModule() {
               onBodyScroll={handleGridBodyScroll}
               onCellClicked={(params) => {
                 if (params.colDef.field === "ticker" && params.data?.ticker) {
-                  useSelectedSymbolStore
-                    .getState()
-                    .setSelectedSymbol(params.data.ticker);
+                  setTickerHighlight(params.data.ticker);
+                  if (isLinked) {
+                    useSelectedSymbolStore
+                      .getState()
+                      .setSelectedSymbol(params.data.ticker);
+                  }
                 }
               }}
               onRowDragEnter={handleRowDragEnter}

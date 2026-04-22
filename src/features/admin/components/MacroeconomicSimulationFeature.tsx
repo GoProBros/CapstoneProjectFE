@@ -298,10 +298,6 @@ export function MacroeconomicSimulationFeature() {
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 font-headline mb-2">
             Mô phỏng vĩ mô (DEMO)
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 max-w-3xl">
-            Tinh chỉnh nhanh dữ liệu kinh tế vĩ mô bằng thanh kéo và ô nhập số,
-            sau đó cập nhật trực tiếp vào hệ thống để phục vụ mục đích demo.
-          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">

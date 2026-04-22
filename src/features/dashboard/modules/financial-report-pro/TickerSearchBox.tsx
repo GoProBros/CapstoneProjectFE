@@ -6,7 +6,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Icon } from '@iconify/react';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -67,51 +66,42 @@ export default function TickerSearchBox() {
           onChange={(e) => setLocalValue(e.target.value.toUpperCase())}
           onKeyDown={handleKeyDown}
           className={`
-            relative block w-full disabled:cursor-not-allowed disabled:opacity-75
-            focus:outline-none border-0 form-input rounded-full text-sm px-2.5 py-1.5
-            shadow-sm ring-1 ring-inset pe-9 transition-all
+            block w-full text-xs rounded border px-2 py-1.5 pe-8 outline-none transition-colors
             ${
               theme === 'dark'
-                ? 'bg-cardBackground text-white ring-gray-700 focus:ring-green-500 placeholder-gray-500'
-                : 'bg-white text-gray-900 ring-gray-300 focus:ring-green-500 placeholder-gray-400'
+                ? 'bg-cardBackground border-gray-700 text-white placeholder:text-gray-500 focus:border-green-500'
+                : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-green-500'
             }
           `}
           autoComplete="off"
         />
-        <span className="absolute inset-y-0 end-0 flex items-center">
+        <span className="absolute inset-y-0 end-0 flex items-center pe-1">
           {localValue ? (
             <button
               type="button"
               onClick={handleClear}
-              className={`
-                ani-pop font-medium rounded-full text-sm gap-x-1.5 p-1.5 shadow-sm
-                ring-1 ring-inset inline-flex items-center transition-all
-                ${
-                  theme === 'dark'
-                    ? 'ring-gray-700 text-gray-200 bg-gray-800 hover:bg-gray-700/50'
-                    : 'ring-gray-300 text-gray-700 bg-gray-50 hover:bg-gray-100'
-                }
-              `}
+              className={`rounded p-0.5 ${
+                theme === 'dark' ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'
+              }`}
               title="Xóa"
             >
-              <Icon icon="ri:close-line" className="flex-shrink-0 h-5 w-5" />
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSearch}
-              className={`
-                ani-pop font-medium rounded-full text-sm gap-x-1.5 p-1.5 shadow-sm
-                ring-1 ring-inset inline-flex items-center transition-all
-                ${
-                  theme === 'dark'
-                    ? 'ring-gray-700 text-gray-200 bg-gray-800 hover:bg-gray-700/50'
-                    : 'ring-gray-300 text-gray-700 bg-gray-50 hover:bg-gray-100'
-                }
-              `}
+              className={`rounded p-0.5 ${
+                theme === 'dark' ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-600'
+              }`}
               title="Tìm kiếm"
             >
-              <Icon icon="ri:search-line" className="flex-shrink-0 h-5 w-5" />
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="8" />
+                <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+              </svg>
             </button>
           )}
         </span>

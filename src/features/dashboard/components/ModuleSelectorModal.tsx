@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStore } from "@/stores/subscriptionStore";
@@ -24,49 +24,90 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
   onAdd,
   isLocked,
 }) => {
-  return (
-    <div className="relative bg-white dark:bg-cardBackground rounded-lg overflow-hidden border border-gray-200 dark:border-borderDark hover:border-buttonGreen transition-all">
-      <div className="p-3 border-b border-gray-200 dark:border-borderDark flex items-center justify-between bg-white dark:bg-componentBackground transition-colors duration-300">
-        <h3 className="text-gray-900 dark:text-white text-sm font-medium">
-          {title}
-        </h3>
-        <button
-          onClick={onAdd}
-          disabled={isLocked}
-          className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            isLocked
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-300"
-              : "bg-buttonGreen hover:bg-buttonGreen/80 text-black"
-          }`}
-        >
-          <span className="text-lg leading-none">+</span>
-          <span>Thêm</span>
-        </button>
-      </div>
-      <div className="aspect-[4/3] bg-white dark:bg-cardPreview flex items-center justify-center transition-colors duration-300 p-2">
-        {preview}
-      </div>
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
 
-      {isLocked && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/50 px-4 text-white">
-          <svg
-            className="h-8 w-8"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    setTilt({ x: -dy * 8, y: dx * 8 });
+  };
+
+  const handleMouseEnter = () => setHovered(true);
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+    setTilt({ x: 0, y: 0 });
+  };
+
+  return (
+    <div
+      style={{ perspective: "800px" }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        ref={cardRef}
+        style={{
+          transform: hovered
+            ? `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(1.04)`
+            : "rotateX(0deg) rotateY(0deg) scale(1)",
+          transition: hovered ? "transform 0.1s ease-out" : "transform 0.35s ease-out",
+          boxShadow: hovered
+            ? "0 0 0 1.5px #4ADE80, 0 0 24px 4px rgba(74,222,128,0.25), 0 0 48px 8px rgba(96,165,250,0.15)"
+            : undefined,
+        }}
+        className="group relative bg-white dark:bg-cardBackground rounded-lg overflow-hidden border border-gray-200 dark:border-borderDark cursor-pointer"
+      >
+        <div className="p-3 border-b border-gray-200 dark:border-borderDark flex items-center justify-between bg-white dark:bg-componentBackground transition-colors duration-200">
+          <h3 className="text-gray-900 dark:text-white text-sm font-medium">
+            {title}
+          </h3>
+          <button
+            onClick={onAdd}
+            disabled={isLocked}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              isLocked
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-300"
+                : "bg-buttonGreen hover:bg-buttonGreen/80 text-black"
+            }`}
           >
-            <rect x="5" y="11" width="14" height="10" rx="2" ry="2" />
-            <path d="M8 11V8a4 4 0 1 1 8 0v3" />
-          </svg>
-          <p className="text-center text-xs font-medium leading-5">
-            Vui lòng nâng cấp gói đăng ký để sử dụng module
-          </p>
+            <span className="text-lg leading-none">+</span>
+            <span>Thêm</span>
+          </button>
         </div>
-      )}
+        <div className="aspect-[4/3] bg-white dark:bg-cardPreview flex items-center justify-center transition-colors duration-300 p-2">
+          {preview}
+        </div>
+
+        {isLocked && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/50 px-4 text-white">
+            <svg
+              className="h-8 w-8"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="5" y="11" width="14" height="10" rx="2" ry="2" />
+              <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+            </svg>
+            <p className="text-center text-xs font-medium leading-5">
+              Vui lòng nâng cấp gói đăng ký để sử dụng module
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -218,7 +259,7 @@ export default function ModuleSelectorModal({
       {/* Header */}
       <div className="h-16 border-b border-gray-300 dark:border-borderGray flex items-center justify-between px-6 bg-white dark:bg-modalBackground transition-colors duration-300">
         <div className="flex items-center gap-4">
-          <h3 className="text-gray-900 dark:text-white text-l font-semibold">
+          <h3 className="text-l font-semibold bg-gradient-to-r from-[#4ADE80] to-blue-400 bg-clip-text text-transparent">
             Modules
           </h3>
           {/* <button className="flex items-center gap-2 bg-white dark:bg-cardBackground border-2 border-buttonGreen text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-buttonGreen/10 dark:hover:bg-buttonGreen/10 transition-colors">

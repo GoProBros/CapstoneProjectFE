@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Link2, Link2Off } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { searchSymbols } from '@/services/market/symbolService';
@@ -61,6 +61,7 @@ export function OrderMatchingModule() {
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [isLinked, setIsLinked] = useState(true);
 
   const tbodyRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -160,16 +161,16 @@ export function OrderMatchingModule() {
     setInputValue(upper);
     setShowDropdown(false);
     setSearchResults([]);
-    setSelectedSymbol(upper);
-  }, [setSelectedSymbol]);
+    if (isLinked) setSelectedSymbol(upper);
+  }, [isLinked, setSelectedSymbol]);
 
-  // Sync from global store → local ticker (external selection from other modules)
+  // Sync from global store → local ticker when linked
   useEffect(() => {
-    if (storeSymbol && storeSymbol !== ticker) {
+    if (isLinked && storeSymbol && storeSymbol !== ticker) {
       setTicker(storeSymbol);
       setInputValue(storeSymbol);
     }
-  }, [storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLinked, storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -216,7 +217,8 @@ export function OrderMatchingModule() {
 
       {/* ── Symbol search ── */}
       <div className={`flex-none px-2 pt-1 pb-1`} ref={searchRef}>
-        <div className="relative">
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
           <div className={`flex items-center gap-1 rounded border ${borderColor} focus-within:border-green-500 ${isDark ? 'bg-cardBackground' : 'bg-white'} px-2 py-1`}>
             <Search size={12} className={textMuted} />
             <input
@@ -251,6 +253,20 @@ export function OrderMatchingModule() {
               ))}
             </div>
           )}
+          </div>
+          {/* Link toggle */}
+          <button
+            type="button"
+            onClick={() => setIsLinked(v => !v)}
+            title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
+            className={`flex-shrink-0 rounded p-1 transition-colors ${
+              isLinked
+                ? 'text-green-400 hover:bg-green-500/15'
+                : `${textMuted} hover:bg-white/8`
+            }`}
+          >
+            {isLinked ? <Link2 size={13} /> : <Link2Off size={13} />}
+          </button>
         </div>
       </div>
 

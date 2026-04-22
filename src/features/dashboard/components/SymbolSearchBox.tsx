@@ -9,9 +9,10 @@ import { SymbolSearchResultDto } from '@/types/symbol';
 interface SymbolSearchBoxProps {
   isConnected: boolean;
   onSymbolSelect: (ticker: string) => void;
+  trailingSlot?: React.ReactNode;
 }
 
-export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolSearchBoxProps) {
+export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingSlot }: SymbolSearchBoxProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -206,6 +207,8 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect }: SymbolS
           )}
         </div>
         
+        {trailingSlot}
+
         {/* Toggle IsTickerOnly */}
         <button
           onClick={() => setIsTickerOnly(prev => !prev)}

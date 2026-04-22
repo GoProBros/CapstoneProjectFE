@@ -97,6 +97,10 @@ export function useStockScreener() {
   // Highlighted ticker state — drives getRowClass in the grid
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
 
+  // Link toggle — controls whether symbol selection broadcasts to global store
+  const isLinkedRef = useRef(true);
+  const setIsLinked = useCallback((v: boolean) => { isLinkedRef.current = v; }, []);
+
   /**
    * Move a row to the top of the grid and apply a gray highlight.
    * Uses applyTransaction remove+add(index=0) so the row is always visible at top.
@@ -1619,8 +1623,10 @@ export function useStockScreener() {
       // In exchange/sector/type mode: check against marketData
       const upperTicker = ticker.toUpperCase();
 
-      // Broadcast to all modules via global store
-      useSelectedSymbolStore.getState().setSelectedSymbol(upperTicker);
+      // Broadcast to all modules via global store (only when linked)
+      if (isLinkedRef.current) {
+        useSelectedSymbolStore.getState().setSelectedSymbol(upperTicker);
+      }
 
       const isAlreadyTracked = currentWatchListId !== null
         ? currentWatchListTickers.current.has(upperTicker)
@@ -1774,5 +1780,10 @@ export function useStockScreener() {
     // Helpers
     canEditLayout,
     highlightedTicker,
+    setIsLinked,
+    setTickerHighlight: useCallback((ticker: string) => {
+      setHighlightedTicker(null);
+      requestAnimationFrame(() => setHighlightedTicker(ticker.toUpperCase()));
+    }, []),
   };
 }

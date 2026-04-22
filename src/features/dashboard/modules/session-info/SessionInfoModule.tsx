@@ -3,13 +3,14 @@
 // ─ REDESIGNED: compact layout, fixed row heights, cleaner footer ─────────────
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Link2, Link2Off } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSignalR } from '@/contexts/SignalRContext';
 import SignalRService from '@/services/market/signalRService';
 import type { PriceDepthDto } from '@/services/market/signalRService';
 import { searchSymbols } from '@/services/market/symbolService';
 import type { SymbolSearchResultDto } from '@/types/symbol';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -42,11 +43,15 @@ export function SessionInfoModule() {
   const isDark = theme === 'dark';
   const { isConnected } = useSignalR();
 
-  const [ticker, setTicker]               = useState('FPT');
-  const [inputValue, setInputValue]       = useState('FPT');
+  const storeSymbol      = useSelectedSymbolStore(s => s.selectedSymbol);
+  const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
+
+  const [ticker, setTicker]         = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
+  const [inputValue, setInputValue] = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown]   = useState(false);
   const [depth, setDepth]                 = useState<PriceDepthDto | null>(null);
+  const [isLinked, setIsLinked]           = useState(true);
 
   const searchRef   = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,9 +80,21 @@ export function SessionInfoModule() {
   }, []);
 
   const selectSymbol = useCallback((t: string) => {
-    setTicker(t.toUpperCase()); setInputValue(t.toUpperCase());
-    setShowDropdown(false); setSearchResults([]);
-  }, []);
+    const upper = t.toUpperCase();
+    setTicker(upper);
+    setInputValue(upper);
+    setShowDropdown(false);
+    setSearchResults([]);
+    if (isLinked) setSelectedSymbol(upper);
+  }, [isLinked, setSelectedSymbol]);
+
+  // Sync from global store → local ticker when linked
+  useEffect(() => {
+    if (isLinked && storeSymbol && storeSymbol !== ticker) {
+      setTicker(storeSymbol);
+      setInputValue(storeSymbol);
+    }
+  }, [isLinked, storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -128,9 +145,10 @@ export function SessionInfoModule() {
       </div>
 
       {/* ── Search ─────────────────────────────────────────────────────── */}
-      <div className="flex-none px-2 pb-1" ref={searchRef}>
-        <div className="relative">
-          <div className={`flex items-center gap-1.5 rounded-md border ${border} focus-within:border-green-500 ${isDark ? 'bg-cardBackground' : 'bg-white'} px-2 py-[5px]`}>
+      <div className="flex-none px-2 pt-1 pb-2" ref={searchRef}>
+        <div className="flex items-center gap-1.5">
+        <div className="relative flex-1">
+          <div className={`flex items-center gap-1 rounded border ${border} focus-within:border-green-500 ${isDark ? 'bg-cardBackground' : 'bg-white'} px-2 py-1`}>
             <Search size={12} className={muted} />
             <input
               value={inputValue}
@@ -138,7 +156,7 @@ export function SessionInfoModule() {
               onFocus={() => inputValue && setShowDropdown(true)}
               onKeyDown={e => e.key === 'Enter' && selectSymbol(inputValue)}
               placeholder="Nhập mã CK…"
-              className={`flex-1 bg-transparent text-[12px] font-semibold outline-none ${textPri} placeholder:font-normal placeholder:text-gray-500`}
+              className={`flex-1 bg-transparent text-xs font-semibold outline-none ${textPri} placeholder:font-normal ${muted}`}
             />
             {inputValue && (
               <button onClick={() => { setInputValue(''); setSearchResults([]); setShowDropdown(false); }}>
@@ -157,6 +175,20 @@ export function SessionInfoModule() {
               ))}
             </div>
           )}
+        </div>
+        {/* Link toggle */}
+        <button
+          type="button"
+          onClick={() => setIsLinked(v => !v)}
+          title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
+          className={`flex-shrink-0 rounded p-1 transition-colors ${
+            isLinked
+              ? 'text-green-400 hover:bg-green-500/15'
+              : `${muted} hover:bg-white/8`
+          }`}
+        >
+          {isLinked ? <Link2 size={13} /> : <Link2Off size={13} />}
+        </button>
         </div>
       </div>
 

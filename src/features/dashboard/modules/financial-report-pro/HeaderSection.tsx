@@ -46,8 +46,8 @@ const HeaderSection = memo(function HeaderSection({
     <div className="flex flex-col md:flex-row justify-between mb-2 gap-2">
       {/* Left side: Lock + Filters */}
       <div className="flex-1 flex flex-wrap items-center gap-1 py-1 px-2 overflow-x-auto">
-        <LockToggle />
         <TickerSearchBox />
+        <LockToggle />
         <IndustrySelect />
       </div>
 

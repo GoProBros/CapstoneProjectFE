@@ -115,13 +115,28 @@ export function NotificationProvider({
     }
   }, []);
 
+  /**
+   * Called by the auto-dismiss timer: moves the notification from the
+   * "realtime" list into historicalNotifications so it stays visible
+   * in the panel instead of disappearing completely.
+   */
+  const autoDismissNotification = useCallback((notif: SystemNotification) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+    // Prepend to history (mark as historical) and cap to MAX_HISTORY
+    setHistoricalNotifications((prev) => [
+      { ...notif, isHistorical: true },
+      ...prev.filter((n) => n.id !== notif.id),
+    ].slice(0, MAX_HISTORY));
+    timersRef.current.delete(notif.id);
+  }, []);
+
   const addNotification = useCallback(
     (notif: SystemNotification) => {
       setNotifications((prev) => [notif, ...prev].slice(0, MAX_REALTIME));
-      const timer = setTimeout(() => dismissNotification(notif.id), AUTO_DISMISS_MS);
+      const timer = setTimeout(() => autoDismissNotification(notif), AUTO_DISMISS_MS);
       timersRef.current.set(notif.id, timer);
     },
-    [dismissNotification],
+    [autoDismissNotification],
   );
 
   // ── Load historical system notifications from REST API ──────────────────────

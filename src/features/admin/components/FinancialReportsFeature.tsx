@@ -160,7 +160,7 @@ export function FinancialReportsFeature() {
                         }}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">Kỳ báo cáo (Period)</option>
+                        <option value="">Kỳ báo cáo</option>
                         <option value={FinancialPeriodType.FirstQuarter}>Quý 1</option>
                         <option value={FinancialPeriodType.SecondQuarter}>Quý 2</option>
                         <option value={FinancialPeriodType.ThirdQuarter}>Quý 3</option>
@@ -175,7 +175,7 @@ export function FinancialReportsFeature() {
                         }}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">Trạng thái (Status)</option>
+                        <option value="">Trạng thái</option>
                         <option value={FinancialReportStatus.Pending}>Chờ xử lý</option>
                         <option value={FinancialReportStatus.Processing}>Đang xử lý</option>
                         <option value={FinancialReportStatus.Completed}>Hoàn thành</option>
@@ -190,7 +190,7 @@ export function FinancialReportsFeature() {
                         }}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">Năm (Year)</option>
+                        <option value="">Năm</option>
                         {yearOptions.map((year) => (
                             <option key={year} value={year}>{year}</option>
                         ))}

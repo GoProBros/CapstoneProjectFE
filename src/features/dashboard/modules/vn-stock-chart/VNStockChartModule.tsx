@@ -8,7 +8,7 @@ import type { Chart, KLineData } from 'klinecharts';
 import {
   TrendingUp, TrendingDown, Maximize2, Download, ZoomIn, ZoomOut,
   BarChart3, LineChart as LineChartIcon, CandlestickChart,
-  Activity, Minus, Trash2, Search, X,
+  Activity, Minus, Trash2, Search, X, Link2, Link2Off,
 } from 'lucide-react';
 import { useChartPreferences, type ChartType, type TimeInterval } from './useChartPreferences';
 import { useChartData, TIMEFRAME_MAP, VISIBLE_BARS_MAP } from './useChartData';
@@ -31,12 +31,14 @@ export function VNStockChartModule() {
   const storeSymbol = useSelectedSymbolStore(s => s.selectedSymbol);
   const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
 
-  // Sync from global store → local symbol (external selection from other modules)
+  const [isLinked, setIsLinked] = useState(true);
+
+  // Sync from global store → local symbol when linked
   useEffect(() => {
-    if (storeSymbol && storeSymbol !== symbol) {
+    if (isLinked && storeSymbol && storeSymbol !== symbol) {
       setSymbol(storeSymbol);
     }
-  }, [storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLinked, storeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     isLoading,
@@ -525,13 +527,15 @@ export function VNStockChartModule() {
     }`}>
       {/* Badge title */}
       <div className="flex-none flex items-center justify-center pt-1.5 pb-0.5">
-        <div className="relative flex items-center justify-center cursor-move drag-handle select-none">
+        <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center cursor-move drag-handle select-none">
           <svg width="180" height="28" viewBox="0 0 136 22" className="block">
             <path d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z" fill="#4ADE80"/>
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black tracking-wide">
             Biểu đồ giá
           </span>
+          </div>
         </div>
       </div>
       {/* Main content row: toolbar + chart */}
@@ -592,14 +596,27 @@ export function VNStockChartModule() {
         isDark ? 'border-gray-800' : 'border-gray-200'
       }`}>
         <div className="flex items-center gap-4">
-          {/* Symbol Search Button */}
-          <div className="relative">
+          {/* Symbol Search Button + Link toggle */}
+          <div className="flex items-center gap-1">
             <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setShowSymbolModal(true)}>
               <h3 className="text-lg font-bold">{symbol}</h3>
               <Search className={`w-4 h-4 transition-colors ${
                 isDark ? 'text-gray-400 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
               }`} />
             </div>
+            {/* Link toggle */}
+            <button
+              type="button"
+              onClick={() => setIsLinked(v => !v)}
+              title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
+              className={`rounded p-1 transition-colors ${
+                isLinked
+                  ? 'text-green-400 hover:bg-green-500/15'
+                  : 'text-gray-500 hover:bg-white/8'
+              }`}
+            >
+              {isLinked ? <Link2 size={13} /> : <Link2Off size={13} />}
+            </button>
           </div>
           
           <div className="flex items-center gap-2 text-sm">
@@ -1006,7 +1023,7 @@ export function VNStockChartModule() {
                       key={sym.ticker}
                       onClick={() => {
                         setSymbol(sym.ticker);
-                        setSelectedSymbol(sym.ticker);
+                        if (isLinked) setSelectedSymbol(sym.ticker);
                         setSymbolSearch('');
                         setShowSymbolModal(false);
                       }}

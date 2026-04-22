@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link2, Link2Off, Search, X } from 'lucide-react';
 import { FinancialIndicatorChart, type FinancialIndicatorChartDataPoint } from './FinancialIndicatorChart';
 import { FinancialIndicatorGroupTabs, type FinancialIndicatorGroupTabItem } from './FinancialIndicatorGroupTabs';
 import { FinancialIndicatorMetricsTable, type FinancialIndicatorMetricDisplayRow } from './FinancialIndicatorMetricsTable';
 import { FinancialIndicatorPeriodNavigator } from './FinancialIndicatorPeriodNavigator';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fetchFinancialReportIndicatorsByTicker } from '@/services/financial/financialReportService';
+import { searchSymbols } from '@/services/market/symbolService';
 import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
+import type { SymbolSearchResultDto } from '@/types/symbol';
 import {
   FinancialPeriodType,
   type FinancialReportIndicatorListItem,
@@ -208,6 +211,69 @@ export function FinancialReportModule() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const selectedSymbol = useSelectedSymbolStore((s) => s.selectedSymbol);
+  const setSelectedSymbol = useSelectedSymbolStore((s) => s.setSelectedSymbol);
+
+  const [isLinked, setIsLinked] = useState(true);
+  const [frozenSymbol, setFrozenSymbol] = useState(selectedSymbol);
+
+  const effectiveSymbol = isLinked ? selectedSymbol : frozenSymbol;
+
+  const handleToggleLink = useCallback(() => {
+    setIsLinked(v => {
+      setFrozenSymbol(selectedSymbol); // freeze/sync at toggle moment
+      return !v;
+    });
+  }, [selectedSymbol]);
+
+  // Search states
+  const [inputValue, setInputValue] = useState(() => selectedSymbol || '');
+  const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setInputValue(value);
+    setShowDropdown(true);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (!value.trim()) { setSearchResults([]); return; }
+    searchDebounce.current = setTimeout(async () => {
+      try {
+        const result = await searchSymbols({ query: value.trim(), isTickerOnly: false, pageIndex: 1, pageSize: 8 });
+        setSearchResults(result.items || []);
+      } catch { setSearchResults([]); }
+    }, 300);
+  }, []);
+
+  const selectSymbol = useCallback((t: string) => {
+    const upper = t.toUpperCase();
+    setInputValue(upper);
+    setShowDropdown(false);
+    setSearchResults([]);
+    if (isLinked) {
+      setSelectedSymbol(upper);
+    } else {
+      setFrozenSymbol(upper);
+    }
+  }, [isLinked, setSelectedSymbol]);
+
+  // Sync input from global store when linked
+  useEffect(() => {
+    if (isLinked && selectedSymbol) {
+      setInputValue(selectedSymbol);
+    }
+  }, [isLinked, selectedSymbol]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const [activePeriodTab, setActivePeriodTab] = useState<PeriodTab>('annual');
   const [activeGroupKey, setActiveGroupKey] = useState<IndicatorGroupKey>('profitability');
@@ -216,7 +282,7 @@ export function FinancialReportModule() {
   const [pageOffset, setPageOffset] = useState(0);
 
   useEffect(() => {
-    if (!selectedSymbol) {
+    if (!effectiveSymbol) {
       setAllData([]);
       return;
     }
@@ -226,7 +292,7 @@ export function FinancialReportModule() {
     setLoading(true);
     setAllData([]);
 
-    fetchFinancialReportIndicatorsByTicker(selectedSymbol)
+    fetchFinancialReportIndicatorsByTicker(effectiveSymbol)
       .then(({ items }) => {
         if (cancelled) {
           return;
@@ -249,7 +315,7 @@ export function FinancialReportModule() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSymbol]);
+  }, [effectiveSymbol]);
 
   useEffect(() => {
     setPageOffset(0);
@@ -334,13 +400,66 @@ export function FinancialReportModule() {
     <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm bg-cardBackground text-white `}>
       <div className="flex-none flex flex-col">
         <div className="flex items-center justify-center pt-1.5 pb-1">
-          <div className="relative flex items-center justify-center">
-            <svg width="260" height="30" viewBox="0 0 260 30" className="block">
-              <path d="M258 0C288 0 -28 0 3 0C34 0 49 30 84 30H180C215 30 226 0 258 0Z" fill="#4ADE80"/>
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold text-black tracking-wide">
-              Báo cáo tài chính
-            </span>
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex items-center justify-center">
+              <svg width="260" height="30" viewBox="0 0 260 30" className="block">
+                <path d="M258 0C288 0 -28 0 3 0C34 0 49 30 84 30H180C215 30 226 0 258 0Z" fill="#4ADE80"/>
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold text-black tracking-wide">
+                Báo cáo tài chính
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Symbol search + link toggle */}
+        <div className="flex-none px-3 pb-2" ref={searchRef}>
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <div className={`flex items-center gap-1 rounded border ${isDark ? 'border-gray-700 bg-cardBackground' : 'border-gray-200 bg-white'} focus-within:border-green-500 px-2 py-1`}>
+                <Search size={12} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                <input
+                  value={inputValue}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  onFocus={() => inputValue && setShowDropdown(true)}
+                  onKeyDown={e => { if (e.key === 'Enter') selectSymbol(inputValue); }}
+                  placeholder="Nhập mã CK..."
+                  className={`flex-1 bg-transparent text-xs outline-none ${isDark ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-400'}`}
+                />
+                {inputValue && (
+                  <button onClick={() => { setInputValue(''); setSearchResults([]); setShowDropdown(false); }}>
+                    <X size={11} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                  </button>
+                )}
+              </div>
+              {showDropdown && searchResults.length > 0 && (
+                <div className={`absolute z-50 left-0 right-0 top-full mt-1 rounded border ${isDark ? 'border-gray-700 bg-[#252938]' : 'border-gray-200 bg-white'} shadow-lg max-h-[200px] overflow-y-auto`}>
+                  {searchResults.map(s => (
+                    <button
+                      key={s.ticker}
+                      onMouseDown={() => selectSymbol(s.ticker)}
+                      className={`w-full text-left px-3 py-2 text-xs flex gap-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                    >
+                      <span className="font-bold text-[#22c55e] w-14">{s.ticker}</span>
+                      <span className={`${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>{s.viCompanyName}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Link toggle */}
+            <button
+              type="button"
+              onClick={handleToggleLink}
+              title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
+              className={`flex-shrink-0 rounded p-1 transition-colors ${
+                isLinked
+                  ? 'text-green-400 hover:bg-green-500/15'
+                  : `${isDark ? 'text-gray-500' : 'text-gray-400'} hover:bg-white/8`
+              }`}
+            >
+              {isLinked ? <Link2 size={13} /> : <Link2Off size={13} />}
+            </button>
           </div>
         </div>
 
@@ -358,7 +477,7 @@ export function FinancialReportModule() {
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar">
-        {!selectedSymbol ? (
+        {!effectiveSymbol ? (
           <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Chọn một cổ phiếu để xem báo cáo tài chính
           </div>

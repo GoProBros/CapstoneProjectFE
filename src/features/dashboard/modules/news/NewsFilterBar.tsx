@@ -19,7 +19,7 @@ export default function NewsFilterBar({
 }: NewsFilterBarProps) {
   return (
     <div
-      className="sticky top-0 z-20 grid grid-cols-1 gap-2 px-3 pt-2 sm:grid-cols-[1fr_110px_auto]"
+      className={`sticky top-0 z-20 grid grid-cols-1 gap-2 px-3 pt-2 pb-2 sm:grid-cols-[1fr_110px_auto] ${isDark ? 'bg-cardBackground' : 'bg-white'}`}
     >
       <input
         type="text"

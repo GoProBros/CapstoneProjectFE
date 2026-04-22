@@ -343,7 +343,7 @@ export function AnalysisReportModule() {
                                             className={`cursor-pointer transition-colors ${hoverRowCls}`}
                                             onClick={() => handleSelectReport(r)}
                                         >
-                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[80px] font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                                            <td className={`px-4 py-3 border-b ${borderCls} max-w-[80px] font-medium ${textPrimary}`}>
                                                 <p className="truncate">{r.tickers && r.tickers.length > 0 ? r.tickers.join(', ') : '—'}</p>
                                             </td>
                                             <td className={`px-4 py-3 border-b ${borderCls} max-w-[110px] whitespace-nowrap`}>

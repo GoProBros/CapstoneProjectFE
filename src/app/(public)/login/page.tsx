@@ -67,15 +67,18 @@ const Logo = () => {
     >
       <div className="flex items-center space-x-4">
         <div className="relative">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#4ADE80] via-emerald-400 to-blue-400 rounded-2xl flex items-center justify-center shadow-2xl shadow-[#4ADE80]/30">
-            {/* Kafi Stock "K" monogram */}
-            <span className="text-white font-black text-2xl tracking-tighter drop-shadow-lg select-none">K</span>
+          <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-[#4ADE80]/30">
+            <img
+              src="/assets/Logo/KF Stock_Logo_Transparent.png"
+              alt="KF Stock"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="absolute -inset-2 bg-gradient-to-br from-[#4ADE80] to-blue-400 rounded-2xl blur-md opacity-25 animate-pulse"></div>
         </div>
         <div>
           <h1 className="text-4xl font-black tracking-tight items-center flex">
-            <span className="bg-gradient-to-r from-[#4ADE80] via-emerald-300 to-blue-400 bg-clip-text text-transparent">Kafi</span>
+            <span className="bg-gradient-to-r from-[#4ADE80] via-emerald-300 to-blue-400 bg-clip-text text-transparent">KF</span>
             <span className="text-white ml-2">Stock</span>
           </h1>
           <div className="flex items-center gap-2 mt-0.5 justify-center">
