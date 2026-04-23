@@ -2,6 +2,7 @@
 
 import { useDashboard } from "@/contexts/DashboardContext";
 import * as Modules from "@/features/dashboard/modules";
+import LockedModuleOverlay from "@/features/dashboard/components/LockedModuleOverlay";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -9,6 +10,7 @@ import "./dashboard.css";
 import { X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { ModuleContext } from "@/contexts/ModuleContext";
+import { useSubscriptionStore } from "@/stores/subscriptionStore";
 
 const moduleComponents: Record<string, React.ComponentType> = {
   'vn-stock-chart': Modules.VNStockChartModule,
@@ -31,7 +33,21 @@ const moduleComponents: Record<string, React.ComponentType> = {
 
 export default function DashboardPage() {
   const { modules, layout, updateLayout, removeModule } = useDashboard();
+  const mySubscription = useSubscriptionStore((s) => s.mySubscription);
+  const allowedModuleKeys = useSubscriptionStore((s) => s.allowedModuleKeys);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Returns true if the user's subscription permits this module type.
+   * - mySubscription is null → not yet loaded / no subscription record → allow all
+   * - mySubscription exists + allowedModuleKeys is empty → 0 modules allowed → block all
+   * - mySubscription exists + allowedModuleKeys has entries → only listed modules allowed
+   */
+  const isModuleAllowed = (moduleType: string): boolean => {
+    if (!mySubscription) return true;
+    if (allowedModuleKeys.length === 0) return false;
+    return allowedModuleKeys.includes(moduleType);
+  };
   const [containerWidth, setContainerWidth] = useState(1200);
   const [cols, setCols] = useState(96);
   const [rowHeight, setRowHeight] = useState(20);
@@ -115,6 +131,7 @@ export default function DashboardPage() {
         >
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
+            const allowed = isModuleAllowed(module.type);
             return (
               <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-visible transition-colors duration-300 flex flex-col">
                 {/* Drag handle bar - smaller and doesn't cover right edge */}
@@ -140,9 +157,13 @@ export default function DashboardPage() {
 
                 {/* Module Content - scrollable, wrapped with ModuleContext */}
                 <div className="flex-1 overflow-auto relative z-0 pointer-events-auto">
-                  <ModuleContext.Provider value={{ moduleId: module.id, moduleType: module.type }}>
-                    {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
-                  </ModuleContext.Provider>
+                  {allowed ? (
+                    <ModuleContext.Provider value={{ moduleId: module.id, moduleType: module.type }}>
+                      {ModuleComponent ? <ModuleComponent /> : <div>Unknown module type</div>}
+                    </ModuleContext.Provider>
+                  ) : (
+                    <LockedModuleOverlay moduleTitle={module.title} />
+                  )}
                 </div>
               </div>
             );
