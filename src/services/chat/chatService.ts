@@ -36,24 +36,58 @@ export interface ChatSessionDetail {
   messages: ChatMessageSimple[];
 }
 
+export interface ChatMessageResult {
+  id: number;
+  sessionId: number;
+  senderId: string | null;
+  content: string;
+  messageType: number;
+  createdAt: string;
+}
+
 export interface SendMessageResponse {
-  userMessage: {
-    id: number;
-    sessionId: number;
-    senderId: string | null;
-    content: string;
-    messageType: number;
-    createdAt: string;
-  };
-  aiMessage: {
-    id: number;
-    sessionId: number;
-    senderId: string | null;
-    content: string;
-    messageType: number;
-    createdAt: string;
-  };
-  intents: Array<{ intent: string; confidence: number }> | null;
+  /** True when AI is processing asynchronously. Poll jobId for result. */
+  accepted: boolean;
+  /** 'completed' | 'pending' | etc. */
+  status: string;
+  jobId: string | null;
+  pollUrl: string | null;
+  intentHint: string | null;
+  /** Top-level user message (echoed back). */
+  userMessage: ChatMessageResult | null;
+  /**
+   * Nested result object containing the full AI response.
+   * Present when accepted=false (sync). Null when accepted=true (async job).
+   */
+  result: {
+    userMessage: ChatMessageResult;
+    aiMessage: ChatMessageResult;
+    intents: Array<{ intent: string; confidence: number }> | null;
+  } | null;
+}
+
+/** Unified type — backend always returns this shape for send-message. */
+export type SendMessageData = SendMessageResponse;
+
+/** True when the AI response is being processed asynchronously (accepted=true + jobId present). */
+export function isAiJobAccepted(data: SendMessageData): data is SendMessageData & { accepted: true; jobId: string } {
+  return data.accepted === true && typeof data.jobId === 'string';
+}
+
+/**
+ * Data shape returned by the job-status polling endpoint.
+ * Likely same structure as SendMessageResponse once complete.
+ */
+export interface AiJobStatusData {
+  jobId?: string | null;
+  status?: string;
+  accepted?: boolean;
+  /** Same nested result shape as SendMessageResponse */
+  result?: {
+    aiMessage?: ChatMessageResult | null;
+  } | null;
+  /** Fallback: some backends return aiMessage at root level */
+  aiMessage?: ChatMessageResult | null;
 }
 
 export interface CreatedSession {
@@ -143,11 +177,21 @@ export async function getChatMessages(sessionId: number): Promise<ApiResponse<Ch
 export async function sendChatMessage(
   sessionId: number,
   message: string,
-): Promise<ApiResponse<SendMessageResponse>> {
-  return apiRequest<SendMessageResponse>(API_ENDPOINTS.CHAT.SEND_MESSAGE(sessionId), {
+): Promise<ApiResponse<SendMessageData>> {
+  return apiRequest<SendMessageData>(API_ENDPOINTS.CHAT.SEND_MESSAGE(sessionId), {
     method: 'POST',
     body: JSON.stringify({ message }),
   });
+}
+
+/**
+ * Poll the status of an async AI job.
+ * - Returns HTTP 202 while still processing (apiRequest returns normally, `data.aiMessage` absent)
+ * - Returns HTTP 200 when done (`data.aiMessage` present)
+ * - Throws on HTTP 404 (job failed / not found)
+ */
+export async function pollAiJob(jobId: string): Promise<ApiResponse<AiJobStatusData>> {
+  return apiRequest<AiJobStatusData>(API_ENDPOINTS.CHAT.AI_JOB_STATUS(jobId));
 }
 
 export async function sendSystemNotification(

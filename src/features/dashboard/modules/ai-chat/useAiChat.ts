@@ -4,6 +4,8 @@ import {
   createChatSession,
   getChatMessages,
   sendChatMessage,
+  pollAiJob,
+  isAiJobAccepted,
   type ChatSessionListItem,
   type ChatMessageSimple,
 } from '@/services/chat/chatService';
@@ -31,9 +33,63 @@ export function useAiChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sessionsPanelRef = useRef<HTMLDivElement>(null);
+  // Polling refs — stable across renders, no closure staleness
+  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPollingRef = useRef(false);
+  /** Stable ref holding the session ID to update when resolving a pending AI message */
+  const activeSessionIdRef = useRef<number | null>(null);
+  /** ID of the pending AI message placeholder currently in the messages list */
+  const pendingMsgIdRef = useRef<string | null>(null);
+
+  // Keep activeSessionIdRef in sync with state
+  useEffect(() => { activeSessionIdRef.current = activeSessionId; }, [activeSessionId]);
+
+  const stopPolling = useCallback(() => {
+    cancelPollingRef.current = true;
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Replace the pending AI placeholder with a final message.
+   * Uses functional state updates → safe to call from async callbacks / timers.
+   */
+  const resolvePendingRef = useRef<((content: string, isError?: boolean) => void) | null>(null);
+  resolvePendingRef.current = (content: string, isError = false) => {
+    stopPolling();
+    const pendingId = pendingMsgIdRef.current;
+    if (!pendingId) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === pendingId
+          ? {
+              id: isError ? `ai-err-${Date.now()}` : `ai-${Date.now()}`,
+              role: 'ai' as const,
+              content,
+              timestamp: new Date(),
+            }
+          : m
+      )
+    );
+    const sid = activeSessionIdRef.current;
+    if (sid) {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sid ? { ...s, updatedAt: new Date().toISOString() } : s
+        )
+      );
+    }
+    pendingMsgIdRef.current = null;
+    setSending(false);
+  };
 
   // Load sessions on mount
   useEffect(() => { loadSessions(); }, []);
+
+  // Cancel polling on unmount
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   // Close sessions panel on outside click
   useEffect(() => {
@@ -108,6 +164,10 @@ export function useAiChat() {
     if (!text || sending) return;
     if (!activeSessionId && !isPendingNew) return;
 
+    // Cancel any previous in-flight polling
+    stopPolling();
+    pendingMsgIdRef.current = null;
+
     setInput('');
     setSending(true);
 
@@ -127,11 +187,12 @@ export function useAiChat() {
           participantCount: 1,
           creatorName: null,
           createdBy: createRes.data.createdBy,
-          createdAt: createRes.data.createdAt,
+          createdAt: createRes.data.updatedAt,
           updatedAt: createRes.data.updatedAt,
         };
         setSessions((prev) => [newSession, ...prev]);
         setActiveSessionId(createRes.data.id);
+        activeSessionIdRef.current = createRes.data.id;
         setIsPendingNew(false);
         sessionId = createRes.data.id;
       } catch {
@@ -140,51 +201,74 @@ export function useAiChat() {
       }
     }
 
+    // Create pending message with a unique ID stored in ref
+    const pendingId = `ai-pending-${Date.now()}`;
+    pendingMsgIdRef.current = pendingId;
     const now = new Date();
     const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: text, timestamp: now };
-    const pendingMsg: Message = { id: 'ai-pending', role: 'ai', content: '', pending: true };
+    const pendingMsg: Message = { id: pendingId, role: 'ai', content: '', pending: true };
 
     setMessages((prev) => [...prev, userMsg, pendingMsg]);
 
+    /**
+     * Poll for async job completion using refs — no stale closure risk.
+     * HTTP 202 body with no aiMessage → still pending, reschedule.
+     * HTTP 200 body with aiMessage OR status='completed' → done.
+     * Throws (404 etc.) → show error.
+     */
+    const startPolling = (jobId: string, intervalMs = 3000) => {
+      cancelPollingRef.current = false;
+
+      const poll = async () => {
+        if (cancelPollingRef.current) return;
+        try {
+          const res = await pollAiJob(jobId);
+          if (cancelPollingRef.current) return;
+
+          const isComplete =
+            (res.isSuccess && (!!res.data?.result?.aiMessage || !!res.data?.aiMessage)) ||
+            res.data?.status === 'completed';
+
+          if (isComplete) {
+            const content =
+              res.data?.result?.aiMessage?.content ||
+              res.data?.aiMessage?.content ||
+              '...';
+            resolvePendingRef.current?.(content);
+          } else {
+            pollingTimerRef.current = setTimeout(poll, intervalMs);
+          }
+        } catch (err) {
+          if (!cancelPollingRef.current) {
+            const msg = err instanceof Error ? err.message : 'Không thể lấy kết quả từ AI.';
+            resolvePendingRef.current?.(`Lỗi: ${msg}`, true);
+          }
+        }
+      };
+
+      pollingTimerRef.current = setTimeout(poll, intervalMs);
+    };
+
     try {
       const res = await sendChatMessage(sessionId!, text);
-      if (res.isSuccess && res.data) {
-        const aiContent = res.data.aiMessage?.content ?? '...';
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === 'ai-pending'
-              ? { id: `ai-${Date.now()}`, role: 'ai', content: aiContent, timestamp: new Date() }
-              : m
-          )
-        );
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? { ...s, updatedAt: new Date().toISOString() }
-              : s
-          )
-        );
+
+      if (!res.isSuccess || !res.data) {
+        resolvePendingRef.current?.(res.message || 'Có lỗi xảy ra, vui lòng thử lại.', true);
+        return;
+      }
+
+      if (isAiJobAccepted(res.data)) {
+        // Async path — keep pending bubble, start polling
+        startPolling(res.data.jobId);
       } else {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === 'ai-pending'
-              ? { id: `ai-err-${Date.now()}`, role: 'ai', content: res.message || 'Có lỗi xảy ra, vui lòng thử lại.', timestamp: new Date() }
-              : m
-          )
-        );
+        // Sync path — AI response is in result.aiMessage
+        const content = res.data.result?.aiMessage?.content ?? '...';
+        resolvePendingRef.current?.(content);
       }
     } catch (err) {
       console.error('[useAiChat] sendChatMessage error:', err);
       const errMsg = err instanceof Error ? err.message : 'Không thể kết nối đến server.';
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === 'ai-pending'
-            ? { id: `ai-err-${Date.now()}`, role: 'ai', content: `ERROR: ${errMsg}`, timestamp: new Date() }
-            : m
-        )
-      );
-    } finally {
-      setSending(false);
+      resolvePendingRef.current?.(`ERROR: ${errMsg}`, true);
     }
   };
 

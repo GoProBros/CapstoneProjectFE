@@ -109,7 +109,7 @@ export default function FinancialReportsList({
                   <th className="w-[11%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Mã CK</th>
                   <th className="w-[17%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Kỳ báo cáo</th>
                   <th className="w-[16%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Trạng thái</th>
-                  <th className="w-[20%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Cập nhật</th>
+                  <th className="w-[20%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Ngày tạo</th>
                   <th className="w-[18%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">File</th>
                   <th className="w-[18%] px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Thao tác</th>
                 </tr>
@@ -130,7 +130,7 @@ export default function FinancialReportsList({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 break-words">
-                        {formatDateTime(report.updatedAt)}
+                        {formatDateTime(report.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-sm break-words">
                         {hasAttachedFile ? (

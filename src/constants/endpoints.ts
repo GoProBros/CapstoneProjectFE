@@ -137,6 +137,7 @@ export const API_ENDPOINTS = {
     DIRECT: '/api/v1/chat/direct',
     SEND_DIRECT_MESSAGE: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/direct-messages`,
     MARK_AS_READ: (sessionId: number) => `/api/v1/chat/sessions/${sessionId}/read`,
+    AI_JOB_STATUS: (jobId: string) => `/api/v1/chat/jobs/${jobId}`,
   },
 
   // Payment endpoints
