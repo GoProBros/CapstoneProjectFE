@@ -36,3 +36,4 @@ yarn-error.log*
 next-env.d.ts
 
 .github/
+_plans/chart-module-flow.md

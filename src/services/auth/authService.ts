@@ -168,7 +168,7 @@ export async function resetPassword(email: string, resetToken: string, newPasswo
  */
 export async function verifyEmail(token: string): Promise<void> {
   try {
-    const result = await post<null>(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+    const result = await post<null>(`${API_ENDPOINTS.AUTH.VERIFY_EMAIL}?token=${token}`, {});
     if (!result.isSuccess) {
       throw new Error(result.message || 'Xác thực email thất bại');
     }

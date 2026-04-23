@@ -248,6 +248,7 @@ export default function ProfilePage() {
                 Lịch sử giao dịch
               </button>
             )}
+            {/* TODO: portfolio tab temporarily hidden
             {canViewRestrictedTabs && (
             <button
               onClick={() => setActiveTab("portfolio")}
@@ -260,6 +261,7 @@ export default function ProfilePage() {
               Danh mục đầu tư
             </button>
             )}
+            */}
             {canViewRestrictedTabs && (
               <button
                 onClick={() => setActiveTab("alerts")}
@@ -286,7 +288,7 @@ export default function ProfilePage() {
           className={`h-[calc(100vh-64px)] w-full flex-1 overflow-y-auto ${bgPage} p-4 md:p-8`}
         >
           <div
-            className={`mb-4 grid gap-2 ${canViewRestrictedTabs ? "grid-cols-5" : "grid-cols-3"} md:hidden`}
+            className={`mb-4 grid gap-2 ${canViewRestrictedTabs ? "grid-cols-4" : "grid-cols-2"} md:hidden`}
           >
             <button
               onClick={() => setActiveTab("account")}
@@ -310,6 +312,7 @@ export default function ProfilePage() {
               Thành viên
             </button>
 
+            {/* TODO: portfolio tab temporarily hidden
             {canViewRestrictedTabs && (
               <button
                 onClick={() => setActiveTab("portfolio")}
@@ -322,6 +325,7 @@ export default function ProfilePage() {
                 Danh mục
               </button>
             )}
+            */}
 
             {canViewRestrictedTabs && (
               <button
@@ -512,6 +516,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* TODO: portfolio tab temporarily hidden
               {activeTab === "portfolio" && canViewRestrictedTabs && (
                 <div
                   className={`rounded-2xl border ${borderCls} ${bgCard} p-6 shadow-sm md:p-8`}
@@ -519,6 +524,7 @@ export default function ProfilePage() {
                   <ProfilePortfolioTab />
                 </div>
               )}
+              */}
 
               {activeTab === "transactions" && canViewRestrictedTabs && (
                 <ProfileTransactionTab />
