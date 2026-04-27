@@ -16,7 +16,7 @@ export default function SystemNotificationEditor({
 }: SystemNotificationEditorProps) {
   return (
     <div className="space-y-2">
-      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 max-w-full">
         <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
           Soạn thảo nội dung
         </p>

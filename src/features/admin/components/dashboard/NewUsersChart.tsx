@@ -171,6 +171,7 @@ export default function NewUsersChart({ data }: NewUsersChartProps) {
                   type="monotone"
                   dataKey="newUsers"
                   stroke="#2563eb"
+                  color="#2563eb"
                   strokeWidth={3}
                   dot={false}
                 />

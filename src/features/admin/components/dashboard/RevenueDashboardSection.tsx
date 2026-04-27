@@ -71,7 +71,6 @@ const tooltipLabelStyle = {
 };
 
 const tooltipItemStyle = {
-  color: "#334155",
   fontSize: "12px",
   fontWeight: 600,
 };
@@ -197,6 +196,7 @@ export default function RevenueDashboardSection({
                     type="monotone"
                     dataKey="growthPercentage"
                     stroke="#16a34a"
+                    color="#16a34a"
                     strokeWidth={2.5}
                     dot={{ r: 2 }}
                   />
