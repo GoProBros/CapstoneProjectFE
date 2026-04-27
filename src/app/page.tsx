@@ -602,7 +602,7 @@ export default function Home() {
                   </span>
                 </span>
                 <button
-                  onClick={() => logout()}
+                  onClick={() => logout({ redirectToLogin: false, reloadCurrentPage: true })}
                   className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-white"
                 >
                   <LogOut className="h-4 w-4" /> Đăng xuất

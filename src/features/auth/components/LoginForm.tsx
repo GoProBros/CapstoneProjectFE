@@ -83,11 +83,20 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
       } else {
         await authLogin({ email, password });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof RegistrationSuccessNotification) {
+        setIsSignUp(false);
+        setPassword('');
+        setConfirmPassword('');
+        setRegisterFullName('');
+        setRegisterPhoneNumber('');
+        setShowPassword(false);
+        setShowConfirmPassword(false);
         setSuccessMsg(err.message);
-      } else {
+      } else if (err instanceof Error) {
         setError(err.message || (isSignUp ? 'Đăng ký thất bại. Vui lòng thử lại.' : 'Đăng nhập thất bại. Vui lòng kiểm tra lại.'));
+      } else {
+        setError(isSignUp ? 'Đăng ký thất bại. Vui lòng thử lại.' : 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
       }
     } finally {
       setIsLoading(false);

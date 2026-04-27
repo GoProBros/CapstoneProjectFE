@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
+import type { UserSubscriptionDto } from '@/types/subscription';
 import * as authService from '@/services/auth/authService';
 import { getMySubscription } from '@/services/admin/subscriptionService';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
@@ -18,9 +19,14 @@ interface AuthContextType {
   isLoading: boolean;
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: LogoutOptions) => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
+}
+
+interface LogoutOptions {
+  redirectToLogin?: boolean;
+  reloadCurrentPage?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +37,13 @@ const USER_KEY = 'user';
 const EXPIRES_AT_KEY = 'expiresAt';
 const AUTH_REDIRECT_SILENT_KEY = 'auth_redirect_silent';
 const AUTH_REDIRECT_MESSAGE_KEY = 'auth_redirect_message';
+const SUBSCRIPTION_EXPIRY_NOTICE_KEY = 'subscription_expiry_notice_days';
+
+function isSubscriptionActive(flag: UserSubscriptionDto['isActive']): boolean {
+  if (typeof flag === 'boolean') return flag;
+  if (typeof flag === 'number') return flag === 1;
+  return true;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -40,15 +53,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setMySubscriptionStore = useSubscriptionStore((s) => s.setMySubscription);
   const clearSubscriptionStore = useSubscriptionStore((s) => s.clearSubscription);
 
+  const setSubscriptionExpiryNotice = useCallback((mySubscription: UserSubscriptionDto | null) => {
+    if (typeof window === 'undefined') return;
+
+    if (!mySubscription || !mySubscription.endDate || !isSubscriptionActive(mySubscription.isActive)) {
+      sessionStorage.removeItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+      return;
+    }
+
+    const endTime = new Date(mySubscription.endDate).getTime();
+    if (Number.isNaN(endTime)) {
+      sessionStorage.removeItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+      return;
+    }
+
+    const remainingMs = endTime - Date.now();
+    if (remainingMs < 0) {
+      sessionStorage.removeItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+      return;
+    }
+
+    const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+    if (remainingDays < 7) {
+      sessionStorage.setItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY, String(remainingDays));
+      return;
+    }
+
+    sessionStorage.removeItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+  }, []);
+
   const syncSubscriptionStore = useCallback(async () => {
     try {
       const mySubscription = await getMySubscription();
       setMySubscriptionStore(mySubscription);
+      setSubscriptionExpiryNotice(mySubscription);
+      return mySubscription;
     } catch (error) {
       console.error('[Auth] Failed to sync subscription store:', error);
       setMySubscriptionStore(null);
+      setSubscriptionExpiryNotice(null);
+      return null;
     }
-  }, [setMySubscriptionStore]);
+  }, [setMySubscriptionStore, setSubscriptionExpiryNotice]);
 
   /**
    * Save auth data to localStorage
@@ -192,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Logout
    */
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: LogoutOptions) => {
     try {
       const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
       const accessToken = getAuthStorageItem(TOKEN_KEY);
@@ -211,6 +257,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('[Auth] Logout error:', error);
     } finally {
       clearAuthData();
+
+      if (options?.reloadCurrentPage && typeof window !== 'undefined') {
+        window.location.reload();
+        return;
+      }
+
+      if (options?.redirectToLogin === false) {
+        return;
+      }
+
       router.push('/login');
     }
   }, [clearAuthData, router]);
