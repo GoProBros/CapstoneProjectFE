@@ -95,6 +95,24 @@ export default function NewUsersChart({ data }: NewUsersChartProps) {
 
   const maxLineValue = Math.max(...data.map((item) => item.newUsers), 0);
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const item = payload[0];
+    const color = item.color ?? item.stroke ?? item.fill ?? '#2563eb';
+
+    return (
+      <div className="rounded-md bg-white dark:bg-gray-800 border p-2 shadow">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: color }} />
+          <div>
+            <div className="text-xs text-slate-500 dark:text-slate-300">{`Tháng ${label}`}</div>
+            <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">{formatInteger(item.value)}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section>
       <div className="mb-6 flex items-center gap-2">
@@ -171,14 +189,10 @@ export default function NewUsersChart({ data }: NewUsersChartProps) {
                   type="monotone"
                   dataKey="newUsers"
                   stroke="#2563eb"
-                  color="#2563eb"
                   strokeWidth={3}
                   dot={false}
                 />
-                <Tooltip
-                  formatter={(value: number) => [formatInteger(value), "Người dùng mới"]}
-                  labelFormatter={(label: string) => `Tháng ${label}`}
-                />
+                <Tooltip content={<CustomTooltip />} />
               </LineChart>
             </ResponsiveContainer>
           </div>

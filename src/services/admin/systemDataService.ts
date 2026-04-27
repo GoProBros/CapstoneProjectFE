@@ -106,15 +106,15 @@ export async function getLogDates(): Promise<string[]> {
 export async function getSystemLogs(
   params: GetSystemLogsParams = {}
 ): Promise<PaginatedData<SystemLogItem>> {
-  const queryParams = new URLSearchParams();
+  // Build query string using encodeURIComponent and align to Swagger style: use 'search' param
+  const parts: string[] = [];
+  if (params.date) parts.push(`date=${encodeURIComponent(params.date)}`);
+  if (params.pageIndex) parts.push(`pageIndex=${params.pageIndex.toString()}`);
+  if (params.pageSize) parts.push(`pageSize=${params.pageSize.toString()}`);
+  if (params.searchTerm) parts.push(`search=${encodeURIComponent(params.searchTerm)}`);
+  if (params.level) parts.push(`level=${encodeURIComponent(params.level ?? '')}`);
 
-  if (params.date) queryParams.append('date', params.date);
-  if (params.pageIndex) queryParams.append('pageIndex', params.pageIndex.toString());
-  if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
-  if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
-  if (params.level) queryParams.append('level', params.level);
-
-  const queryString = queryParams.toString();
+  const queryString = parts.filter(Boolean).join('&');
   const endpoint = queryString
     ? `${API_ENDPOINTS.LOGS.BASE}?${queryString}`
     : API_ENDPOINTS.LOGS.BASE;
