@@ -38,9 +38,7 @@ export default function DataTaskCard({
         <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-1">{title}</h3>
         <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">{description}</p>
 
-        <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 min-h-[68px] text-xs text-slate-600 dark:text-slate-300">
-          {taskResult ?? 'Chưa chạy tác vụ.'}
-        </div>
+        {/* Status box removed as per design request */}
       </div>
 
       <button

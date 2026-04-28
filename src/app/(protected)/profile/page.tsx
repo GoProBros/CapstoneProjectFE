@@ -58,6 +58,7 @@ export default function ProfilePage() {
 
     const hasPendingPayment = Boolean(sessionStorage.getItem("pendingPayment"));
     const query = new URLSearchParams(window.location.search);
+    const requestedTab = query.get("tab")?.trim().toLowerCase();
     const hasPaymentCallbackParams =
       query.has("orderCode") ||
       query.has("ordercode") ||
@@ -65,7 +66,7 @@ export default function ProfilePage() {
       query.has("code") ||
       query.has("cancel");
 
-    if (hasPendingPayment || hasPaymentCallbackParams) {
+    if (requestedTab === "subscription" || hasPendingPayment || hasPaymentCallbackParams) {
       setActiveTab("subscription");
     }
   }, [isAuthenticated]);

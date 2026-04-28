@@ -35,6 +35,17 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
+function getPaymentStatusLabel(status: number, fallback?: string) {
+    const labels: Record<number, string> = {
+        0: 'Chờ xử lý',
+        1: 'Hoàn thành',
+        2: 'Đã hủy',
+        3: 'Hết hạn',
+    };
+
+    return labels[status] ?? fallback ?? `Trạng thái ${status}`;
+}
+
 export default function UserDetailModal({
     isOpen,
     loading,
@@ -132,7 +143,7 @@ export default function UserDetailModal({
                                                         <td className="py-2 pr-3">#{transaction.orderCode}</td>
                                                         <td className="py-2 pr-3">{transaction.subscriptionName || '---'}</td>
                                                         <td className="py-2 pr-3">{formatCurrency(transaction.amount)}</td>
-                                                        <td className="py-2 pr-3">{transaction.statusName || '---'}</td>
+                                                        <td className="py-2 pr-3">{getPaymentStatusLabel(transaction.status, transaction.statusName)}</td>
                                                         <td className="py-2 pr-3">{formatDateTime(transaction.createdAt)}</td>
                                                     </tr>
                                                 ))}

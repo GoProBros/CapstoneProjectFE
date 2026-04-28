@@ -78,7 +78,6 @@ const tooltipLabelStyle = {
 };
 
 const tooltipItemStyle = {
-  color: "#334155",
   fontSize: "12px",
   fontWeight: 600,
 };
@@ -178,6 +177,7 @@ export default function UserDashboardSection({
                     type="monotone"
                     dataKey="users"
                     stroke="#2563eb"
+                    color="#2563eb"
                     strokeWidth={3}
                     dot={{ r: 3, fill: "#2563eb" }}
                   />

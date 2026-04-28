@@ -19,6 +19,7 @@ import type {
 import AddModuleModal, {
   type ModuleLibraryItem,
 } from "@/features/admin/components/revenue/AddModuleModal";
+import Toast, { type ToastType } from '@/components/ui/Toast';
 import SubscriptionCardsGrid from "@/features/admin/components/revenue/SubscriptionCardsGrid";
 import SubscriptionEditorSection from "@/features/admin/components/revenue/SubscriptionEditorSection";
 import CreateSubscriptionModal from "@/features/admin/components/revenue/CreateSubscriptionModal";
@@ -242,6 +243,11 @@ export default function SubscriptionManagement({
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [toastState, setToastState] = useState<{ isOpen: boolean; message: string; type: ToastType }>({
+    isOpen: false,
+    message: '',
+    type: 'info',
+  });
 
   const normalizedRole = (user?.role ?? "").trim().toLowerCase();
   const isAdmin =
@@ -480,8 +486,10 @@ export default function SubscriptionManagement({
       }));
 
       setActionMessage("Đã lưu thay đổi Giá và Allowed module thành công.");
+      setToastState({ isOpen: true, message: 'Đã lưu thay đổi Giá và Allowed module thành công.', type: 'success' });
     } catch {
       setActionMessage("Lưu thay đổi thất bại. Vui lòng thử lại.");
+      setToastState({ isOpen: true, message: 'Lưu thay đổi thất bại. Vui lòng thử lại.', type: 'error' });
     }
   };
 
@@ -675,6 +683,12 @@ export default function SubscriptionManagement({
         selectedModuleIds={modalSelectedModules}
         onApply={applyModuleSelection}
         onClose={() => setIsAddModuleModalOpen(false)}
+      />
+      <Toast
+        isOpen={toastState.isOpen}
+        message={toastState.message}
+        type={toastState.type}
+        onClose={() => setToastState((prev) => ({ ...prev, isOpen: false }))}
       />
     </section>
   );

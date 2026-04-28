@@ -9,6 +9,7 @@ import {
     FinancialReportDetailModal,
     FinancialReportsList,
 } from './financial-reports';
+import Toast, { type ToastType } from '@/components/ui/Toast';
 
 export function FinancialReportsFeature() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -24,6 +25,7 @@ export function FinancialReportsFeature() {
     const [selectedPeriod, setSelectedPeriod] = useState<FinancialPeriodType | ''>('');
     const [selectedStatus, setSelectedStatus] = useState<FinancialReportStatus | ''>('');
     const [selectedYear, setSelectedYear] = useState<number | ''>('');
+    const [toastState, setToastState] = useState<{ isOpen: boolean; message: string; type: ToastType }>({ isOpen: false, message: '', type: 'info' });
 
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: 11 }, (_, index) => currentYear - index);
@@ -104,6 +106,14 @@ export function FinancialReportsFeature() {
             setLoading(false);
         }
     }, [selectedPeriod, selectedStatus, selectedYear]);
+
+    const handleDetailUpdated = useCallback((opts?: { message?: string; type?: ToastType }) => {
+        // Refresh list and optionally show a toast on the page
+        void loadReports();
+        if (opts?.message) {
+            setToastState({ isOpen: true, message: opts.message, type: opts.type ?? 'info' });
+        }
+    }, [loadReports]);
 
     useEffect(() => {
         setPageIndex(1);
@@ -221,7 +231,14 @@ export function FinancialReportsFeature() {
                 reportId={detailReportId}
                 isOpen={isDetailOpen}
                 onClose={handleCloseDetail}
-                onUpdated={loadReports}
+                onUpdated={handleDetailUpdated}
+            />
+
+            <Toast
+                isOpen={toastState.isOpen}
+                message={toastState.message}
+                type={toastState.type}
+                onClose={() => setToastState((prev) => ({ ...prev, isOpen: false }))}
             />
         </div>
     );

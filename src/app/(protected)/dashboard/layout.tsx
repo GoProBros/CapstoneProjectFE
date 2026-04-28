@@ -49,6 +49,7 @@ interface PageData {
 const MODULE_MAX_HEIGHT: Record<string, number> = {
   heatmap: 22,
 };
+const SUBSCRIPTION_EXPIRY_NOTICE_KEY = 'subscription_expiry_notice_days';
 
 /**
  * Normalize layout items — caps heights that exceed per-module limits.
@@ -136,6 +137,36 @@ export default function DashboardLayout({
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingRef = useRef(false); // Prevent sync during initial load
+
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') {
+      return;
+    }
+
+    const remainingDaysValue = sessionStorage.getItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+    if (!remainingDaysValue) {
+      return;
+    }
+
+    sessionStorage.removeItem(SUBSCRIPTION_EXPIRY_NOTICE_KEY);
+
+    const remainingDays = Number.parseInt(remainingDaysValue, 10);
+    if (Number.isNaN(remainingDays) || remainingDays < 0 || remainingDays >= 7) {
+      return;
+    }
+
+    const message =
+      remainingDays === 0
+        ? 'Gói thành viên của bạn sẽ hết hạn trong hôm nay. Vui lòng gia hạn để không gián đoạn sử dụng.'
+        : `Gói thành viên của bạn chỉ còn ${remainingDays} ngày. Vui lòng gia hạn sớm để không gián đoạn sử dụng.`;
+
+    setNotification(message);
+    const timerId = window.setTimeout(() => setNotification(null), 7000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isAuthenticated]);
 
   /**
    * Convert PageData to backend layoutJson format
