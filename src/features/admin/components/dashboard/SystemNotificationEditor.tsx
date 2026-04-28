@@ -23,8 +23,8 @@ export default function SystemNotificationEditor({
 
         <SystemNotificationEditorToolbar editor={editor} />
 
-        <div className="max-w-full overflow-hidden">
-          <EditorContent editor={editor} className="break-words whitespace-pre-wrap" />
+        <div className="max-w-full overflow-x-auto">
+          <EditorContent editor={editor} className="max-w-full whitespace-pre w-full min-w-[400px]" />
         </div>
       </div>
 
