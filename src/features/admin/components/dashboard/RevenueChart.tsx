@@ -116,6 +116,25 @@ export default function RevenueChart({
 
   const maxRevenue = Math.max(...data.map((item) => item.revenue), 0);
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const item = payload[0];
+    const entry = data.find((d) => String(d.label) === String(label));
+    const color = entry && entry.revenue === maxRevenue ? '#2563eb' : '#e2e8f0';
+
+    return (
+      <div className="rounded-md bg-white dark:bg-gray-800 border p-2 shadow">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: color }} />
+          <div>
+            <div className="text-xs text-slate-500 dark:text-slate-300">{`Tháng ${label}`}</div>
+            <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">{formatCompactCurrency(item.value)}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section>
       <div className="mb-6 flex items-center gap-2">
@@ -241,10 +260,7 @@ export default function RevenueChart({
                     />
                   ))}
                 </Bar>
-                <Tooltip
-                  formatter={(value: number) => [formatCompactCurrency(value), "Doanh thu"]}
-                  labelFormatter={(label: string) => `Tháng ${label}`}
-                />
+                <Tooltip content={<CustomTooltip />} />
               </BarChart>
             </ResponsiveContainer>
           </div>

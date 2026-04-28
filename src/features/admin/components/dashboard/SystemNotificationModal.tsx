@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import { useEditor } from "@tiptap/react";
 import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
@@ -317,10 +318,16 @@ export default function SystemNotificationModal({
     try {
       setIsSubmitting(true);
 
+      const sanitizedHtml = DOMPurify.sanitize(editorContent.html, {
+        ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li", "span"],
+        ALLOWED_ATTR: ["href", "target", "rel", "style", "class"],
+        ALLOW_DATA_ATTR: false,
+      });
+
       const response = await sendSystemNotification({
         sendToAll,
         userIds: sendToAll ? [] : selectedUserIds,
-        message: editorContent.html,
+        message: sanitizedHtml,
       });
 
       setSubmitSuccess(
@@ -357,11 +364,13 @@ export default function SystemNotificationModal({
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               Nội dung thông báo
             </p>
-            <SystemNotificationEditor
-              editor={editor}
-              characterCount={editorContent.text.length}
-              maxLength={MAX_MESSAGE_LENGTH}
-            />
+            <div className="max-w-full break-all">
+              <SystemNotificationEditor
+                editor={editor}
+                characterCount={editorContent.text.length}
+                maxLength={MAX_MESSAGE_LENGTH}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 px-4 py-3">

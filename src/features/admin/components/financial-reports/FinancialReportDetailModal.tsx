@@ -5,7 +5,10 @@ import { CheckCircle2, Download, RefreshCw, Upload, X } from 'lucide-react';
 import {
   fetchFinancialReportById,
   updateFinancialReport,
+  deleteFinancialReport,
 } from '@/services/financial/financialReportService';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Toast, { type ToastType } from '@/components/ui/Toast';
 import fileService from '@/services/files/fileService';
 import { FileCategory } from '@/types/file';
 import { FinancialReport } from '@/types/financialReport';
@@ -22,7 +25,7 @@ interface FinancialReportDetailModalProps {
   reportId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdated?: () => void;
+  onUpdated?: (opts?: { message?: string; type?: import('@/components/ui/Toast').ToastType }) => void;
 }
 
 export default function FinancialReportDetailModal({
@@ -41,6 +44,9 @@ export default function FinancialReportDetailModal({
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   const [report, setReport] = useState<FinancialReport | null>(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toastState, setToastState] = useState<{ isOpen: boolean; message: string; type: import('@/components/ui/Toast').ToastType }>({ isOpen: false, message: '', type: 'info' });
   const [rows, setRows] = useState<EditableMetricRow[]>([]);
   const [originalRows, setOriginalRows] = useState<EditableMetricRow[]>([]);
   const [metricKeyword, setMetricKeyword] = useState('');
@@ -249,6 +255,22 @@ export default function FinancialReportDetailModal({
     }
   }, [onUpdated, report?.ticker, reportId]);
 
+  const handleDeleteReport = useCallback(async () => {
+    if (!reportId) return;
+    setIsDeleting(true);
+    try {
+      await deleteFinancialReport(reportId);
+      setIsConfirmDeleteOpen(false);
+      // notify parent so the toast is shown on the listing page
+      onUpdated?.({ message: 'Xóa báo cáo thành công.', type: 'success' });
+      onClose();
+    } catch (err) {
+      setToastState({ isOpen: true, message: err instanceof Error ? err.message : 'Không thể xóa báo cáo', type: 'error' });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [onClose, onUpdated, reportId]);
+
   const onFileInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) {
@@ -358,6 +380,16 @@ export default function FinancialReportDetailModal({
             >
               {downloadingFile ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {downloadingFile ? 'Đang tải...' : 'Download file'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsConfirmDeleteOpen(true)}
+              disabled={!reportId || isDeleting || updating}
+              className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+              {isDeleting ? 'Đang xóa...' : 'Xóa báo cáo'}
             </button>
 
             <button
@@ -542,6 +574,24 @@ export default function FinancialReportDetailModal({
           </div>
         </div>
       </div>
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmDeleteOpen}
+        title="Xóa báo cáo tài chính"
+        message={`Bạn có chắc muốn xóa báo cáo tài chính ${report?.ticker ?? ''} - ${report ? getPeriodLabel(report.year, report.period) : ''}? Hành động không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Huỷ"
+        variant="danger"
+        onConfirm={handleDeleteReport}
+        onCancel={() => setIsConfirmDeleteOpen(false)}
+      />
+
+      <Toast
+        isOpen={toastState.isOpen}
+        message={toastState.message}
+        type={toastState.type}
+        onClose={() => setToastState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

@@ -144,7 +144,8 @@ export default function SubscriptionEditorSection({
               min={1}
               value={selectedDraft.durationInDays}
               onChange={(event) => onDurationChange(Number(event.target.value) || 1)}
-              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 px-4 py-2.5 outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+              disabled
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2.5 outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
@@ -157,7 +158,8 @@ export default function SubscriptionEditorSection({
               min={1}
               value={selectedDraft.maxWorkspaces}
               onChange={(event) => onMaxWorkspacesChange(Number(event.target.value) || 1)}
-              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 px-4 py-2.5 outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+              disabled
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2.5 outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>

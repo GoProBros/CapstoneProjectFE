@@ -2,6 +2,7 @@
 
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import { ROUTES } from "@/constants/routes";
 
 interface LockedModuleOverlayProps {
   moduleTitle: string;
@@ -24,7 +25,7 @@ export default function LockedModuleOverlay({ moduleTitle }: LockedModuleOverlay
         </p>
       </div>
       <Link
-        href="/profile"
+        href={`${ROUTES.PROFILE}?tab=subscription`}
         className="mt-1 px-4 py-1.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 hover:bg-yellow-500/30 transition-colors"
       >
         Nâng cấp gói
