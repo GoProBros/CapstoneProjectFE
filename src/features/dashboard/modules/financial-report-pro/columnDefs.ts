@@ -36,6 +36,47 @@ const percentageCellClassRules = {
   'tx_g': (params: any) => params.value < 0, // text-red for negative
 };
 
+const indicatorPercentCellStyle = (params: { value?: unknown }) => {
+  if (typeof params.value !== 'number' || Number.isNaN(params.value)) {
+    return undefined;
+  }
+
+  if (params.value > 0) {
+    return { color: '#10b981' };
+  }
+
+  if (params.value < 0) {
+    return { color: '#ef4444' };
+  }
+
+  return undefined;
+};
+
+const formatIndicatorPercent = (num: number): string => {
+  if (num == null || num === 0) return '';
+  return `${(num * 100).toFixed(1)}%`;
+};
+
+const formatIndicatorPercentSigned = (num: number): string => {
+  if (num == null || num === 0) return '0.0%';
+
+  const percentValue = num * 100;
+  if (percentValue > 0) {
+    return `↑ +${percentValue.toFixed(1)}%`;
+  }
+
+  if (percentValue < 0) {
+    return `↓ ${percentValue.toFixed(1)}%`;
+  }
+
+  return '0.0%';
+};
+
+const formatIndicatorRatio = (num: number): string => {
+  if (num == null || num === 0) return '';
+  return num.toFixed(2);
+};
+
 /**
  * Format period label
  */
@@ -883,6 +924,80 @@ export const getColumnDefs = (
         cellClassRules: percentageCellClassRules
       },
     ]
+  },
+  ] as (ColDef | ColGroupDef)[]),
+
+  // ===== 4. INDICATORS =====
+  ...(!isVisible('indicator') ? [] : [
+  {
+    headerName: 'CHỈ SỐ',
+    groupId: 'indicator',
+    children: [
+      {
+        headerName: 'Sinh lời',
+        groupId: 'profitability',
+        children: [
+          { colId: 'profitability_summary', headerName: 'ROE', columnGroupShow: 'closed', width: 110, valueGetter: (p) => p.data?.profitability_roe, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle, cellClass: 'font-semibold' },
+          { field: 'profitability_grossMargin', headerName: 'Biên LN gộp', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'profitability_operatingProfitMargin', headerName: 'Biên LN HĐ', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'profitability_netMargin', headerName: 'Biên ròng', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'profitability_roe', headerName: 'ROE', columnGroupShow: 'open', width: 100, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'profitability_roa', headerName: 'ROA', columnGroupShow: 'open', width: 100, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'profitability_returnOnFixedAssets', headerName: 'Lợi tức TSCĐ', columnGroupShow: 'open', width: 140, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+        ],
+      },
+      {
+        headerName: 'Thanh khoản & Đòn bẩy',
+        groupId: 'liquidityAndSolvency',
+        children: [
+          { colId: 'liquidityAndSolvency_summary', headerName: 'Current Ratio', columnGroupShow: 'closed', width: 130, valueGetter: (p) => p.data?.liquidityAndSolvency_currentRatio, valueFormatter: (p) => formatIndicatorRatio(p.value), cellClass: 'font-semibold' },
+          { field: 'liquidityAndSolvency_currentRatio', headerName: 'Current Ratio', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'liquidityAndSolvency_quickRatio', headerName: 'Quick Ratio', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'liquidityAndSolvency_cashRatio', headerName: 'Cash Ratio', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'liquidityAndSolvency_debtToEquity', headerName: 'Nợ/Vốn', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'liquidityAndSolvency_debtRatio', headerName: 'Tỷ lệ nợ', columnGroupShow: 'open', width: 120, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'liquidityAndSolvency_longTermDebtRatio', headerName: 'Nợ dài hạn/Tổng', columnGroupShow: 'open', width: 140, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'liquidityAndSolvency_interestCoverageRatio', headerName: 'Khả năng trả lãi', columnGroupShow: 'open', width: 160, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'liquidityAndSolvency_retainedEarningsToTotalAssets', headerName: 'LN giữ lại/Tổng TS', columnGroupShow: 'open', width: 160, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+        ],
+      },
+      {
+        headerName: 'Hiệu quả',
+        groupId: 'efficiency',
+        children: [
+          { colId: 'efficiency_summary', headerName: 'Vòng quay TTS', columnGroupShow: 'closed', width: 130, valueGetter: (p) => p.data?.efficiency_totalAssetTurnover, valueFormatter: (p) => formatIndicatorRatio(p.value), cellClass: 'font-semibold' },
+          { field: 'efficiency_totalAssetTurnover', headerName: 'Vòng quay TTS', columnGroupShow: 'open', width: 130, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+          { field: 'efficiency_inventoryTurnover', headerName: 'Vòng quay H.T.K', columnGroupShow: 'open', width: 130, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+        ],
+      },
+      {
+        headerName: 'Tăng trưởng',
+        groupId: 'growth',
+        children: [
+          { colId: 'growth_summary', headerName: 'Tăng trưởng DT', columnGroupShow: 'closed', width: 140, valueGetter: (p) => p.data?.growth_revenueGrowth, valueFormatter: (p) => formatIndicatorPercentSigned(p.value), cellStyle: indicatorPercentCellStyle, cellClass: 'font-semibold' },
+          { field: 'growth_comparisonType', headerName: 'So sánh', columnGroupShow: 'open', width: 120 },
+          { field: 'growth_grossProfitGrowth', headerName: 'Tăng trưởng LN gộp', columnGroupShow: 'open', width: 150, valueFormatter: (p) => formatIndicatorPercentSigned(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'growth_revenueGrowth', headerName: 'Tăng trưởng doanh thu', columnGroupShow: 'open', width: 150, valueFormatter: (p) => formatIndicatorPercentSigned(p.value), cellStyle: indicatorPercentCellStyle },
+        ],
+      },
+      {
+        headerName: 'Ngân hàng',
+        groupId: 'bankSpecific',
+        children: [
+          { colId: 'bankSpecific_summary', headerName: 'NIM', columnGroupShow: 'closed', width: 110, valueGetter: (p) => p.data?.bankSpecific_nim, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle, cellClass: 'font-semibold' },
+          { field: 'bankSpecific_nim', headerName: 'NIM', columnGroupShow: 'open', width: 110, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+          { field: 'bankSpecific_nonInterestIncomeRatio', headerName: 'Tỷ lệ TN phi lãi', columnGroupShow: 'open', width: 150, valueFormatter: (p) => formatIndicatorPercent(p.value), cellStyle: indicatorPercentCellStyle },
+        ],
+      },
+      {
+        headerName: 'Dòng tiền (CN)',
+        groupId: 'cashFlow',
+        children: [
+          { colId: 'cashFlow_summary', headerName: 'Dòng tiền/HNST', columnGroupShow: 'closed', width: 150, valueGetter: (p) => p.data?.cashFlow_operatingCashFlowToNetProfit, valueFormatter: (p) => formatIndicatorRatio(p.value), cellClass: 'font-semibold' },
+          { field: 'cashFlow_operatingCashFlowToNetProfit', headerName: 'Dòng tiền/HNST', columnGroupShow: 'open', width: 150, valueFormatter: (p) => formatIndicatorRatio(p.value) },
+        ],
+      },
+    ],
   },
   ] as (ColDef | ColGroupDef)[]),
 

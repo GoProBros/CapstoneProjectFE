@@ -184,7 +184,7 @@ function getMetricTone(
   value: number | null | undefined,
   format: MetricFormat
 ): 'default' | 'positive' | 'negative' {
-  if (!isNumber(value) || format !== 'percent_signed') {
+  if (!isNumber(value) || (format !== 'percent' && format !== 'percent_signed')) {
     return 'default';
   }
 

@@ -31,6 +31,9 @@ interface FinancialReportTableProps {
   data: FinancialReportTableRow[];
   loading?: boolean;
   totalCount?: number;
+  tickerHasMore?: Record<string, boolean>;
+  canShowLoadMore?: boolean;
+  onLoadMore?: (ticker: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,11 +57,41 @@ const SUB_GROUP_SUMMARY_FIELDS: Record<
     colId: "profitBeforeTax_summary",
     controlField: "profitBeforeTax",
   },
+  profitability: {
+    colId: "profitability_summary",
+    controlField: "profitability_roe",
+  },
+  liquidityAndSolvency: {
+    colId: "liquidityAndSolvency_summary",
+    controlField: "liquidityAndSolvency_currentRatio",
+  },
+  efficiency: {
+    colId: "efficiency_summary",
+    controlField: "efficiency_totalAssetTurnover",
+  },
+  growth: {
+    colId: "growth_summary",
+    controlField: "growth_revenueGrowth",
+  },
+  bankSpecific: {
+    colId: "bankSpecific_summary",
+    controlField: "bankSpecific_nim",
+  },
+  cashFlow: {
+    colId: "cashFlow_summary",
+    controlField: "cashFlow_operatingCashFlowToNetProfit",
+  },
 };
 
 const SUMMARY_COLID_TO_FIELD: Record<string, string> = {
   grossProfit_summary: "grossProfit",
   profitBeforeTax_summary: "profitBeforeTax",
+  profitability_summary: "profitability_roe",
+  liquidityAndSolvency_summary: "liquidityAndSolvency_currentRatio",
+  efficiency_summary: "efficiency_totalAssetTurnover",
+  growth_summary: "growth_revenueGrowth",
+  bankSpecific_summary: "bankSpecific_nim",
+  cashFlow_summary: "cashFlow_operatingCashFlowToNetProfit",
 };
 
 function buildGroupVisibilityFromFields(
@@ -162,6 +195,9 @@ const FinancialReportTable = memo(function FinancialReportTable({
   data,
   loading,
   totalCount = 0,
+  tickerHasMore = {},
+  canShowLoadMore = false,
+  onLoadMore,
 }: FinancialReportTableProps) {
   const { theme } = useTheme();
   const { groups, fields } = useFinancialReportColumnStore();
@@ -245,22 +281,30 @@ const FinancialReportTable = memo(function FinancialReportTable({
     });
 
     const result: any[] = [];
-    let currentTicker = "";
+    const tickerSet = [...new Set(sorted.map((row) => row.ticker))];
 
-    sorted.forEach((row) => {
-      if (row.ticker !== currentTicker) {
+    tickerSet.forEach((ticker) => {
+      result.push({
+        isTickerHeader: true,
+        ticker,
+        id: `header-${ticker}`,
+      });
+
+      sorted
+        .filter((row) => row.ticker === ticker)
+        .forEach((row) => result.push(row));
+
+      if (canShowLoadMore && tickerHasMore[ticker]) {
         result.push({
-          isTickerHeader: true,
-          ticker: row.ticker,
-          id: `header-${row.ticker}`,
+          isLoadMore: true,
+          ticker,
+          id: `load-more-${ticker}`,
         });
-        currentTicker = row.ticker;
       }
-      result.push(row);
     });
 
     return result;
-  }, [data]);
+  }, [data, tickerHasMore, canShowLoadMore]);
 
   return (
     <div className="flex flex-col h-full">
@@ -287,10 +331,35 @@ const FinancialReportTable = memo(function FinancialReportTable({
           noRowsOverlayComponent={NoRowsOverlay}
           onGridReady={(params) => setGridApi(params.api)}
           onColumnVisible={handleColumnVisible}
+          isFullWidthRow={(params) => Boolean(params.rowNode?.data?.isLoadMore)}
+          fullWidthCellRenderer={(params: any) => {
+            const ticker = params.data?.ticker as string | undefined;
+            return (
+              <div className="flex items-center justify-center py-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (ticker) {
+                      onLoadMore?.(ticker);
+                    }
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 border border-blue-400/40 hover:border-blue-300/60 rounded-lg px-4 py-1.5 transition-colors"
+                >
+                  Xem thêm {ticker}...
+                </button>
+              </div>
+            );
+          }}
           getRowStyle={(params) => {
+            if (params.data?.isLoadMore) {
+              return {
+                backgroundColor: 'transparent',
+                fontWeight: 400,
+              };
+            }
             if (params.data?.isTickerHeader) {
               return {
-                fontWeight: "bold",
+                fontWeight: 700,
                 backgroundColor:
                   theme === "dark" ? "#1f2937" : "#f3f4f6",
               };

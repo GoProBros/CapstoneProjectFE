@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     REFRESH_TOKEN: '/api/v1/auth/refresh-token',
     LOGOUT: '/api/v1/auth/logout',
     ME: '/api/v1/auth/me',
+    ME_PROFILE: '/api/v1/auth/me/profile',
     FORGOT_PASSWORD: '/api/v1/auth/forgot-password',
     RESET_PASSWORD: '/api/v1/auth/reset-password',
     VERIFY_EMAIL: '/api/v1/auth/verify-email',
@@ -153,14 +154,6 @@ export const API_ENDPOINTS = {
   // Telegram endpoints
   TELEGRAM: {
     START_TOKEN: '/api/v1/telegram/start-token',
-  },
-
-  // Portfolio endpoints
-  PORTFOLIOS: {
-    BASE: '/api/v1/portfolios',
-    BY_ID: (id: number) => `/api/v1/portfolios/${id}`,
-    TRANSACTIONS: (portfolioId: number) => `/api/v1/portfolios/${portfolioId}/transactions`,
-    INVESTMENT_CAPITAL: '/api/v1/portfolios/investment-capital',
   },
 
   // User Management endpoints
