@@ -2,7 +2,7 @@
  * Authentication Service - API calls for authentication
  */
 
-import { post, get } from '@/services/api';
+import { post, get, put } from '@/services/api';
 
 /** Thrown when registration succeeds but requires email verification (no token returned) */
 export class RegistrationSuccessNotification extends Error {
@@ -21,6 +21,7 @@ import type {
   AuthResponse,
   RefreshTokenRequest,
   LogoutRequest,
+  UpdateMyProfileRequest,
 } from '@/types/auth';
 
 /**
@@ -129,6 +130,21 @@ export async function getMe(): Promise<import('@/types/auth').User> {
     }
   } catch (error) {
     console.error('[AuthService] GetMe error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update current user's profile
+ */
+export async function updateMyProfile(payload: UpdateMyProfileRequest): Promise<void> {
+  try {
+    const result = await put<void>(API_ENDPOINTS.AUTH.ME_PROFILE, payload);
+    if (!result.isSuccess) {
+      throw new Error(result.message || 'Không thể cập nhật hồ sơ');
+    }
+  } catch (error) {
+    console.error('[AuthService] UpdateMyProfile error:', error);
     throw error;
   }
 }

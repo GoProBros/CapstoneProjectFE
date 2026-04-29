@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts';
 import { getSubscriptions, getMySubscription } from '@/services/admin/subscriptionService';
 import { getLatestMyTransaction, getPaymentStatus, syncPayment, waitForPaymentCompletion } from '@/services/admin/paymentService';
 import { PaymentProviderType, PaymentTransactionStatus } from '@/types/payment';
@@ -363,7 +363,11 @@ export function ProfileSubscriptionTab() {
                 />
             )}
             {paymentSub && (
-                <SubscriptionPaymentModal sub={paymentSub} onClose={() => setPaymentSub(null)} />
+                <SubscriptionPaymentModal
+                    sub={paymentSub}
+                    currentSubscription={mySubscription}
+                    onClose={() => setPaymentSub(null)}
+                />
             )}
         </>
     );

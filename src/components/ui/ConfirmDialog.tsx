@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   variant?: 'danger' | 'warning' | 'info';
+  confirmDisabled?: boolean;
 }
 
 export default function ConfirmDialog({
@@ -23,7 +24,8 @@ export default function ConfirmDialog({
   cancelText = 'Hủy',
   onConfirm,
   onCancel,
-  variant = 'warning'
+  variant = 'warning',
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -119,7 +121,8 @@ export default function ConfirmDialog({
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 rounded-lg font-medium text-white transition-colors ${colors.confirmBg}`}
+            disabled={confirmDisabled}
+            className={`px-4 py-2 rounded-lg font-medium text-white transition-colors ${colors.confirmBg} disabled:opacity-60 disabled:cursor-not-allowed`}
           >
             {confirmText}
           </button>
