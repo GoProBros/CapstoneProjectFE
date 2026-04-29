@@ -168,8 +168,8 @@ export default function Sidebar({
     const [pageToDelete, setPageToDelete] = useState<string | null>(null);
     const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
     const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
-    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-    const [isShareCodeModalOpen, setIsShareCodeModalOpen] = useState(false);
+    const [isRenameInlineOpen, setIsRenameInlineOpen] = useState(false);
+    const [isShareCodeInlineOpen, setIsShareCodeInlineOpen] = useState(false);
     const [renameValue, setRenameValue] = useState('');
     const [currentWsId, setCurrentWsId] = useState<number | null>(null);
     const [currentWsShareCode, setCurrentWsShareCode] = useState('');
@@ -243,6 +243,22 @@ export default function Sidebar({
         setPageToDelete(null);
     };
 
+    const closeWorkspaceMenu = () => {
+        setIsWorkspaceMenuOpen(false);
+        setIsRenameInlineOpen(false);
+        setIsShareCodeInlineOpen(false);
+        setRenameError(null);
+        setCopiedCode(false);
+    };
+
+    const handleToggleWorkspaceMenu = () => {
+        if (isWorkspaceMenuOpen) {
+            closeWorkspaceMenu();
+            return;
+        }
+        setIsWorkspaceMenuOpen(true);
+    };
+
     const loadCurrentWorkspaceInfo = async (): Promise<Workspace | null> => {
         try {
             const savedPages = getDashboardPagesStorage();
@@ -260,8 +276,12 @@ export default function Sidebar({
         }
     };
 
-    const handleOpenRenameModal = async () => {
-        setIsWorkspaceMenuOpen(false);
+    const handleOpenRenameInline = async () => {
+        if (isRenameInlineOpen) {
+            setIsRenameInlineOpen(false);
+            setRenameError(null);
+            return;
+        }
         const ws = await loadCurrentWorkspaceInfo();
         if (ws) {
             setCurrentWsId(ws.id);
@@ -275,16 +295,24 @@ export default function Sidebar({
             if (p) { setRenameValue(p.name ?? ''); }
         }
         setRenameError(null);
-        setIsRenameModalOpen(true);
+        setIsShareCodeInlineOpen(false);
+        setIsRenameInlineOpen(true);
     };
 
-    const handleOpenShareCodeModal = async () => {
-        setIsWorkspaceMenuOpen(false);
+    const handleOpenShareCodeInline = async () => {
+        if (isShareCodeInlineOpen) {
+            setIsShareCodeInlineOpen(false);
+            setCopiedCode(false);
+            return;
+        }
+        setCurrentWsShareCode('');
         const ws = await loadCurrentWorkspaceInfo();
         if (ws) {
             setCurrentWsShareCode(ws.shareCode || '');
         }
-        setIsShareCodeModalOpen(true);
+        setCopiedCode(false);
+        setIsRenameInlineOpen(false);
+        setIsShareCodeInlineOpen(true);
     };
 
     const handleSaveRename = async () => {
@@ -321,7 +349,7 @@ export default function Sidebar({
                         setDashboardPagesStorage(JSON.stringify(updated));
                     }
                 } catch {}
-                setIsRenameModalOpen(false);
+                setIsRenameInlineOpen(false);
             } else {
                 setRenameError(response.message || 'Có lỗi khi đổi tên');
             }
@@ -457,7 +485,7 @@ export default function Sidebar({
                     {/* Grid Icon - Workspace management menu */}
                     <div className="relative" ref={workspaceMenuRef}>
                         <button
-                            onClick={() => setIsWorkspaceMenuOpen(!isWorkspaceMenuOpen)}
+                            onClick={handleToggleWorkspaceMenu}
                             className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700/50 rounded-lg transition-colors"
                             title="Quản lý workspace"
                         >
@@ -468,28 +496,118 @@ export default function Sidebar({
 
                         {isWorkspaceMenuOpen && (
                             <>
-                                <div className="fixed inset-0 z-[9990]" onClick={() => setIsWorkspaceMenuOpen(false)} />
+                                <div className="fixed inset-0 z-[9990]" onClick={closeWorkspaceMenu} />
                                 <div className="absolute left-full ml-2 top-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[200px] z-[9991]">
                                     {pages.length > 0 && (
-                                    <button
-                                        onClick={handleOpenRenameModal}
-                                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                    >
-                                        <Pencil className="w-4 h-4" />
-                                        Đổi tên workspace
-                                    </button>
+                                        <button
+                                            onClick={handleOpenRenameInline}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                            Đổi tên workspace
+                                        </button>
+                                    )}
+                                    {isRenameInlineOpen && (
+                                        <div className="px-4 pb-3 pt-1">
+                                            <input
+                                                type="text"
+                                                value={renameValue}
+                                                onChange={(e) => setRenameValue(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleSaveRename();
+                                                }}
+                                                className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
+                                                    theme === 'dark'
+                                                        ? 'bg-gray-900 border-gray-700 text-gray-100 placeholder:text-gray-500'
+                                                        : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
+                                                }`}
+                                                placeholder="Nhập tên workspace"
+                                            />
+                                            {renameError && (
+                                                <p className="mt-1 text-xs text-red-500">{renameError}</p>
+                                            )}
+                                            <div className="mt-2 flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => setIsRenameInlineOpen(false)}
+                                                    className={`text-xs px-2.5 py-1.5 rounded transition-colors ${
+                                                        theme === 'dark'
+                                                            ? 'text-gray-300 hover:bg-gray-700'
+                                                            : 'text-gray-600 hover:bg-gray-100'
+                                                    }`}
+                                                    type="button"
+                                                >
+                                                    Hủy
+                                                </button>
+                                                <button
+                                                    onClick={handleSaveRename}
+                                                    disabled={renameLoading || !renameValue.trim()}
+                                                    className={`text-xs px-2.5 py-1.5 rounded transition-colors ${
+                                                        renameLoading || !renameValue.trim()
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
+                                                            : 'bg-accentGreen text-white hover:bg-green-600'
+                                                    }`}
+                                                    type="button"
+                                                >
+                                                    {renameLoading ? 'Đang lưu...' : 'Lưu'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                     {pages.length > 0 && (
-                                    <button
-                                        onClick={handleOpenShareCodeModal}
-                                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                    >
-                                        <Share2 className="w-4 h-4" />
-                                        Lấy share code
-                                    </button>
+                                        <button
+                                            onClick={handleOpenShareCodeInline}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                            Lấy share code
+                                        </button>
+                                    )}
+                                    {isShareCodeInlineOpen && (
+                                        <div className="px-4 pb-3 pt-1">
+                                            {currentWsShareCode ? (
+                                                <>
+                                                    <div className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                                                        theme === 'dark'
+                                                            ? 'bg-gray-900 border-gray-700'
+                                                            : 'bg-gray-50 border-gray-200'
+                                                    }`}>
+                                                        <span className={`flex-1 text-[11px] font-mono break-all select-all ${
+                                                            theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                                                        }`}>
+                                                            {currentWsShareCode}
+                                                        </span>
+                                                        <button
+                                                            onClick={handleCopyShareCode}
+                                                            className={`p-1 rounded transition-colors ${
+                                                                theme === 'dark'
+                                                                    ? 'hover:bg-gray-700 text-gray-300'
+                                                                    : 'hover:bg-gray-200 text-gray-600'
+                                                            }`}
+                                                            type="button"
+                                                            aria-label="Sao chép share code"
+                                                        >
+                                                            {copiedCode ? (
+                                                                <Check className="w-3.5 h-3.5 text-green-500" />
+                                                            ) : (
+                                                                <Copy className="w-3.5 h-3.5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    <p className={`mt-1 text-[11px] ${
+                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                    }`}>
+                                                        Gửi code này để chia sẻ workspace
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                    Workspace này chưa có share code
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                     <button
-                                        onClick={() => { setIsWorkspaceMenuOpen(false); onAddPage(); }}
+                                        onClick={() => { closeWorkspaceMenu(); onAddPage(); }}
                                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                                     >
                                         <LayoutGrid className="w-4 h-4" />
@@ -845,80 +963,6 @@ export default function Sidebar({
                     </div>
                 </div>
             </aside>
-
-            {/* Rename Workspace Modal */}
-            {isRenameModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10001]">
-                    <div className="bg-white dark:bg-[#1e1e2e] rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Đổi tên workspace</h3>
-                        <input
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRename(); }}
-                            className="w-full px-3 py-2 mb-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accentGreen"
-                            placeholder="Tên workspace..."
-                            autoFocus
-                        />
-                        {renameError && (
-                            <p className="text-red-400 text-xs mb-3">{renameError}</p>
-                        )}
-                        <div className="flex gap-3 justify-end mt-4">
-                            <button
-                                onClick={() => setIsRenameModalOpen(false)}
-                                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                onClick={handleSaveRename}
-                                disabled={renameLoading || !renameValue.trim()}
-                                className="px-4 py-2 rounded-lg bg-accentGreen text-white hover:bg-green-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors font-medium"
-                            >
-                                {renameLoading ? 'Đang lưu...' : 'Đổi tên'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Share Code Modal */}
-            {isShareCodeModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10001]">
-                    <div className="bg-white dark:bg-[#1e1e2e] rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Share Code workspace</h3>
-                        {currentWsShareCode ? (
-                            <>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs mb-2">Chia sẻ code này để người khác áp dụng giao diện của bạn:</p>
-                                <div className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
-                                    <span className="flex-1 font-mono text-sm text-accentGreen break-all select-all">{currentWsShareCode}</span>
-                                    <button
-                                        onClick={handleCopyShareCode}
-                                        className="flex-shrink-0 p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                                        title="Copy"
-                                    >
-                                        {copiedCode ? (
-                                            <Check className="w-4 h-4 text-accentGreen" />
-                                        ) : (
-                                            <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                                        )}
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-sm">Workspace này chưa có share code.</p>
-                        )}
-                        <div className="flex justify-end mt-4">
-                            <button
-                                onClick={() => setIsShareCodeModalOpen(false)}
-                                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-                            >
-                                Đóng
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Delete Confirmation Modal */}
             {pageToDelete && (
