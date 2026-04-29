@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '@/constants';
 import type { PaginatedData } from '@/types';
 import type {
   FinancialReport,
+  FinancialReportIndicatorData,
   FinancialReportFilters,
   FinancialReportIndicatorListItem,
   FinancialReportTableRow,
@@ -387,10 +388,10 @@ function getPeriodLabel(year: number, period: FinancialPeriodType): string {
  * @returns Promise with items array and totalCount
  */
 export async function fetchFinancialReportsByTicker(
-  ticker: string
-): Promise<{ items: FinancialReportTableRow[]; totalCount: number }> {
+  ticker: string,
+  pageIndex: number = 1
+): Promise<{ items: FinancialReportTableRow[]; totalCount: number; hasMore: boolean }> {
   try {
-    const pageIndex = 1;
     const pageSize = 100;
     const status = 2; // Status 2 = Active/Published reports
 
@@ -408,12 +409,12 @@ export async function fetchFinancialReportsByTicker(
     // Handle unsuccessful response
     if (!response.isSuccess) {
       console.error('API returned error:', response.message);
-      return { items: [], totalCount: 0 };
+      return { items: [], totalCount: 0, hasMore: false };
     }
 
     // Handle empty or null data
     if (!response.data || !response.data.items || !Array.isArray(response.data.items)) {
-      return { items: [], totalCount: 0 };
+      return { items: [], totalCount: 0, hasMore: false };
     }
 
     // Convert to table rows with error handling
@@ -429,11 +430,59 @@ export async function fetchFinancialReportsByTicker(
       .filter((item): item is FinancialReportTableRow => item !== null);
 
     const totalCount = response.data.totalCount || items.length;
+    const totalPages = response.data.totalPages ?? Math.ceil(totalCount / pageSize);
+    const hasMore = pageIndex < totalPages;
 
-    return { items, totalCount };
+    try {
+      const indicatorsResponse = await fetchFinancialReportIndicatorsByTicker(ticker);
+      const indicatorMap = new Map<string, FinancialReportIndicatorData | undefined>();
+
+      for (const indicator of indicatorsResponse.items) {
+        const key = `${indicator.year}-${indicator.period}`;
+        indicatorMap.set(key, indicator.indicatorData);
+      }
+
+      for (const row of items) {
+        const key = `${row.year}-${row.period}`;
+        const ind = indicatorMap.get(key);
+        if (!ind) continue;
+
+        row.profitability_grossMargin = ind.profitability?.grossMargin ?? null;
+        row.profitability_operatingProfitMargin = ind.profitability?.operatingProfitMargin ?? null;
+        row.profitability_netMargin = ind.profitability?.netMargin ?? null;
+        row.profitability_roe = ind.profitability?.roe ?? null;
+        row.profitability_roa = ind.profitability?.roa ?? null;
+        row.profitability_returnOnFixedAssets = ind.profitability?.returnOnFixedAssets ?? null;
+
+        row.liquidityAndSolvency_currentRatio = ind.liquidityAndSolvency?.currentRatio ?? null;
+        row.liquidityAndSolvency_quickRatio = ind.liquidityAndSolvency?.quickRatio ?? null;
+        row.liquidityAndSolvency_cashRatio = ind.liquidityAndSolvency?.cashRatio ?? null;
+        row.liquidityAndSolvency_debtToEquity = ind.liquidityAndSolvency?.debtToEquity ?? null;
+        row.liquidityAndSolvency_debtRatio = ind.liquidityAndSolvency?.debtRatio ?? null;
+        row.liquidityAndSolvency_longTermDebtRatio = ind.liquidityAndSolvency?.longTermDebtRatio ?? null;
+        row.liquidityAndSolvency_interestCoverageRatio = ind.liquidityAndSolvency?.interestCoverageRatio ?? null;
+        row.liquidityAndSolvency_retainedEarningsToTotalAssets = ind.liquidityAndSolvency?.retainedEarningsToTotalAssets ?? null;
+
+        row.efficiency_totalAssetTurnover = ind.efficiency?.totalAssetTurnover ?? null;
+        row.efficiency_inventoryTurnover = ind.efficiency?.inventoryTurnover ?? null;
+
+        row.growth_comparisonType = ind.growth?.comparisonType ?? null;
+        row.growth_grossProfitGrowth = ind.growth?.grossProfitGrowth ?? null;
+        row.growth_revenueGrowth = ind.growth?.revenueGrowth ?? null;
+
+        row.bankSpecific_nim = ind.bankSpecific?.nim ?? null;
+        row.bankSpecific_nonInterestIncomeRatio = ind.bankSpecific?.nonInterestIncomeRatio ?? null;
+
+        row.cashFlow_operatingCashFlowToNetProfit = ind.cashFlow?.operatingCashFlowToNetProfit ?? null;
+      }
+    } catch (indicatorError) {
+      console.warn(`[FinancialReport] Failed to fetch indicators for ${ticker}:`, indicatorError);
+    }
+
+    return { items, totalCount, hasMore };
   } catch (error) {
     console.error(`Error fetching financial reports for ${ticker}:`, error);
-    return { items: [], totalCount: 0 };
+    return { items: [], totalCount: 0, hasMore: false };
   }
 }
 

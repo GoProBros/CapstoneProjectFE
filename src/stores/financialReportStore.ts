@@ -11,6 +11,8 @@ interface FinancialReportState {
   // State
   tickerList: string[]; // List of tickers to fetch
   tickerDataCache: Record<string, FinancialReportTableRow[]>; // Cache data per ticker
+  tickerPageCache: Record<string, number>; // Next page index to fetch per ticker
+  tickerHasMore: Record<string, boolean>;
   selectedSectorId: string;
   expandedGroups: Set<string>;
   lockState: boolean;
@@ -18,7 +20,8 @@ interface FinancialReportState {
   
   // Actions
   setTickerList: (tickers: string[]) => void;
-  setTickerData: (ticker: string, data: FinancialReportTableRow[]) => void;
+  setTickerData: (ticker: string, data: FinancialReportTableRow[], hasMore?: boolean) => void;
+  appendTickerData: (ticker: string, data: FinancialReportTableRow[], hasMore: boolean, nextPageToFetch: number) => void;
   clearTickerData: (ticker: string) => void;
   setSelectedSectorId: (sectorId: string) => void;
   toggleExpanded: (ticker: string) => void;
@@ -30,7 +33,7 @@ interface FinancialReportState {
 
 const defaultFilters: FinancialReportFilters = {
   pageIndex: 1,
-  pageSize: 100,
+  pageSize: 10,
 };
 
 export const useFinancialReportStore = create<FinancialReportState>()(  persist(
@@ -38,6 +41,8 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
       // Initial state
       tickerList: [],
       tickerDataCache: {},
+      tickerPageCache: {},
+      tickerHasMore: {},
       selectedSectorId: '',
       expandedGroups: new Set<string>(),
       lockState: false,
@@ -46,7 +51,13 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
       // Actions
       setTickerList: (tickers) => {
         const currentList = get().tickerList;
-        const newList = tickers;
+        const newList = Array.from(
+          new Set(
+            tickers
+              .map((t) => t.trim().toUpperCase())
+              .filter((t) => t.length > 0)
+          )
+        );
         
         // Find tickers that are in current list but not in new list
         const removedTickers = currentList.filter(t => !newList.includes(t));
@@ -54,18 +65,52 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
         // Clear data for removed tickers
         set((state) => {
           const newCache = { ...state.tickerDataCache };
+          const newPageCache = { ...state.tickerPageCache };
+          const newHasMoreCache = { ...state.tickerHasMore };
           removedTickers.forEach(ticker => {
             delete newCache[ticker];
+            delete newPageCache[ticker];
+            delete newHasMoreCache[ticker];
           });
-          return { tickerList: newList, tickerDataCache: newCache };
+          return {
+            tickerList: newList,
+            tickerDataCache: newCache,
+            tickerPageCache: newPageCache,
+            tickerHasMore: newHasMoreCache,
+          };
         });
       },
 
-      setTickerData: (ticker, data) => {
+      setTickerData: (ticker, data, hasMore = false) => {
         set((state) => ({
           tickerDataCache: {
             ...state.tickerDataCache,
             [ticker]: data,
+          },
+          tickerPageCache: {
+            ...state.tickerPageCache,
+            [ticker]: 2,
+          },
+          tickerHasMore: {
+            ...state.tickerHasMore,
+            [ticker]: hasMore,
+          },
+        }));
+      },
+
+      appendTickerData: (ticker, data, hasMore, nextPageToFetch) => {
+        set((state) => ({
+          tickerDataCache: {
+            ...state.tickerDataCache,
+            [ticker]: [...(state.tickerDataCache[ticker] ?? []), ...data],
+          },
+          tickerPageCache: {
+            ...state.tickerPageCache,
+            [ticker]: nextPageToFetch,
+          },
+          tickerHasMore: {
+            ...state.tickerHasMore,
+            [ticker]: hasMore,
           },
         }));
       },
@@ -74,7 +119,15 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
         set((state) => {
           const newCache = { ...state.tickerDataCache };
           delete newCache[ticker];
-          return { tickerDataCache: newCache };
+          const newPageCache = { ...state.tickerPageCache };
+          delete newPageCache[ticker];
+          const newHasMoreCache = { ...state.tickerHasMore };
+          delete newHasMoreCache[ticker];
+          return {
+            tickerDataCache: newCache,
+            tickerPageCache: newPageCache,
+            tickerHasMore: newHasMoreCache,
+          };
         });
       },
 
@@ -116,6 +169,8 @@ export const useFinancialReportStore = create<FinancialReportState>()(  persist(
         set({
           tickerList: [],
           tickerDataCache: {},
+          tickerPageCache: {},
+          tickerHasMore: {},
           selectedSectorId: '',
           expandedGroups: new Set<string>(),
         });

@@ -450,6 +450,35 @@ export interface FinancialReportTableRow {
   operatingCashFlow: number;
   investingCashFlow: number;
   financingCashFlow: number;
+
+  // Indicators (flattened)
+  profitability_grossMargin?: number | null;
+  profitability_operatingProfitMargin?: number | null;
+  profitability_netMargin?: number | null;
+  profitability_roe?: number | null;
+  profitability_roa?: number | null;
+  profitability_returnOnFixedAssets?: number | null;
+
+  liquidityAndSolvency_currentRatio?: number | null;
+  liquidityAndSolvency_quickRatio?: number | null;
+  liquidityAndSolvency_cashRatio?: number | null;
+  liquidityAndSolvency_debtToEquity?: number | null;
+  liquidityAndSolvency_debtRatio?: number | null;
+  liquidityAndSolvency_longTermDebtRatio?: number | null;
+  liquidityAndSolvency_interestCoverageRatio?: number | null;
+  liquidityAndSolvency_retainedEarningsToTotalAssets?: number | null;
+
+  efficiency_totalAssetTurnover?: number | null;
+  efficiency_inventoryTurnover?: number | null;
+
+  growth_comparisonType?: string | null;
+  growth_grossProfitGrowth?: number | null;
+  growth_revenueGrowth?: number | null;
+
+  bankSpecific_nim?: number | null;
+  bankSpecific_nonInterestIncomeRatio?: number | null;
+
+  cashFlow_operatingCashFlowToNetProfit?: number | null;
   
   // Metadata
   status: FinancialReportStatus;
