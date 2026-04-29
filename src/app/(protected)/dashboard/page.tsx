@@ -131,7 +131,7 @@ export default function DashboardPage() {
         >
           {modules.map((module) => {
             const ModuleComponent = moduleComponents[module.type];
-            const allowed = isModuleAllowed(module.type);
+            const allowed = module.isLocked === true ? false : isModuleAllowed(module.type);
             return (
               <div key={module.id} className="group/module relative bg-white dark:bg-cardBackground rounded-lg border border-gray-200 dark:border-borderDark overflow-visible transition-colors duration-300 flex flex-col">
                 {/* Drag handle bar - smaller and doesn't cover right edge */}

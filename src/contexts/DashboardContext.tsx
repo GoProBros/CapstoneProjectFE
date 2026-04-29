@@ -5,6 +5,7 @@ interface Module {
   type: string;
   title: string;
   layoutId?: number; // Optional: Layout ID for modules with configurable layouts
+  isLocked?: boolean; // Set by backend based on subscription
 }
 
 interface LayoutItem {

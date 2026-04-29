@@ -26,6 +26,7 @@ interface Module {
   type: string;
   title: string;
   layoutId?: number; // Optional: Layout ID for modules with configurable layouts (StockScreener, FinancialReportPro, Heatmap)
+  isLocked?: boolean; // Set by backend based on subscription
 }
 
 interface LayoutItem {
@@ -310,6 +311,7 @@ export default function DashboardLayout({
                       type: item.type,
                       title: item.title,
                       layoutId: item.activeLayoutId,
+                      isLocked: item.isLocked === true,
                     });
                     
                     layout.push({
