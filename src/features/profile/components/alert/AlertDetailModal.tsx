@@ -70,7 +70,7 @@ export function AlertDetailModal({
             <button
               type="button"
               onClick={() => setShowConfirm(true)}
-              disabled={!alert || isChangingStatus}
+              disabled={!alert || isChangingStatus || alert?.isTriggered}
               className={`rounded-xl px-4 py-2 mr-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                 alert?.isActive
                   ? "bg-red-300 hover:bg-red-600"
@@ -130,7 +130,7 @@ export function AlertDetailModal({
                     : "—",
                 ],
                 ["Trạng thái", getAlertStatusLabel(alert.isActive)],
-                ["Đã kích hoạt", alert.isTriggered ? "Có" : "Không"],
+                ["Kích hoạt", alert.isTriggered ? "Đã kích hoạt" : "Chưa kích hoạt"],
                 ["Ngày tạo", formatDateTime(alert.createdAt)],
                 ["Cập nhật", formatDateTime(alert.updatedAt)],
               ].map(([label, value]) => (
