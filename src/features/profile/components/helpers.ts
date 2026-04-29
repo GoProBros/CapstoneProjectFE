@@ -70,7 +70,7 @@ export function getAlertConditionLabel(condition: number): string {
 }
 
 export function getAlertStatusLabel(isActive: boolean): string {
-    return isActive ? 'Đang kích hoạt' : 'Đã tắt';
+    return isActive ? 'Đang bật' : 'Đã tắt';
 }
 
 export function normalizeProfileRole(role: string | null | undefined): string {

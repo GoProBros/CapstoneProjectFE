@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { AlertDto } from '@/types/alert';
-import { getAlertTypeLabel, getAlertConditionLabel } from '../helpers';
+import { formatCurrencyVnd, getAlertTypeLabel, getAlertConditionLabel } from '../helpers';
 import { Spinner } from '../Spinner';
 
 type AlertSortKey = 'id' | 'ticker' | 'type' | 'condition' | 'isTriggered' | 'isActive' | 'updatedAt';
@@ -27,6 +27,26 @@ interface AlertTableProps {
 function getSortIndicator(activeKey: AlertSortKey, currentKey: AlertSortKey, direction: SortDirection): string {
   if (activeKey !== currentKey) return '↕';
   return direction === 'asc' ? '↑' : '↓';
+}
+
+function getTriggerValue(alert: AlertDto): string {
+  if (alert.condition === 1 || alert.condition === 2) {
+    return formatCurrencyVnd(alert.thresholdValue !== null ? alert.thresholdValue * 1000 : null);
+  }
+
+  if (alert.condition === 3 || alert.condition === 4) {
+    if (alert.changePercentage == null || Number.isNaN(alert.changePercentage)) {
+      return '—';
+    }
+
+    const sign = alert.condition === 3 ? '+' : '-';
+    const formatted = new Intl.NumberFormat('vi-VN', {
+      maximumFractionDigits: 2,
+    }).format(Math.abs(alert.changePercentage));
+    return `${sign}${formatted}%`;
+  }
+
+  return '—';
 }
 
 export function AlertTable({
@@ -70,6 +90,7 @@ export function AlertTable({
                   Điều kiện <span>{getSortIndicator(sortKey, 'condition', sortDirection)}</span>
                 </button>
               </th>
+              <th className="px-4 py-3">Giá trị kích hoạt</th>
               <th className="px-4 py-3">
                 <button type="button" onClick={() => onSort('isTriggered')} className="inline-flex items-center gap-1 font-semibold">
                   Trạng thái <span>{getSortIndicator(sortKey, 'isTriggered', sortDirection)}</span>
@@ -81,7 +102,7 @@ export function AlertTable({
           <tbody className={`${bgCard} divide-y divide-gray-100 dark:divide-gray-800`}>
             {loading ? (
               <tr>
-                <td className="px-4 py-8" colSpan={6}>
+                <td className="px-4 py-8" colSpan={7}>
                   <div className="flex items-center justify-center gap-2 text-sm text-green-500">
                     <Spinner className="h-5 w-5" />
                     Đang tải danh sách cảnh báo...
@@ -90,7 +111,7 @@ export function AlertTable({
               </tr>
             ) : alerts.length === 0 ? (
               <tr>
-                <td className={`px-4 py-10 text-center text-sm ${textSecondary}`} colSpan={6}>
+                <td className={`px-4 py-10 text-center text-sm ${textSecondary}`} colSpan={7}>
                   Chưa có cảnh báo nào phù hợp với bộ lọc hiện tại.
                 </td>
               </tr>
@@ -101,6 +122,7 @@ export function AlertTable({
                   <td className={`px-4 py-3 ${textPrimary}`}>{alert.ticker}</td>
                   <td className={`px-4 py-3 ${textPrimary}`}>{getAlertTypeLabel(alert.type)}</td>
                   <td className={`px-4 py-3 ${textPrimary}`}>{getAlertConditionLabel(alert.condition)}</td>
+                  <td className={`px-4 py-3 ${textPrimary}`}>{getTriggerValue(alert)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
