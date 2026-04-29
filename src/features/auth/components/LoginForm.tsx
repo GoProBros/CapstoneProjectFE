@@ -4,8 +4,8 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
-import { RegistrationSuccessNotification } from '@/services/auth/authService';
+import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle, Eye, EyeOff, KeyRound, ChevronLeft } from 'lucide-react';
+import { RegistrationSuccessNotification, forgotPassword, resetPassword } from '@/services/auth/authService';
 
 const passRules = [
   { label: 'Tối thiểu 6 ký tự', test: (p: string) => p.length >= 6 },
@@ -24,9 +24,13 @@ interface LoginFormProps {
   setError: (error: string | null) => void;
 }
 
+type FormMode = 'login' | 'signup' | 'forgot1' | 'forgot2';
+
 export default function LoginForm({ error, setError }: LoginFormProps) {
   const { login: authLogin, register: authRegister, loginWithGoogle } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode>('login');
+  const isSignUp = formMode === 'signup';
+  const isForgot = formMode === 'forgot1' || formMode === 'forgot2';
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -36,10 +40,17 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
   const [registerFullName, setRegisterFullName] = useState('');
   const [registerPhoneNumber, setRegisterPhoneNumber] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetPassword1, setResetPassword1] = useState('');
+  const [resetPassword2, setResetPassword2] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const switchTab = (signup: boolean) => {
-    setIsSignUp(signup);
+    setFormMode(signup ? 'signup' : 'login');
     setError(null);
     setSuccessMsg(null);
     setPassword('');
@@ -49,6 +60,65 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
+  };
+
+  const switchToForgot = () => {
+    setFormMode('forgot1');
+    setError(null);
+    setSuccessMsg(null);
+    setForgotEmail((prev) => (prev || email)); // Pre-fill email only when empty
+    setResetOtp('');
+    setResetPassword1('');
+    setResetPassword2('');
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
+  };
+
+  const backToLogin = () => {
+    // Preserve any email entered in the forgot-flow into the main email field
+    setEmail((prev) => (prev || forgotEmail));
+    setFormMode('login');
+    setError(null);
+    setSuccessMsg(null);
+  };
+
+  const handleForgotStep1 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+    if (!forgotEmail) { setError('Vui lòng nhập email.'); return; }
+    setIsLoading(true);
+    try {
+      await forgotPassword(forgotEmail);
+      setFormMode('forgot2');
+      setSuccessMsg('Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Gửi yêu cầu thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotStep2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+    const v = validatePassword(resetPassword1);
+    if (!v.isValid) { setError('Mật khẩu không đáp ứng yêu cầu.'); return; }
+    if (resetPassword1 !== resetPassword2) { setError('Mật khẩu nhập lại không khớp.'); return; }
+    if (!resetOtp.trim()) { setError('Vui lòng nhập mã OTP.'); return; }
+    setIsLoading(true);
+    try {
+      await resetPassword(forgotEmail, resetOtp.trim(), resetPassword1);
+      // After successful reset, ensure the login email is pre-filled from the forgot flow
+      setEmail(forgotEmail);
+      setFormMode('login');
+      setSuccessMsg('Đổi mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mã OTP.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLoginSuccess = async (credentialResponse: { credential?: string }) => {
@@ -85,7 +155,7 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
       }
     } catch (err: unknown) {
       if (err instanceof RegistrationSuccessNotification) {
-        setIsSignUp(false);
+        setFormMode('login');
         setPassword('');
         setConfirmPassword('');
         setRegisterFullName('');
@@ -128,29 +198,68 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
           transition={{ duration: 0.6, delay: 0.7 }}
         >
           <h3 className="text-xl font-bold text-white mb-1">
-            {isSignUp ? 'Tạo Tài Khoản' : 'Chào Mừng Trở Lại'}
+            {isForgot ? 'Quên Mật Khẩu' : isSignUp ? 'Tạo Tài Khoản' : 'Chào Mừng Trở Lại'}
           </h3>
           <p className="text-slate-300 text-sm">
-            {isSignUp ? 'Tạo tài khoản mới để bắt đầu' : 'Đăng nhập để truy cập dashboard'}
+            {formMode === 'forgot1' ? 'Nhập email để nhận mã OTP đặt lại mật khẩu'
+              : formMode === 'forgot2' ? 'Nhập mật khẩu mới và mã OTP đã nhận'
+              : isSignUp ? 'Tạo tài khoản mới để bắt đầu' : 'Đăng nhập để truy cập dashboard'}
           </p>
         </motion.div>
 
-        {/* Tab Switcher — CourtSync spring */}
-        <div className="relative flex bg-slate-800/50 rounded-2xl p-1 mb-4 border border-slate-700/50">
-          <motion.div
-            className="absolute top-1 bottom-1 w-1/2 bg-gradient-to-r from-[#4ADE80] to-blue-400 rounded-xl shadow-lg shadow-[#4ADE80]/25"
-            animate={{ x: isSignUp ? '95%' : '0%' }}
-            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-          />
-          <button type="button" onClick={() => switchTab(false)} disabled={isLoading}
-            className={`relative z-10 flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all duration-300 ${!isSignUp ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
-            Đăng nhập
-          </button>
-          <button type="button" onClick={() => switchTab(true)} disabled={isLoading}
-            className={`relative z-10 flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all duration-300 ${isSignUp ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
-            Đăng ký
-          </button>
-        </div>
+        {/* Tab Switcher — hidden when in forgot mode */}
+        <AnimatePresence initial={false}>
+          {!isForgot && (
+            <motion.div
+              key="tabs"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden mb-4"
+            >
+              <div className="relative flex bg-slate-800/50 rounded-2xl p-1 border border-slate-700/50">
+                <motion.div
+                  className="absolute top-1 bottom-1 w-1/2 bg-gradient-to-r from-[#4ADE80] to-blue-400 rounded-xl shadow-lg shadow-[#4ADE80]/25"
+                  animate={{ x: isSignUp ? '95%' : '0%' }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                />
+                <button type="button" onClick={() => switchTab(false)} disabled={isLoading}
+                  className={`relative z-10 flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all duration-300 ${!isSignUp ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
+                  Đăng nhập
+                </button>
+                <button type="button" onClick={() => switchTab(true)} disabled={isLoading}
+                  className={`relative z-10 flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all duration-300 ${isSignUp ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
+                  Đăng ký
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Back to login button — shown in forgot mode */}
+        <AnimatePresence initial={false}>
+          {isForgot && (
+            <motion.div
+              key="back-btn"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden mb-4"
+            >
+              <button
+                type="button"
+                onClick={backToLogin}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-[#4ADE80] transition-colors duration-200"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Quay lại đăng nhập
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Error Banner */}
         <AnimatePresence initial={false}>
@@ -182,7 +291,8 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
           )}
         </AnimatePresence>
 
-        {/* ONE form — SignUp fields collapse in, Email+Password always shown */}
+        {/* ONE form — SignUp fields collapse in, Email+Password always shown — hidden in forgot mode */}
+        {!isForgot && (
         <form onSubmit={handleSubmit} className="space-y-3">
 
           {/* SignUp-only fields with AnimatePresence height collapse */}
@@ -358,7 +468,7 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
 
           {/* Forgot Password — login only */}
           <AnimatePresence initial={false}>
-            {!isSignUp && (
+            {!isSignUp && !isForgot && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -367,9 +477,13 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
                 className="overflow-hidden"
               >
                 <div className="flex justify-end">
-                  <a href="#" className="text-xs text-slate-400 hover:text-[#4ADE80] transition-colors duration-200">
+                  <button
+                    type="button"
+                    onClick={switchToForgot}
+                    className="text-xs text-slate-400 hover:text-[#4ADE80] transition-colors duration-200"
+                  >
                     Quên mật khẩu?
-                  </a>
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -403,7 +517,219 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
             </motion.button>
           </motion.div>
         </form>
+        )}
 
+        {/* ===== FORGOT PASSWORD FORM (step 1 & 2) ===== */}
+        <AnimatePresence initial={false}>
+          {isForgot && (
+            <motion.form
+              key="forgot-form"
+              onSubmit={formMode === 'forgot1' ? handleForgotStep1 : handleForgotStep2}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3"
+            >
+              {/* Step 1: Email */}
+              <AnimatePresence initial={false}>
+                {formMode === 'forgot1' && (
+                  <motion.div
+                    key="forgot-email"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="group">
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Email</label>
+                      <div className="relative">
+                        <Mail className={iconBase} />
+                        <input
+                          type="email"
+                          value={forgotEmail}
+                          onChange={e => setForgotEmail(e.target.value)}
+                          required
+                          disabled={isLoading}
+                          className={inputBase}
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Step 2: New password + confirm + OTP */}
+              <AnimatePresence initial={false}>
+                {formMode === 'forgot2' && (
+                  <motion.div
+                    key="forgot-step2"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-3 overflow-hidden"
+                  >
+                    {/* New Password */}
+                    <div className="group">
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Mật khẩu mới</label>
+                      <div className="relative">
+                        <Lock className={iconBase} />
+                        <input
+                          type={showResetPassword ? 'text' : 'password'}
+                          value={resetPassword1}
+                          onChange={e => setResetPassword1(e.target.value)}
+                          required
+                          disabled={isLoading}
+                          className={`${inputBase} pr-10 ${resetPassword1.length > 0 && !validatePassword(resetPassword1).isValid ? 'border-red-500/40' : ''}`}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onMouseDown={() => setShowResetPassword(true)}
+                          onMouseUp={() => setShowResetPassword(false)}
+                          onMouseLeave={() => setShowResetPassword(false)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {showResetPassword ? (
+                              <motion.span key="off" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.2 }}>
+                                <EyeOff className="w-4 h-4" />
+                              </motion.span>
+                            ) : (
+                              <motion.span key="on" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.2 }}>
+                                <Eye className="w-4 h-4" />
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      </div>
+                      {/* Password rules */}
+                      <AnimatePresence initial={false}>
+                        {resetPassword1.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="mt-2 grid grid-cols-2 gap-1 overflow-hidden"
+                          >
+                            {passRules.map(rule => (
+                              <div key={rule.label} className={`flex items-center gap-1 text-xs ${rule.test(resetPassword1) ? 'text-[#4ADE80]' : 'text-slate-500'}`}>
+                                <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                  {rule.test(resetPassword1)
+                                    ? <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    : <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                  }
+                                </svg>
+                                <span>{rule.label}</span>
+                              </div>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Confirm New Password */}
+                    <div className="group">
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Nhập lại mật khẩu mới</label>
+                      <div className="relative">
+                        <Lock className={iconBase} />
+                        <input
+                          type={showResetConfirmPassword ? 'text' : 'password'}
+                          value={resetPassword2}
+                          onChange={e => setResetPassword2(e.target.value)}
+                          required
+                          disabled={isLoading}
+                          className={`${inputBase} pr-10 ${resetPassword2.length > 0 && resetPassword2 !== resetPassword1 ? 'border-red-500/40' : resetPassword2.length > 0 && resetPassword2 === resetPassword1 ? 'border-[#4ADE80]/50' : ''}`}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onMouseDown={() => setShowResetConfirmPassword(true)}
+                          onMouseUp={() => setShowResetConfirmPassword(false)}
+                          onMouseLeave={() => setShowResetConfirmPassword(false)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {showResetConfirmPassword ? (
+                              <motion.span key="off" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.2 }}>
+                                <EyeOff className="w-4 h-4" />
+                              </motion.span>
+                            ) : (
+                              <motion.span key="on" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.2 }}>
+                                <Eye className="w-4 h-4" />
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                        {resetPassword2.length > 0 && (
+                          <div className={`absolute right-9 top-1/2 -translate-y-1/2 text-xs ${resetPassword2 === resetPassword1 ? 'text-[#4ADE80]' : 'text-red-400'}`}>
+                            {resetPassword2 === resetPassword1 ? '✓' : '✗'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* OTP */}
+                    <div className="group">
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Mã OTP</label>
+                      <div className="relative">
+                        <KeyRound className={iconBase} />
+                        <input
+                          type="text"
+                          value={resetOtp}
+                          onChange={e => setResetOtp(e.target.value)}
+                          required
+                          disabled={isLoading}
+                          className={inputBase}
+                          placeholder="Nhập mã OTP từ email"
+                          maxLength={10}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Submit */}
+              <motion.button
+                type="submit"
+                disabled={isLoading || (formMode === 'forgot2' && resetPassword1.length > 0 && !validatePassword(resetPassword1).isValid) || (formMode === 'forgot2' && resetPassword2.length > 0 && resetPassword2 !== resetPassword1)}
+                whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                className="group w-full py-2.5 px-4 bg-gradient-to-r from-[#4ADE80] to-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg shadow-[#4ADE80]/25 hover:shadow-xl hover:shadow-[#4ADE80]/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <motion.div
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  />
+                ) : (
+                  <>
+                    <span>{formMode === 'forgot1' ? 'Gửi mã OTP' : 'Đổi mật khẩu'}</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </motion.button>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
+        {/* Divider + Google — hidden in forgot mode */}
+        <AnimatePresence initial={false}>
+          {!isForgot && (
+            <motion.div
+              key="google-section"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
         {/* Divider */}
         <div className="relative my-3">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
@@ -441,6 +767,9 @@ export default function LoginForm({ error, setError }: LoginFormProps) {
           {' '}và{' '}
           <a href="#" className="text-[#4ADE80] hover:underline">Chính sách bảo mật</a>
         </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

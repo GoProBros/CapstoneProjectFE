@@ -15,7 +15,6 @@ export const MODULE_LABELS: Record<string, string> = {
     financialReport: 'Báo cáo tài chính',
     analysisReport: 'Phân tích',
     news: 'Tin tức',
-    portfolio: 'Danh mục đầu tư',
 };
 
 export function formatCurrencyVnd(value: number | null | undefined): string {

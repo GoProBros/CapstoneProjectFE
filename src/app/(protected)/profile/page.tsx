@@ -12,13 +12,12 @@ import { Spinner } from "@/features/profile/components/Spinner";
 import { AvatarDisplay } from "@/features/profile/components/AvatarDisplay";
 import { ProfileInfoTab } from "@/features/profile/components/ProfileInfoTab";
 import { ProfileAlertTab } from "@/features/profile/components/ProfileAlertTab";
-import { ProfilePortfolioTab } from "@/features/profile/components/ProfilePortfolioTab";
 import { ProfileSubscriptionTab } from "@/features/profile/components/ProfileSubscriptionTab";
 import { ProfileTransactionTab } from "@/features/profile/components/ProfileTransactionTab";
 import { canViewProfileTransactions } from "@/features/profile/components/helpers";
 import { useProfileTheme } from "@/features/profile/components/useProfileTheme";
 
-type ProfileTab = "account" | "subscription" | "portfolio" | "transactions" | "alerts";
+type ProfileTab = "account" | "subscription" | "transactions" | "alerts";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -150,7 +149,7 @@ export default function ProfilePage() {
     : "bg-gradient-to-r from-gray-900 via-gray-800 to-green-700";
 
   useEffect(() => {
-    if (!canViewRestrictedTabs && (activeTab === "portfolio" || activeTab === "transactions" || activeTab === "alerts")) {
+    if (!canViewRestrictedTabs && (activeTab === "transactions" || activeTab === "alerts")) {
       setActiveTab("account");
     }
   }, [activeTab, canViewRestrictedTabs]);
@@ -249,20 +248,6 @@ export default function ProfilePage() {
                 Lịch sử giao dịch
               </button>
             )}
-            {/* TODO: portfolio tab temporarily hidden
-            {canViewRestrictedTabs && (
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className={`w-full rounded-r-lg border-l-4 px-3 py-3 text-left text-sm transition-all ${
-                activeTab === "portfolio"
-                  ? `${bgCard} border-green-500 font-bold ${textPrimary}`
-                  : `border-transparent ${textSecondary} ${hoverBg}`
-              }`}
-            >
-              Danh mục đầu tư
-            </button>
-            )}
-            */}
             {canViewRestrictedTabs && (
               <button
                 onClick={() => setActiveTab("alerts")}
@@ -313,20 +298,6 @@ export default function ProfilePage() {
               Thành viên
             </button>
 
-            {/* TODO: portfolio tab temporarily hidden
-            {canViewRestrictedTabs && (
-              <button
-                onClick={() => setActiveTab("portfolio")}
-                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
-                  activeTab === "portfolio"
-                    ? "bg-green-500 text-white"
-                    : `${bgCard} ${textSecondary}`
-                }`}
-              >
-                Danh mục
-              </button>
-            )}
-            */}
 
             {canViewRestrictedTabs && (
               <button
@@ -496,7 +467,7 @@ export default function ProfilePage() {
                       Quản lý thông tin cá nhân và tùy chọn bảo mật của bạn.
                     </p>
                   </div>
-                  <ProfileInfoTab user={user} />
+                  <ProfileInfoTab user={user} onProfileUpdated={setUser} />
                 </div>
               )}
 
@@ -517,15 +488,6 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* TODO: portfolio tab temporarily hidden
-              {activeTab === "portfolio" && canViewRestrictedTabs && (
-                <div
-                  className={`rounded-2xl border ${borderCls} ${bgCard} p-6 shadow-sm md:p-8`}
-                >
-                  <ProfilePortfolioTab />
-                </div>
-              )}
-              */}
 
               {activeTab === "transactions" && canViewRestrictedTabs && (
                 <ProfileTransactionTab />

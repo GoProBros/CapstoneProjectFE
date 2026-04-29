@@ -26,6 +26,12 @@ export interface RegisterRequest {
   phoneNumber: string;
 }
 
+export interface UpdateMyProfileRequest {
+  fullName?: string | null;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;

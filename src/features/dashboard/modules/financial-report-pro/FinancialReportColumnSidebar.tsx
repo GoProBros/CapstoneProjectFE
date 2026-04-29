@@ -326,10 +326,14 @@ function TopGroupSection({
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Sidebar
 // ─────────────────────────────────────────────────────────────────────────────
-export function FinancialReportColumnSidebar() {
+export function FinancialReportColumnSidebar({
+  onResetToDefault,
+}: {
+  onResetToDefault?: () => void | Promise<void>;
+}) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { isSidebarOpen, setSidebarOpen, resetAll } =
+  const { isSidebarOpen, setSidebarOpen } =
     useFinancialReportColumnStore();
 
   if (!isSidebarOpen) return null;
@@ -372,7 +376,9 @@ export function FinancialReportColumnSidebar() {
             Quản lý cột
           </h3>
           <button
-            onClick={resetAll}
+            onClick={() => {
+              void onResetToDefault?.();
+            }}
             title="Đặt lại mặc định"
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors mr-6 ${
               isDark

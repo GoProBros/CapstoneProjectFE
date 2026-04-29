@@ -170,7 +170,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
 
   const [layouts, setLayouts] = useState<ModuleLayoutSummary[]>([]);
   const [currentLayoutId, setCurrentLayoutId] = useState<number | null>(null);
-  const [currentLayoutName, setCurrentLayoutName] = useState<string>('Layout mặc định');
+  const [currentLayoutName, setCurrentLayoutName] = useState<string>('');
   const [currentLayoutIsSystemDefault, setCurrentLayoutIsSystemDefault] =
     useState<boolean>(false);
   const [isLoadingLayouts, setIsLoadingLayouts] = useState(false);
@@ -193,7 +193,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
 
   const lastSyncedLayoutSnapshotRef = useRef<string | null>(null);
 
-  const { data, isLoading, isError, error } = useFinancialReportQuery();
+  const { data, isLoading, isError, error, tickerHasMore, canShowLoadMore, loadMore } = useFinancialReportQuery();
 
   useEffect(() => {
     if (moduleId) {
@@ -259,18 +259,14 @@ const FinancialReportContent = memo(function FinancialReportContent() {
         }
 
         if (!layoutToLoad) {
-          layoutToLoad = fetchedLayouts.find((layout) => layout.isSystemDefault) ?? fetchedLayouts[0];
+          layoutToLoad = fetchedLayouts.find((layout) => layout.isSystemDefault);
         }
 
         if (layoutToLoad) {
           await loadLayoutById(layoutToLoad.id);
         } else {
-          const appliedState = applyColumnsToStore({});
-          lastSyncedLayoutSnapshotRef.current = serializeColumns(
-            mapStoreStateToColumns(appliedState.groups, appliedState.fields)
-          );
           setCurrentLayoutId(null);
-          setCurrentLayoutName('Layout mặc định');
+          setCurrentLayoutName('');
           setCurrentLayoutIsSystemDefault(false);
         }
       } catch (initializeError) {
@@ -292,6 +288,59 @@ const FinancialReportContent = memo(function FinancialReportContent() {
   const handleCreateNewLayout = useCallback(() => {
     setIsSaveModalOpen(true);
   }, []);
+
+  const handleResetToSystemDefault = useCallback(async () => {
+    try {
+      const sourceLayouts = layouts.length > 0 ? layouts : await fetchLayouts();
+      const systemDefault = sourceLayouts.find((layout) => layout.isSystemDefault);
+
+      if (!systemDefault) {
+        setToast({
+          isOpen: true,
+          message: 'Không tìm thấy layout hệ thống mặc định.',
+          type: 'error',
+        });
+        return;
+      }
+
+      const layoutDetail: ModuleLayoutDetail = await layoutService.getLayoutById(
+        systemDefault.id
+      );
+      const layoutColumns = layoutDetail.configJson?.state?.columns ?? {};
+      const appliedState = applyColumnsToStore(layoutColumns);
+      const nextColumns = mapStoreStateToColumns(appliedState.groups, appliedState.fields);
+      const nextSnapshot = serializeColumns(nextColumns);
+
+      lastSyncedLayoutSnapshotRef.current = nextSnapshot;
+
+      if (currentLayoutId && !currentLayoutIsSystemDefault) {
+        await layoutService.updateUserLayout(
+          currentLayoutId,
+          currentLayoutName,
+          nextColumns
+        );
+      }
+
+      setToast({
+        isOpen: true,
+        message: 'Đã sao chép layout hệ thống vào layout hiện tại.',
+        type: 'success',
+      });
+    } catch (resetError) {
+      console.error('[FinancialReportPro] Error resetting to system default:', resetError);
+      setToast({
+        isOpen: true,
+        message: 'Không thể áp dụng layout hệ thống. Vui lòng thử lại.',
+        type: 'error',
+      });
+    }
+  }, [
+    currentLayoutId,
+    currentLayoutIsSystemDefault,
+    currentLayoutName,
+    fetchLayouts,
+    layouts,
+  ]);
 
   const handleSaveLayoutSubmit = useCallback(async (layoutName: string) => {
     setIsSaving(true);
@@ -354,8 +403,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
           const refreshedLayouts = await fetchLayouts();
 
           if (currentLayoutId === layout.id) {
-            const fallbackLayout =
-              refreshedLayouts.find((item) => item.isSystemDefault) ?? refreshedLayouts[0];
+            const fallbackLayout = refreshedLayouts.find((item) => item.isSystemDefault);
 
             if (fallbackLayout) {
               await loadLayoutById(fallbackLayout.id);
@@ -364,12 +412,8 @@ const FinancialReportContent = memo(function FinancialReportContent() {
                 setWorkspaceLayoutId(fallbackLayout.id);
               }
             } else {
-              const appliedState = applyColumnsToStore({});
-              lastSyncedLayoutSnapshotRef.current = serializeColumns(
-                mapStoreStateToColumns(appliedState.groups, appliedState.fields)
-              );
               setCurrentLayoutId(null);
-              setCurrentLayoutName('Layout mặc định');
+              setCurrentLayoutName('');
               setCurrentLayoutIsSystemDefault(false);
               if (moduleId) {
                 await updateModuleLayoutId(moduleId, null);
@@ -478,7 +522,7 @@ const FinancialReportContent = memo(function FinancialReportContent() {
           isLoading={isSaving}
         />
 
-        <FinancialReportColumnSidebar />
+        <FinancialReportColumnSidebar onResetToDefault={handleResetToSystemDefault} />
 
         <HeaderSection
           layouts={layouts}
@@ -509,6 +553,9 @@ const FinancialReportContent = memo(function FinancialReportContent() {
           data={data?.items || []}
           loading={isLoading}
           totalCount={data?.totalCount || 0}
+          tickerHasMore={tickerHasMore}
+          canShowLoadMore={canShowLoadMore}
+          onLoadMore={loadMore}
         />
       </div>
     </>

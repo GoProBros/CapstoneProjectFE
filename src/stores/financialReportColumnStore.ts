@@ -217,6 +217,70 @@ export const FINANCIAL_COLUMN_STRUCTURE: TopGroupDef[] = [
     ],
   },
   {
+    groupId: 'indicator',
+    label: 'Chỉ số',
+    subGroups: [
+      {
+        groupId: 'profitability',
+        label: 'Sinh lời',
+        fields: [
+          { field: 'profitability_grossMargin', label: 'Biên LN gộp' },
+          { field: 'profitability_operatingProfitMargin', label: 'Biên LN HĐ' },
+          { field: 'profitability_netMargin', label: 'Biên ròng' },
+          { field: 'profitability_roe', label: 'ROE' },
+          { field: 'profitability_roa', label: 'ROA' },
+          { field: 'profitability_returnOnFixedAssets', label: 'Lợi tức TSCĐ' },
+        ],
+      },
+      {
+        groupId: 'liquidityAndSolvency',
+        label: 'Thanh khoản & Đòn bẩy',
+        fields: [
+          { field: 'liquidityAndSolvency_currentRatio', label: 'Current Ratio' },
+          { field: 'liquidityAndSolvency_quickRatio', label: 'Quick Ratio' },
+          { field: 'liquidityAndSolvency_cashRatio', label: 'Cash Ratio' },
+          { field: 'liquidityAndSolvency_debtToEquity', label: 'Nợ/Vốn' },
+          { field: 'liquidityAndSolvency_debtRatio', label: 'Tỷ lệ nợ' },
+          { field: 'liquidityAndSolvency_longTermDebtRatio', label: 'Nợ dài hạn/Tổng' },
+          { field: 'liquidityAndSolvency_interestCoverageRatio', label: 'Khả năng trả lãi' },
+          { field: 'liquidityAndSolvency_retainedEarningsToTotalAssets', label: 'LN giữ lại/Tổng TS' },
+        ],
+      },
+      {
+        groupId: 'efficiency',
+        label: 'Hiệu quả',
+        fields: [
+          { field: 'efficiency_totalAssetTurnover', label: 'Vòng quay tổng tài sản' },
+          { field: 'efficiency_inventoryTurnover', label: 'Vòng quay hàng tồn kho' },
+        ],
+      },
+      {
+        groupId: 'growth',
+        label: 'Tăng trưởng',
+        fields: [
+          { field: 'growth_comparisonType', label: 'So sánh' },
+          { field: 'growth_grossProfitGrowth', label: 'Tăng trưởng LN gộp' },
+          { field: 'growth_revenueGrowth', label: 'Tăng trưởng doanh thu' },
+        ],
+      },
+      {
+        groupId: 'bankSpecific',
+        label: 'Ngân hàng',
+        fields: [
+          { field: 'bankSpecific_nim', label: 'NIM' },
+          { field: 'bankSpecific_nonInterestIncomeRatio', label: 'Tỷ lệ TN phi lãi' },
+        ],
+      },
+      {
+        groupId: 'cashFlow',
+        label: 'Dòng tiền (CN)',
+        fields: [
+          { field: 'cashFlow_operatingCashFlowToNetProfit', label: 'Dòng tiền/HNST' },
+        ],
+      },
+    ],
+  },
+  {
     groupId: 'documents',
     label: 'Tài liệu',
     fields: [
@@ -261,6 +325,32 @@ const buildDefaultFields = (): Record<string, boolean> => {
 const defaultGroups = buildDefaultGroups();
 const defaultFields = buildDefaultFields();
 
+// Default visible indicator sub-groups
+defaultGroups.profitability = true;
+defaultGroups.liquidityAndSolvency = false;
+defaultGroups.efficiency = true;
+defaultGroups.growth = false;
+defaultGroups.bankSpecific = false;
+defaultGroups.cashFlow = false;
+
+const getFieldKeysForGroup = (groupId: string): string[] => {
+  for (const top of FINANCIAL_COLUMN_STRUCTURE) {
+    if (top.groupId === groupId) {
+      return [
+        ...(top.fields ?? []).map((field) => field.field),
+        ...(top.subGroups?.flatMap((subGroup) => subGroup.fields.map((field) => field.field)) ?? []),
+      ];
+    }
+
+    const subGroup = top.subGroups?.find((item) => item.groupId === groupId);
+    if (subGroup) {
+      return subGroup.fields.map((field) => field.field);
+    }
+  }
+
+  return [];
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Zustand Store
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,36 +380,45 @@ export const useFinancialReportColumnStore = create<FinancialColumnGroupState>()
       isSidebarOpen: false,
 
       toggleGroup: (groupId) =>
-        set((state) => ({
-          groups: { ...state.groups, [groupId]: !state.groups[groupId] },
-        })),
+        set((state) => {
+          const nextVisible = !state.groups[groupId];
+          const fieldKeys = getFieldKeysForGroup(groupId);
+          const nextFields = { ...state.fields };
+
+          for (const fieldKey of fieldKeys) {
+            nextFields[fieldKey] = nextVisible;
+          }
+
+          return {
+            groups: { ...state.groups, [groupId]: nextVisible },
+            fields: nextFields,
+          };
+        }),
 
       setGroupVisible: (groupId, visible) =>
-        set((state) => ({
-          groups: { ...state.groups, [groupId]: visible },
-        })),
+        set((state) => {
+          const fieldKeys = getFieldKeysForGroup(groupId);
+          const nextFields = { ...state.fields };
+
+          for (const fieldKey of fieldKeys) {
+            nextFields[fieldKey] = visible;
+          }
+
+          return {
+            groups: { ...state.groups, [groupId]: visible },
+            fields: nextFields,
+          };
+        }),
 
       setSubGroupFieldsVisible: (subGroupId, visible) => {
-        // Find the sub-group in structure to get its fields
-        let targetFields: string[] = [];
-        for (const top of FINANCIAL_COLUMN_STRUCTURE) {
-          const sub = top.subGroups?.find((s) => s.groupId === subGroupId);
-          if (sub) {
-            targetFields = sub.fields.map((f) => f.field);
-            break;
-          }
-          // Also handle top-level groups with direct fields
-          if (top.groupId === subGroupId && top.fields) {
-            targetFields = top.fields.map((f) => f.field);
-            break;
-          }
-        }
+        const targetFields = getFieldKeysForGroup(subGroupId);
         set((state) => {
           const newFields = { ...state.fields };
+          const nextGroups = { ...state.groups, [subGroupId]: visible };
           for (const f of targetFields) {
             newFields[f] = visible;
           }
-          return { fields: newFields };
+          return { fields: newFields, groups: nextGroups };
         });
       },
 
@@ -339,7 +438,7 @@ export const useFinancialReportColumnStore = create<FinancialColumnGroupState>()
     }),
     {
       name: 'financial-report-columns',
-      version: 2, // bump version due to schema change (added fields)
+      version: 4,
     }
   )
 );

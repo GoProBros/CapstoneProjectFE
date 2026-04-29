@@ -2,7 +2,6 @@ export { AvatarDisplay } from './components/AvatarDisplay';
 export { ModulePreviewPanel } from './components/ModulePreviewPanel';
 export { ProfileAlertTab } from './components/ProfileAlertTab';
 export { ProfileInfoTab } from './components/ProfileInfoTab';
-export { ProfilePortfolioTab } from './components/ProfilePortfolioTab';
 export { ProfileSubscriptionTab } from './components/ProfileSubscriptionTab';
 export { ProfileTransactionTab } from './components/ProfileTransactionTab';
 export { ResetPasswordSection } from './components/ResetPasswordSection';

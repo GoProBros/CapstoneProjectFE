@@ -22,6 +22,7 @@ interface AuthContextType {
   logout: (options?: LogoutOptions) => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
+  updateUser: (nextUser: User) => void;
 }
 
 interface LogoutOptions {
@@ -126,6 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshTimerRef.current = null;
     }
   }, [clearSubscriptionStore]);
+
+  const updateUser = useCallback((nextUser: User) => {
+    setAuthStorageItem(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
 
   /**
    * Refresh access token
@@ -336,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     refreshAccessToken,
     loginWithGoogle,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

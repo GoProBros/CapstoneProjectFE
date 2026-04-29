@@ -7,7 +7,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
 import { fetchFinancialReportsByTicker } from '@/services/financial/financialReportService';
 import type { FinancialReportTableRow } from '@/types/financialReport';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 
 /**
  * Hook for fetching financial report data for multiple tickers
@@ -16,17 +16,20 @@ import { useMemo, useEffect } from 'react';
 export function useFinancialReportQuery() {
   const tickerList = useFinancialReportStore((state) => state.tickerList);
   const tickerDataCache = useFinancialReportStore((state) => state.tickerDataCache);
+  const tickerPageCache = useFinancialReportStore((state) => state.tickerPageCache);
+  const tickerHasMore = useFinancialReportStore((state) => state.tickerHasMore);
   const setTickerData = useFinancialReportStore((state) => state.setTickerData);
+  const appendTickerData = useFinancialReportStore((state) => state.appendTickerData);
 
   // Create separate query for each ticker
   const queries = useQueries({
     queries: tickerList.map((ticker) => ({
-      queryKey: ['financial-report', ticker],
-      queryFn: () => fetchFinancialReportsByTicker(ticker),
+      queryKey: ['financial-report', ticker, 1],
+      queryFn: () => fetchFinancialReportsByTicker(ticker, 1),
       staleTime: 60 * 60 * 1000, // 60 minutes
       gcTime: 60 * 60 * 1000,
       refetchOnWindowFocus: false,
-      enabled: !tickerDataCache[ticker], // Skip if already in cache
+      enabled: !(ticker in tickerDataCache), // Skip if key already cached (including empty array)
     })),
   });
 
@@ -35,12 +38,24 @@ export function useFinancialReportQuery() {
     queries.forEach((query, index) => {
       if (query.isSuccess && query.data) {
         const ticker = tickerList[index];
-        if (!tickerDataCache[ticker]) {
-          setTickerData(ticker, query.data.items);
+        if (!(ticker in tickerDataCache)) {
+          setTickerData(ticker, query.data.items, query.data.hasMore);
         }
       }
     });
   }, [queries, tickerList, tickerDataCache, setTickerData]);
+
+  const loadMore = useCallback(async (ticker: string) => {
+    const pageToFetch = tickerPageCache[ticker] ?? 2;
+    try {
+      const next = await fetchFinancialReportsByTicker(ticker, pageToFetch);
+      appendTickerData(ticker, next.items, next.hasMore, pageToFetch + 1);
+    } catch (loadMoreError) {
+      console.error(`[FinancialReport] Load more failed for ${ticker}:`, loadMoreError);
+    }
+  }, [appendTickerData, tickerPageCache]);
+
+  const canShowLoadMore = tickerList.length === 1;
 
   // Aggregate all data from cache
   const allData = useMemo(() => {
@@ -53,8 +68,8 @@ export function useFinancialReportQuery() {
     return items;
   }, [tickerList, tickerDataCache]);
 
-  // Check if any query is loading
-  const isLoading = queries.some((q) => q.isLoading);
+  // Only block table with loading overlay when there is no data at all.
+  const isLoading = allData.length === 0 && queries.some((q) => q.isLoading);
   const isError = queries.some((q) => q.isError);
   const error = queries.find((q) => q.error)?.error;
 
@@ -66,5 +81,8 @@ export function useFinancialReportQuery() {
     isLoading,
     isError,
     error,
+    tickerHasMore,
+    canShowLoadMore,
+    loadMore,
   };
 }
