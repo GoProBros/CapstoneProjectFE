@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { Search, X, Link2, Link2Off } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -61,7 +62,7 @@ export function OrderMatchingModule() {
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [isLinked, setIsLinked] = useState(true);
+  const [isLinked, setIsLinked] = useLinkedState();
 
   const tbodyRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);

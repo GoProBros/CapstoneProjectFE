@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { init, dispose, CandleType, getSupportedOverlays } from 'klinecharts';
@@ -31,7 +32,7 @@ export function VNStockChartModule() {
   const storeSymbol = useSelectedSymbolStore(s => s.selectedSymbol);
   const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
 
-  const [isLinked, setIsLinked] = useState(true);
+  const [isLinked, setIsLinked] = useLinkedState();
 
   // Sync from global store → local symbol when linked
   useEffect(() => {

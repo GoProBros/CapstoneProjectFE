@@ -254,7 +254,7 @@ export function AiChatModule() {
     setShowSessions,
     isPendingNew,
     canSend,
-    bottomRef,
+    messagesContainerRef,
     textareaRef,
     sessionsPanelRef,
     loadSession,
@@ -400,7 +400,7 @@ export function AiChatModule() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
         {!loadingHistory && messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center gap-4 pb-6 px-4">
             <div className="relative">
@@ -462,7 +462,6 @@ export function AiChatModule() {
         {!loadingHistory && messages.map(msg => (
           <MessageBubble key={msg.id} msg={msg} isDark={isDark} userName={user?.fullName ?? 'User'} userAvatarUrl={userAvatarBlobUrl} />
         ))}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}

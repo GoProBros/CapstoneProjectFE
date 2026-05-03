@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -203,7 +204,7 @@ export function StockScreenerModule() {
     setTickerHighlight,
   } = useStockScreener();
 
-  const [isLinked, setIsLinkedLocal] = useState(true);
+  const [isLinked, setIsLinkedLocal] = useLinkedState();
   const handleToggleLink = useCallback(() => {
     setIsLinkedLocal(v => {
       setIsLinked(!v);
