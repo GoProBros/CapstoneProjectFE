@@ -17,6 +17,7 @@ export const ROUTES = {
   SYSTEM_MANAGER_FINANCIAL_REPORTS: '/system-manager/financial-reports',
   SYSTEM_MANAGER_ANALYSIS_REPORTS: '/system-manager/analysis-reports',
   SYSTEM_MANAGER_NEWS: '/system-manager/news',
+  SYSTEM_MANAGER_ALERTS: '/system-manager/alerts',
   SYSTEM_MANAGER_DATA: '/system-manager/data',
   SYSTEM_MANAGER_MACROECONOMIC: '/system-manager/macroeconomic-simulation',
 } as const;
