@@ -417,7 +417,7 @@ export function AiChatModule() {
             </div>
             <div className="text-center space-y-1">
               <p className={`text-[13.5px] font-bold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>
-                Kafi
+                KF Stock
               </p>
               <p className={`text-[11.5px] leading-relaxed ${muted}`}>
                 {activeSessionId

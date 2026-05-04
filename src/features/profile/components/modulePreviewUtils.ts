@@ -12,7 +12,7 @@ const MODULE_UI_TITLES: Record<string, string> = {
   'financial-report': 'Báo cáo tài chính',
   'financial-report-pro': 'Báo cáo tài chính - Pro',
   news: 'Tin tức',
-  'session-info': 'Thông tin phiên giao dịch',
+  'session-info': '3 Bước Giá',
   'order-matching': 'Khớp lệnh',
   canslim: 'Canslim',
   'stock-screener': 'Bảng điện chứng khoán',

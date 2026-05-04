@@ -10,6 +10,26 @@ import {
   type ChatMessageSimple,
 } from '@/services/chat/chatService';
 
+// ── Session title cache (localStorage) ──────────────────────────────────────
+const TITLE_CACHE_KEY = 'kf_ai_session_titles';
+
+function getCachedTitles(): Record<number, string> {
+  try { return JSON.parse(localStorage.getItem(TITLE_CACHE_KEY) ?? '{}'); } catch { return {}; }
+}
+
+function cacheSessionTitle(id: number, title: string) {
+  try {
+    const titles = getCachedTitles();
+    titles[id] = title;
+    localStorage.setItem(TITLE_CACHE_KEY, JSON.stringify(titles));
+  } catch {}
+}
+
+function applyTitleCache(sessions: ChatSessionListItem[]): ChatSessionListItem[] {
+  const cache = getCachedTitles();
+  return sessions.map((s) => ({ ...s, title: cache[s.id] ?? s.title }));
+}
+
 interface Message {
   id: string;
   role: 'user' | 'ai';
@@ -119,7 +139,7 @@ export function useAiChat() {
     try {
       const res = await getChatSessions();
       if (res.isSuccess && res.data) {
-        const aiSessions = res.data.filter((s) => s.sessionType === 1);
+        const aiSessions = applyTitleCache(res.data.filter((s) => s.sessionType === 1));
         setSessions(aiSessions);
         if (aiSessions.length > 0) {
           const latest = [...aiSessions].sort(
@@ -147,6 +167,19 @@ export function useAiChat() {
             timestamp: m.createdAt ? new Date(m.createdAt) : undefined,
           }))
         );
+
+        // Backfill title cache from first user message for sessions with generic title
+        const cached = getCachedTitles();
+        if (!cached[sessionId]) {
+          const firstUser = res.data.messages.find((m: ChatMessageSimple) => m.role === 'user');
+          if (firstUser) {
+            const derived = firstUser.content.length > 45
+              ? firstUser.content.slice(0, 45) + '…'
+              : firstUser.content;
+            cacheSessionTitle(sessionId, derived);
+            setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title: derived } : s));
+          }
+        }
       }
     } finally {
       setLoadingHistory(false);
@@ -191,6 +224,7 @@ export function useAiChat() {
           createdAt: createRes.data.updatedAt,
           updatedAt: createRes.data.updatedAt,
         };
+        cacheSessionTitle(createRes.data.id, sessionTitle);
         setSessions((prev) => [newSession, ...prev]);
         setActiveSessionId(createRes.data.id);
         activeSessionIdRef.current = createRes.data.id;
