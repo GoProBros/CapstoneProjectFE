@@ -137,7 +137,7 @@ function mapApiDataToForm(
   data: MacroeconomicData,
 ): UpsertMacroeconomicDataRequest {
   return {
-    recordDate: normalizeRecordDate(data.recordDate),
+    recordDate: normalizeRecordDate(data.updatedAt ?? data.recordDate),
     govBondsReturn: Number(data.govBondsReturn),
     usdVndExchangeRate: Number(data.usdVndExchangeRate),
     usdVndExchangeRateReturn: Number(data.usdVndExchangeRateReturn),

@@ -1,4 +1,5 @@
 export { AnalysisReportsFeature } from './components/AnalysisReportsFeature';
+export { AlertTemplatesFeature } from './components/AlertTemplatesFeature';
 export { DashboardFeature } from './components/DashboardFeature';
 export { DataFeature } from './components/DataFeature';
 export { FinancialReportsFeature } from './components/FinancialReportsFeature';

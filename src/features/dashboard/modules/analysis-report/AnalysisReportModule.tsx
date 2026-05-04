@@ -97,10 +97,11 @@ export function AnalysisReportModule() {
                 </div>
 
                 {/* Scrollable detail body */}
-                <div className="flex-1 overflow-auto">
-                    <div className="p-4 space-y-4">
-                        {/* Meta grid */}
-                        <div className="grid grid-cols-2 gap-3">
+                <div className="flex-1 min-h-0">
+                    <div className="flex h-full flex-col gap-4 p-4 overflow-auto">
+                        <div className="space-y-4">
+                            {/* Meta grid */}
+                            <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Nguồn</p>
                                 <p className={`text-sm ${textSecondary}`}>{sourceLabel}</p>
@@ -125,61 +126,62 @@ export function AnalysisReportModule() {
                                         : '—'}
                                 </p>
                             </div>
+                            </div>
+
+                            {/* Description */}
+                            {selectedReport.description && (
+                                <div>
+                                    <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Mô tả</p>
+                                    <p className={`text-sm leading-relaxed ${textSecondary}`}>{selectedReport.description}</p>
+                                </div>
+                            )}
+
+                            {/* Tickers */}
+                            {selectedReport.tickers && selectedReport.tickers.length > 0 && (
+                                <div>
+                                    <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Mã chứng khoán</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {selectedReport.tickers.map(t => (
+                                            <span key={t} className={`px-2 py-0.5 rounded text-xs font-mono font-medium ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                                                {t}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* File download */}
+                            {hasFile && (
+                                <div>
+                                    <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Tài liệu đính kèm</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDownload(selectedReport)}
+                                        disabled={downloading}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderCls} transition-colors text-sm disabled:opacity-50 w-full text-left ${
+                                            isDark ? 'text-purple-400 hover:bg-gray-700/50' : 'text-purple-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        <span className="flex-1 truncate font-medium">
+                                            {selectedReport.originalFileName ?? 'Tải tài liệu'}
+                                        </span>
+                                        {downloading ? (
+                                            <Spinner />
+                                        ) : (
+                                            <svg className={`w-4 h-4 shrink-0 ${textMutedCls}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Description */}
-                        {selectedReport.description && (
-                            <div>
-                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Mô tả</p>
-                                <p className={`text-sm leading-relaxed ${textSecondary}`}>{selectedReport.description}</p>
-                            </div>
-                        )}
-
-                        {/* Tickers */}
-                        {selectedReport.tickers && selectedReport.tickers.length > 0 && (
-                            <div>
-                                <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Mã chứng khoán</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {selectedReport.tickers.map(t => (
-                                        <span key={t} className={`px-2 py-0.5 rounded text-xs font-mono font-medium ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-                                            {t}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* File download */}
-                        {hasFile && (
-                            <div>
-                                <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${textMutedCls}`}>Tài liệu đính kèm</p>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDownload(selectedReport)}
-                                    disabled={downloading}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderCls} transition-colors text-sm disabled:opacity-50 w-full text-left ${
-                                        isDark ? 'text-purple-400 hover:bg-gray-700/50' : 'text-purple-600 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="flex-1 truncate font-medium">
-                                        {selectedReport.originalFileName ?? 'Tải tài liệu'}
-                                    </span>
-                                    {downloading ? (
-                                        <Spinner />
-                                    ) : (
-                                        <svg className={`w-4 h-4 shrink-0 ${textMutedCls}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                        )}
-
                         {/* PDF Reader */}
-                        <div>
+                        <div className="flex min-h-[320px] flex-1 flex-col">
                             <div className="flex items-center justify-between mb-2">
                                 <p className={`text-xs font-medium uppercase tracking-wider ${textMutedCls}`}>Xem tài liệu</p>
                                 {pdfBlobUrl && (
@@ -197,10 +199,7 @@ export function AnalysisReportModule() {
                                     </button>
                                 )}
                             </div>
-                            <div
-                                className={`w-full rounded-lg border ${borderCls} overflow-hidden`}
-                                style={{ height: '480px' }}
-                            >
+                            <div className={`w-full flex-1 rounded-lg border ${borderCls} overflow-hidden`}>
                                 {loadingPdf ? (
                                     <div className="w-full h-full flex items-center justify-center">
                                         <Spinner className="w-6 h-6 text-purple-500" />

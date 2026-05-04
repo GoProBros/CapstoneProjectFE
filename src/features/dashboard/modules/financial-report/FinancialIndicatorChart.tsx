@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatNumber } from '@/lib/formatters';
 import {
   Bar,
   BarChart,
@@ -15,7 +16,7 @@ import {
 } from 'recharts';
 
 type IndicatorChartType = 'line' | 'bar';
-type MetricFormat = 'percent' | 'ratio' | 'percent_signed';
+export type MetricFormat = 'percent' | 'ratio' | 'percent_signed' | 'billion';
 
 export interface FinancialIndicatorChartSeries {
   key: string;
@@ -41,12 +42,19 @@ function formatChartValue(value: unknown, format: MetricFormat): string {
     return '—';
   }
 
+  if (format === 'billion') {
+    return `${formatNumber(value, 2)} tỷ`;
+  }
+
   if (format === 'ratio') {
     return value.toFixed(2);
   }
 
-  const signedText = value > 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
-  return signedText;
+  if (format === 'percent_signed') {
+    return value > 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
+  }
+
+  return `${value.toFixed(1)}%`;
 }
 
 export function FinancialIndicatorChart({

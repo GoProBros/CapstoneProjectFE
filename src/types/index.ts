@@ -16,3 +16,4 @@ export * from './userManagement';
 export * from './news';
 export * from './telegram';
 export * from './alert';
+export * from './alertTemplate';

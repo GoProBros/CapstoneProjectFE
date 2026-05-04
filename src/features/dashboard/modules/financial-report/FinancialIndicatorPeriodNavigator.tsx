@@ -71,7 +71,7 @@ export function FinancialIndicatorPeriodNavigator({
 
           <div className="flex gap-2 text-center">
             {periodLabels.map((label) => (
-              <div key={label} className={`font-semibold text-xs w-16 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <div key={label} className={`font-semibold text-xs w-20 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {label}
               </div>
             ))}

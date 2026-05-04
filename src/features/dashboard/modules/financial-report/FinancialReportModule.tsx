@@ -4,31 +4,31 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { useLocalSymbol } from '@/features/dashboard/hooks/useLocalSymbol';
 import { Link2, Link2Off, Search, X } from 'lucide-react';
-import { FinancialIndicatorChart, type FinancialIndicatorChartDataPoint } from './FinancialIndicatorChart';
+import { FinancialIndicatorChart, type FinancialIndicatorChartDataPoint, type MetricFormat } from './FinancialIndicatorChart';
 import { FinancialIndicatorGroupTabs, type FinancialIndicatorGroupTabItem } from './FinancialIndicatorGroupTabs';
 import { FinancialIndicatorMetricsTable, type FinancialIndicatorMetricDisplayRow } from './FinancialIndicatorMetricsTable';
 import { FinancialIndicatorPeriodNavigator } from './FinancialIndicatorPeriodNavigator';
 import { useTheme } from '@/contexts/ThemeContext';
-import { fetchFinancialReportIndicatorsByTicker } from '@/services/financial/financialReportService';
+import { fetchFinancialReportsByTicker } from '@/services/financial/financialReportService';
 import { searchSymbols } from '@/services/market/symbolService';
 import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
+import { FINANCIAL_COLUMN_STRUCTURE, type FieldDef } from '@/stores/financialReportColumnStore';
 import type { SymbolSearchResultDto } from '@/types/symbol';
+import { formatBillion } from '@/lib/formatters';
 import {
   FinancialPeriodType,
-  type FinancialReportIndicatorListItem,
+  type FinancialReportTableRow,
 } from '@/types/financialReport';
 
 type PeriodTab = 'annual' | 'quarterly';
-type IndicatorGroupKey = 'profitability' | 'growth' | 'financialHealth' | 'efficiencyCashflow';
-type MetricFormat = 'percent' | 'ratio' | 'percent_signed';
+type IndicatorGroupKey = 'balanceSheet' | 'incomeStatement' | 'cashFlow' | 'indicators';
 type ChartType = 'line' | 'bar';
 
 interface IndicatorMetricDefinition {
   key: string;
   label: string;
   format: MetricFormat;
-  getValue: (row: FinancialReportIndicatorListItem) => number | null | undefined;
-  showComparisonType?: boolean;
+  getValue: (row: FinancialReportTableRow) => number | null | undefined;
 }
 
 interface IndicatorChartSeriesDefinition {
@@ -36,7 +36,7 @@ interface IndicatorChartSeriesDefinition {
   label: string;
   color: string;
   format: MetricFormat;
-  getValue: (row: FinancialReportIndicatorListItem) => number | null | undefined;
+  getValue: (row: FinancialReportTableRow) => number | null | undefined;
 }
 
 interface IndicatorGroupDefinition {
@@ -49,87 +49,242 @@ interface IndicatorGroupDefinition {
   metrics: IndicatorMetricDefinition[];
 }
 
+const GROUP_ID_BY_TAB: Record<IndicatorGroupKey, string> = {
+  balanceSheet: 'balanceSheet',
+  incomeStatement: 'incomeStatement',
+  cashFlow: 'cashFlowStatement',
+  indicators: 'indicator',
+};
+
+const BALANCE_SHEET_EXTRA_FIELDS: FieldDef[] = [
+  { field: 'totalAssets', label: 'Tổng tài sản' },
+  { field: 'shortTermAssets', label: 'Tài sản ngắn hạn' },
+  { field: 'longTermAssets', label: 'Tài sản dài hạn' },
+];
+
+const INDICATOR_FIELD_FORMATS: Record<string, MetricFormat> = {
+  profitability_grossMargin: 'percent',
+  profitability_operatingProfitMargin: 'percent',
+  profitability_netMargin: 'percent',
+  profitability_roe: 'percent',
+  profitability_roa: 'percent',
+  profitability_returnOnFixedAssets: 'percent',
+  liquidityAndSolvency_currentRatio: 'ratio',
+  liquidityAndSolvency_quickRatio: 'ratio',
+  liquidityAndSolvency_cashRatio: 'ratio',
+  liquidityAndSolvency_debtToEquity: 'percent',
+  liquidityAndSolvency_debtRatio: 'percent',
+  liquidityAndSolvency_longTermDebtRatio: 'percent',
+  liquidityAndSolvency_interestCoverageRatio: 'ratio',
+  liquidityAndSolvency_retainedEarningsToTotalAssets: 'percent',
+  efficiency_totalAssetTurnover: 'ratio',
+  efficiency_inventoryTurnover: 'ratio',
+  growth_grossProfitGrowth: 'percent_signed',
+  growth_revenueGrowth: 'percent_signed',
+  bankSpecific_nim: 'percent',
+  bankSpecific_nonInterestIncomeRatio: 'percent',
+  cashFlow_operatingCashFlowToNetProfit: 'ratio',
+};
+
+const INDICATOR_FIELDS_SKIP = new Set(['growth_comparisonType']);
+
+function getFlattenedFields(groupId: string): FieldDef[] {
+  const topGroup = FINANCIAL_COLUMN_STRUCTURE.find((group) => group.groupId === groupId);
+  if (!topGroup) {
+    return [];
+  }
+
+  const fields: FieldDef[] = [];
+
+  if (topGroup.fields) {
+    fields.push(...topGroup.fields);
+  }
+
+  if (topGroup.subGroups) {
+    for (const subGroup of topGroup.subGroups) {
+      fields.push(...subGroup.fields);
+    }
+  }
+
+  const seen = new Set<string>();
+  return fields.filter((field) => {
+    if (seen.has(field.field)) {
+      return false;
+    }
+    seen.add(field.field);
+    return true;
+  });
+}
+
+function getMetricFormat(field: string, groupKey: IndicatorGroupKey): MetricFormat | null {
+  if (groupKey !== 'indicators') {
+    return 'billion';
+  }
+
+  return INDICATOR_FIELD_FORMATS[field] ?? null;
+}
+
+function getNumericValue(row: FinancialReportTableRow, field: string): number | null {
+  const value = (row as unknown as Record<string, unknown>)[field];
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return value;
+  }
+
+  return null;
+}
+
+function buildMetricDefinitions(groupKey: IndicatorGroupKey): IndicatorMetricDefinition[] {
+  const groupId = GROUP_ID_BY_TAB[groupKey];
+  const baseFields = getFlattenedFields(groupId);
+  const fields = groupKey === 'balanceSheet'
+    ? [...BALANCE_SHEET_EXTRA_FIELDS, ...baseFields]
+    : baseFields;
+
+  const metrics: IndicatorMetricDefinition[] = [];
+
+  for (const field of fields) {
+    if (INDICATOR_FIELDS_SKIP.has(field.field)) {
+      continue;
+    }
+
+    const format = getMetricFormat(field.field, groupKey);
+    if (!format) {
+      continue;
+    }
+
+    metrics.push({
+      key: field.field,
+      label: field.label,
+      format,
+      getValue: (row: FinancialReportTableRow) => getNumericValue(row, field.field),
+    });
+  }
+
+  return metrics;
+}
+
 const INDICATOR_GROUPS: IndicatorGroupDefinition[] = [
   {
-    key: 'profitability',
-    label: 'Sinh lời',
-    description: 'Công ty kiếm tiền tốt không?',
+    key: 'balanceSheet',
+    label: 'Cân đối kế toán',
+    description: 'Tài sản và vốn chủ sở hữu',
     chartType: 'line',
     chartSeries: [
-      { key: 'roe', label: 'ROE', color: '#84cc16', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roe },
-      { key: 'netMargin', label: 'Biên LN ròng', color: '#22c55e', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.netMargin },
-      { key: 'grossMargin', label: 'Biên LN gộp', color: '#10b981', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.grossMargin },
+      {
+        key: 'totalEquity',
+        label: 'Vốn chủ sở hữu',
+        color: '#22c55e',
+        format: 'billion',
+        getValue: (row) => row.totalEquity,
+      },
+      {
+        key: 'contributedCapital',
+        label: 'Vốn điều lệ',
+        color: '#38bdf8',
+        format: 'billion',
+        getValue: (row) => row.contributedCapital ?? null,
+      },
+      {
+        key: 'totalAssets',
+        label: 'Tổng tài sản',
+        color: '#a855f7',
+        format: 'billion',
+        getValue: (row) => row.totalAssets,
+      },
     ],
-    metrics: [
-      { key: 'roe', label: 'ROE', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roe },
-      { key: 'roa', label: 'ROA', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.roa },
-      { key: 'grossMargin', label: 'Biên LN gộp', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.grossMargin },
-      { key: 'operatingProfitMargin', label: 'Biên LN hoạt động', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.operatingProfitMargin },
-      { key: 'netMargin', label: 'Biên LN ròng', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.netMargin },
-      { key: 'returnOnFixedAssets', label: 'LN trên TSCĐ', format: 'percent', getValue: (row) => row.indicatorData?.profitability?.returnOnFixedAssets },
-    ],
+    metrics: buildMetricDefinitions('balanceSheet'),
   },
   {
-    key: 'growth',
-    label: 'Tăng trưởng',
-    description: 'Công ty có đang phát triển không?',
+    key: 'incomeStatement',
+    label: 'Kết quả kinh doanh',
+    description: 'Hiệu quả hoạt động kinh doanh',
     accent: 'growth',
     chartType: 'bar',
     chartSeries: [
-      { key: 'revenueGrowth', label: 'Tăng trưởng doanh thu', color: '#10b981', format: 'percent_signed', getValue: (row) => row.indicatorData?.growth?.revenueGrowth },
-      { key: 'grossProfitGrowth', label: 'Tăng trưởng LN gộp', color: '#22c55e', format: 'percent_signed', getValue: (row) => row.indicatorData?.growth?.grossProfitGrowth },
-    ],
-    metrics: [
       {
-        key: 'revenueGrowth',
-        label: 'Tăng trưởng doanh thu',
-        format: 'percent_signed',
-        getValue: (row) => row.indicatorData?.growth?.revenueGrowth,
-        showComparisonType: true,
+        key: 'grossProfit',
+        label: 'Lợi nhuận gộp',
+        color: '#22c55e',
+        format: 'billion',
+        getValue: (row) => row.grossProfit ?? null,
       },
       {
-        key: 'grossProfitGrowth',
-        label: 'Tăng trưởng LN gộp',
-        format: 'percent_signed',
-        getValue: (row) => row.indicatorData?.growth?.grossProfitGrowth,
-        showComparisonType: true,
+        key: 'netProfit',
+        label: 'Lợi nhuận sau thuế',
+        color: '#f59e0b',
+        format: 'billion',
+        getValue: (row) => row.netProfit ?? null,
+      },
+      {
+        key: 'netRevenue',
+        label: 'Doanh thu thuần',
+        color: '#3b82f6',
+        format: 'billion',
+        getValue: (row) => row.netRevenue ?? null,
       },
     ],
+    metrics: buildMetricDefinitions('incomeStatement'),
   },
   {
-    key: 'financialHealth',
-    label: 'Sức khỏe tài chính',
-    description: 'Có rủi ro tài chính không?',
+    key: 'cashFlow',
+    label: 'Dòng tiền',
+    description: 'Lưu chuyển tiền tệ',
+    chartType: 'line',
+    chartSeries: [
+      {
+        key: 'netCashFlow',
+        label: 'Lưu chuyển tiền thuần',
+        color: '#10b981',
+        format: 'billion',
+        getValue: (row) => row.netCashFlow,
+      },
+      {
+        key: 'operatingCashFlow',
+        label: 'Hoạt động kinh doanh',
+        color: '#38bdf8',
+        format: 'billion',
+        getValue: (row) => row.operatingCashFlow,
+      },
+      {
+        key: 'investingCashFlow',
+        label: 'Hoạt động đầu tư',
+        color: '#f59e0b',
+        format: 'billion',
+        getValue: (row) => row.investingCashFlow,
+      },
+    ],
+    metrics: buildMetricDefinitions('cashFlow'),
+  },
+  {
+    key: 'indicators',
+    label: 'Chỉ số tài chính',
+    description: 'Biên lợi nhuận và đòn bẩy',
     accent: 'risk',
     chartType: 'line',
     chartSeries: [
-      { key: 'debtToEquity', label: 'Nợ/Vốn chủ (D/E)', color: '#f59e0b', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtToEquity },
-      { key: 'currentRatio', label: 'Thanh toán hiện hành', color: '#f97316', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.currentRatio },
+      {
+        key: 'grossMargin',
+        label: 'Biên LN gộp',
+        color: '#22c55e',
+        format: 'percent',
+        getValue: (row) => row.profitability_grossMargin ?? null,
+      },
+      {
+        key: 'netMargin',
+        label: 'Biên LN ròng',
+        color: '#16a34a',
+        format: 'percent',
+        getValue: (row) => row.profitability_netMargin ?? null,
+      },
+      {
+        key: 'debtToEquity',
+        label: 'Nợ/Vốn chủ (D/E)',
+        color: '#f59e0b',
+        format: 'percent',
+        getValue: (row) => row.liquidityAndSolvency_debtToEquity ?? null,
+      },
     ],
-    metrics: [
-      { key: 'debtToEquity', label: 'Nợ/Vốn chủ (D/E)', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtToEquity },
-      { key: 'debtRatio', label: 'Nợ/Tổng tài sản', format: 'percent', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.debtRatio },
-      { key: 'longTermDebtRatio', label: 'Nợ dài hạn/Tài sản', format: 'percent', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.longTermDebtRatio },
-      { key: 'currentRatio', label: 'Thanh toán hiện hành', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.currentRatio },
-      { key: 'quickRatio', label: 'Thanh toán nhanh', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.quickRatio },
-      { key: 'cashRatio', label: 'Hệ số tiền mặt', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.cashRatio },
-      { key: 'interestCoverageRatio', label: 'Khả năng trả lãi', format: 'ratio', getValue: (row) => row.indicatorData?.liquidityAndSolvency?.interestCoverageRatio },
-    ],
-  },
-  {
-    key: 'efficiencyCashflow',
-    label: 'Hiệu quả & Dòng tiền',
-    description: 'Vận hành hiệu quả và tiền có thật không?',
-    chartType: 'line',
-    chartSeries: [
-      { key: 'totalAssetTurnover', label: 'Vòng quay tài sản', color: '#14b8a6', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.totalAssetTurnover },
-      { key: 'operatingCashFlowToNetProfit', label: 'Dòng tiền/LN ròng', color: '#06b6d4', format: 'ratio', getValue: (row) => row.indicatorData?.cashFlow?.operatingCashFlowToNetProfit },
-    ],
-    metrics: [
-      { key: 'totalAssetTurnover', label: 'Vòng quay tài sản', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.totalAssetTurnover },
-      { key: 'inventoryTurnover', label: 'Vòng quay tồn kho', format: 'ratio', getValue: (row) => row.indicatorData?.efficiency?.inventoryTurnover },
-      { key: 'operatingCashFlowToNetProfit', label: 'Dòng tiền/LN ròng', format: 'ratio', getValue: (row) => row.indicatorData?.cashFlow?.operatingCashFlowToNetProfit },
-    ],
+    metrics: buildMetricDefinitions('indicators'),
   },
 ];
 
@@ -149,6 +304,10 @@ function toChartValue(value: number | null | undefined, format: MetricFormat): n
     return null;
   }
 
+  if (format === 'billion') {
+    return Number((value / 1_000_000_000).toFixed(2));
+  }
+
   if (format === 'ratio') {
     return Number(value.toFixed(3));
   }
@@ -156,9 +315,18 @@ function toChartValue(value: number | null | undefined, format: MetricFormat): n
   return Number((value * 100).toFixed(2));
 }
 
-function formatMetricValue(value: number | null | undefined, format: MetricFormat): string {
+function formatMetricValue(
+  value: number | null | undefined,
+  format: MetricFormat,
+  options?: { hideUnit?: boolean }
+): string {
   if (!isNumber(value)) {
     return '—';
+  }
+
+  if (format === 'billion') {
+    const formatted = formatBillion(value);
+    return options?.hideUnit ? formatted : `${formatted} tỷ`;
   }
 
   if (format === 'ratio') {
@@ -182,6 +350,18 @@ function formatMetricValue(value: number | null | undefined, format: MetricForma
   return `${percentValue.toFixed(1)}%`;
 }
 
+function normalizeMetricValue(value: number | null | undefined, hideZero: boolean): number | null {
+  if (!isNumber(value)) {
+    return null;
+  }
+
+  if (hideZero && value === 0) {
+    return null;
+  }
+
+  return value;
+}
+
 function getMetricTone(
   value: number | null | undefined,
   format: MetricFormat
@@ -201,7 +381,7 @@ function getMetricTone(
   return 'default';
 }
 
-function getPeriodLabel(row: FinancialReportIndicatorListItem): string {
+function getPeriodLabel(row: FinancialReportTableRow): string {
   if (row.period === FinancialPeriodType.YearToDate) {
     return `Năm ${row.year}`;
   }
@@ -225,7 +405,7 @@ export function FinancialReportModule() {
       setFrozenSymbol(selectedSymbol); // freeze/sync at toggle moment
       return !v;
     });
-  }, [selectedSymbol]);
+  }, [selectedSymbol, setFrozenSymbol, setIsLinked]);
 
   // Search states
   const [inputValue, setInputValue] = useState(effectiveSymbol || '');
@@ -257,7 +437,7 @@ export function FinancialReportModule() {
     } else {
       setFrozenSymbol(upper);
     }
-  }, [isLinked, setSelectedSymbol]);
+  }, [isLinked, setSelectedSymbol, setFrozenSymbol]);
 
   // Sync input from global store when linked
   useEffect(() => {
@@ -278,8 +458,8 @@ export function FinancialReportModule() {
   }, []);
 
   const [activePeriodTab, setActivePeriodTab] = useState<PeriodTab>('annual');
-  const [activeGroupKey, setActiveGroupKey] = useState<IndicatorGroupKey>('profitability');
-  const [allData, setAllData] = useState<FinancialReportIndicatorListItem[]>([]);
+  const [activeGroupKey, setActiveGroupKey] = useState<IndicatorGroupKey>('balanceSheet');
+  const [allData, setAllData] = useState<FinancialReportTableRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [pageOffset, setPageOffset] = useState(0);
 
@@ -294,7 +474,7 @@ export function FinancialReportModule() {
     setLoading(true);
     setAllData([]);
 
-    fetchFinancialReportIndicatorsByTicker(effectiveSymbol)
+    fetchFinancialReportsByTicker(effectiveSymbol)
       .then(({ items }) => {
         if (cancelled) {
           return;
@@ -345,16 +525,7 @@ export function FinancialReportModule() {
     return INDICATOR_GROUPS.find((group) => group.key === activeGroupKey) ?? INDICATOR_GROUPS[0];
   }, [activeGroupKey]);
 
-  const growthComparisonType = useMemo(() => {
-    const comparisonType = visibleData.find((row) => row.indicatorData?.growth?.comparisonType)
-      ?.indicatorData?.growth?.comparisonType;
-
-    if (comparisonType) {
-      return comparisonType;
-    }
-
-    return activePeriodTab === 'annual' ? 'YoY' : 'QoQ';
-  }, [visibleData, activePeriodTab]);
+  const showBillionUnitNote = activeGroupKey !== 'indicators';
 
   const chartData = useMemo(() => {
     return visibleData.map((row) => {
@@ -373,28 +544,24 @@ export function FinancialReportModule() {
   const metricRows = useMemo<FinancialIndicatorMetricDisplayRow[]>(() => {
     return activeGroup.metrics
       .map((metric) => {
-        const label = metric.showComparisonType
-          ? `${metric.label} (${growthComparisonType})`
-          : metric.label;
-
         const cells = visibleData.map((row) => {
-          const raw = metric.getValue(row);
+          const raw = normalizeMetricValue(metric.getValue(row), showBillionUnitNote);
 
           return {
             key: row.id,
-            text: formatMetricValue(raw, metric.format),
+            text: formatMetricValue(raw, metric.format, { hideUnit: showBillionUnitNote }),
             tone: getMetricTone(raw, metric.format),
           };
         });
 
         return {
           key: metric.key,
-          label,
+          label: metric.label,
           cells,
         };
-      })
-      .filter((row) => row.cells.some((cell) => cell.text !== '—'));
-  }, [activeGroup, visibleData, growthComparisonType]);
+        })
+        .filter((row) => row.cells.some((cell) => cell.text !== '—'));
+      }, [activeGroup, showBillionUnitNote, visibleData]);
 
   const periodLabels = useMemo(() => visibleData.map((row) => getPeriodLabel(row)), [visibleData]);
 
@@ -489,7 +656,7 @@ export function FinancialReportModule() {
           </div>
         ) : filteredData.length === 0 ? (
           <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Không có dữ liệu chỉ số tài chính
+            Không có dữ liệu báo cáo tài chính
           </div>
         ) : (
           <>
@@ -501,6 +668,12 @@ export function FinancialReportModule() {
                 isDark={isDark}
               />
             </div>
+
+            {showBillionUnitNote && (
+              <div className={`px-6 pb-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Đơn vị: tỷ đồng
+              </div>
+            )}
 
             <FinancialIndicatorPeriodNavigator
               activePeriodTab={activePeriodTab}
