@@ -146,7 +146,7 @@ export function DirectChatPanel({
   const [sessionListVisible, setSessionListVisible] = useState(true);
 
   const { subscribeDirectMessage } = useNotifications();
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Ref to track activeSessionId inside callbacks without stale closures
   const activeSessionIdRef = useRef<number | null>(null);
@@ -163,18 +163,19 @@ export function DirectChatPanel({
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
 
-  // Auto-scroll
+  // Auto-resize textarea (MUST run before scroll so layout is stable)
   useLayoutEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Auto-resize textarea
-  useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
     ta.style.height = `${Math.min(ta.scrollHeight, 100)}px`;
   }, [input]);
+
+  // Auto-scroll
+  useLayoutEffect(() => {
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   // Report unread count to parent tab badge
   useEffect(() => {
@@ -285,7 +286,6 @@ export function DirectChatPanel({
     const text = input.trim();
     if (!text || sending || !activeSessionId) return;
     setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setSending(true);
 
     const optimisticId = `pending-${Date.now()}`;
@@ -566,7 +566,7 @@ export function DirectChatPanel({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
               {loadingMessages ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="w-5 h-5 animate-spin text-[#4ADE80]" />
@@ -613,7 +613,6 @@ export function DirectChatPanel({
                   </div>
                 ))
               )}
-              <div ref={bottomRef} />
             </div>
 
             {/* Input bar */}

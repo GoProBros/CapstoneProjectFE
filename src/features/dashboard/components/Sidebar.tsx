@@ -1,9 +1,10 @@
 'use client';
 
-import { Bell, LogIn, LayoutGrid, SquarePlus, X, Menu, Pencil, Share2, Copy, Check, AlertTriangle, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Bell, LogIn, LayoutGrid, SquarePlus, X, Menu, Pencil, Share2, Copy, Check, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import type { SystemNotification } from '@/contexts/NotificationContext';
 import Link from 'next/link';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/contexts/FontSizeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,6 +108,8 @@ function NotificationItem({
                         WebkitLineClamp: CLAMP_LINES,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-all',
                     }}
                     dangerouslySetInnerHTML={{ __html: notif.content }}
                 />
@@ -744,59 +747,7 @@ export default function Sidebar({
                                     {/* Top accent gradient */}
                                     <div className="h-[3px] bg-gradient-to-r from-accentGreen via-green-400 to-transparent flex-shrink-0" />
 
-                                    {/* ── Detail view ── */}
-                                    {selectedNotif ? (
-                                        <>
-                                            {/* Detail header */}
-                                            <div className={`flex items-center gap-2 px-3 py-2.5 border-b flex-shrink-0 ${
-                                                theme === 'dark' ? 'border-white/[0.07]' : 'border-gray-100'
-                                            }`}>
-                                                <button
-                                                    onClick={() => setSelectedNotif(null)}
-                                                    className={`p-1 rounded transition-colors ${
-                                                        theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
-                                                    }`}
-                                                    aria-label="Quay lại"
-                                                >
-                                                    <ArrowLeft className="w-4 h-4" />
-                                                </button>
-                                                <span className={`text-sm font-semibold flex-1 truncate ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
-                                                    {selectedNotif.source === 'alert' && selectedNotif.ticker
-                                                        ? `Cảnh báo · ${selectedNotif.ticker}`
-                                                        : 'Chi tiết thông báo'}
-                                                </span>
-                                                <button
-                                                    onClick={() => setIsNotifPanelOpen(false)}
-                                                    className={`p-1 rounded transition-colors ${
-                                                        theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
-                                                    }`}
-                                                    aria-label="Đóng"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-
-                                            {/* Detail body */}
-                                            <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                                                <div className={`text-[10px] font-semibold mb-2 flex items-center gap-1.5 ${
-                                                    selectedNotif.source === 'alert' ? 'text-amber-500' : 'text-accentGreen'
-                                                }`}>
-                                                    {selectedNotif.source === 'alert'
-                                                        ? <AlertTriangle className="w-3 h-3" />
-                                                        : <Bell className="w-3 h-3" />
-                                                    }
-                                                    {formatNotifTime(selectedNotif.createdAt, !selectedNotif.isHistorical)}
-                                                </div>
-                                                <div
-                                                    className={`text-xs leading-relaxed prose prose-xs max-w-none ${
-                                                        theme === 'dark' ? 'text-gray-200 prose-invert' : 'text-gray-700'
-                                                    }`}
-                                                    dangerouslySetInnerHTML={{ __html: selectedNotif.content }}
-                                                />
-                                            </div>
-                                        </>
-                                    ) : (
-                                    /* ── List view ── */
+                                    {/* ── List view ── */}
                                     <>
                                         {/* Header */}
                                         <div className={`flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0 ${
@@ -869,10 +820,67 @@ export default function Sidebar({
                                             )}
                                         </div>
                                     </>
-                                    )}
                                 </div>
                             )}
                         </div>
+
+                        {/* ── Notification detail modal ── */}
+                        <Dialog open={selectedNotif !== null} onOpenChange={(open) => { if (!open) setSelectedNotif(null); }}>
+                            <DialogContent className="max-w-xl w-full p-0 overflow-hidden max-h-[80vh] flex flex-col">
+                                {/* Modal header */}
+                                <div className={`flex items-center justify-between px-5 py-4 border-b flex-shrink-0 ${
+                                    theme === 'dark' ? 'border-white/[0.07]' : 'border-gray-100'
+                                }`}>
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                            selectedNotif?.source === 'alert'
+                                                ? 'bg-amber-500/15 text-amber-500'
+                                                : 'bg-green-500/15 text-accentGreen'
+                                        }`}>
+                                            {selectedNotif?.source === 'alert'
+                                                ? <AlertTriangle className="w-4 h-4" />
+                                                : <Bell className="w-4 h-4" />
+                                            }
+                                        </div>
+                                        <div>
+                                            <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
+                                                {selectedNotif?.source === 'alert' && selectedNotif?.ticker
+                                                    ? `Cảnh báo · ${selectedNotif.ticker}`
+                                                    : 'Chi tiết thông báo'}
+                                            </p>
+                                            {selectedNotif && (
+                                                <p className={`text-[10px] mt-0.5 ${
+                                                    selectedNotif.source === 'alert' ? 'text-amber-500' : 'text-accentGreen'
+                                                }`}>
+                                                    {formatNotifTime(selectedNotif.createdAt, !selectedNotif.isHistorical)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedNotif(null)}
+                                        className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                                            theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                                        }`}
+                                        aria-label="Đóng"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                {/* Modal body */}
+                                <div className="flex-1 overflow-y-auto p-5 min-h-0">
+                                    {selectedNotif && (
+                                        <div
+                                            className={`text-sm leading-relaxed prose prose-sm max-w-none break-words ${
+                                                theme === 'dark' ? 'text-gray-200 prose-invert' : 'text-gray-700'
+                                            }`}
+                                            dangerouslySetInnerHTML={{ __html: selectedNotif.content }}
+                                        />
+                                    )}
+                                </div>
+                            </DialogContent>
+                        </Dialog>
 
                         {/* Options Menu Icon - Conditional based on authentication */}
                         {isAuthenticated ? (
