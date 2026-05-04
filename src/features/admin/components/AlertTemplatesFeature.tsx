@@ -6,6 +6,7 @@ import alertTemplateService, { type AlertTemplateFilters } from '@/services/admi
 import type { AlertTemplateDto, AlertTemplatePlaceholderDto } from '@/types/alertTemplate';
 import AlertTemplatesTable from '@/features/admin/components/alerts/AlertTemplatesTable';
 import AlertTemplateEditorModal from '@/features/admin/components/alerts/AlertTemplateEditorModal';
+import SystemNotificationModal from '@/features/admin/components/alerts/SystemNotificationModal';
 import { EMPTY_TEMPLATE_FORM, type TemplateFormState, type TemplateMode } from '@/features/admin/components/alerts/types';
 import { mapTemplateToForm, sortTemplates } from '@/features/admin/components/alerts/alertTemplateUtils';
 
@@ -25,6 +26,7 @@ export function AlertTemplatesFeature() {
   const [placeholdersError, setPlaceholdersError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorMessage, setEditorMessage] = useState<string | null>(null);
+  const [isSystemNotificationModalOpen, setIsSystemNotificationModalOpen] = useState(false);
   // Filter states
   const [filterType, setFilterType] = useState<string>('');
   const [filterCondition, setFilterCondition] = useState<string>('');
@@ -235,10 +237,18 @@ export function AlertTemplatesFeature() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold transition-colors hover:bg-blue-600"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold transition-colors hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
             Tạo mẫu mới
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSystemNotificationModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold transition-colors hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Tạo thông báo
           </button>
         </div>
       </div>
@@ -275,6 +285,8 @@ export function AlertTemplatesFeature() {
         onSave={handleSaveTemplate}
         onFieldChange={handleTemplateChange}
       />
+
+      <SystemNotificationModal isOpen={isSystemNotificationModalOpen} onOpenChange={setIsSystemNotificationModalOpen} />
     </div>
   );
 }
