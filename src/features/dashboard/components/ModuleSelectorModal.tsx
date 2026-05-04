@@ -194,7 +194,7 @@ export default function ModuleSelectorModal({
     },
     {
       id: "session-info",
-      title: "Thông tin phiên giao dịch",
+      title: "3 Bước Giá",
       preview: "/assets/Dashboard/ModulePreviews/session-info.png",
     },
     {

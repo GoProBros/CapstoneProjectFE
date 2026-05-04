@@ -163,7 +163,7 @@ export default function Sidebar({
     workspaceCount = 0
 }: SidebarProps) {
     const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useFontSize();
-    const { theme, toggleTheme } = useTheme();
+    const { theme } = useTheme();
     const { logout, isAuthenticated, user } = useAuth();
     const router = useRouter();
     const maxWorkspaces = useSubscriptionStore(s => s.maxWorkspaces);

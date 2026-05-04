@@ -106,10 +106,6 @@ export function AnalysisReportModule() {
                                 <p className={`text-sm ${textSecondary}`}>{sourceLabel}</p>
                             </div>
                             <div>
-                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Phân loại</p>
-                                <p className={`text-sm ${textSecondary}`}>{categoryLabel}</p>
-                            </div>
-                            <div>
                                 <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Ngày xuất bản</p>
                                 <p className={`text-sm ${textSecondary}`}>
                                     {selectedReport.publishDate

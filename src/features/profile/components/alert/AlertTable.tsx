@@ -31,7 +31,7 @@ function getSortIndicator(activeKey: AlertSortKey, currentKey: AlertSortKey, dir
 
 function getTriggerValue(alert: AlertDto): string {
   if (alert.condition === 1 || alert.condition === 2) {
-    return formatCurrencyVnd(alert.thresholdValue !== null ? alert.thresholdValue * 1000 : null);
+    return formatCurrencyVnd(alert.thresholdValue !== null ? alert.thresholdValue : null);
   }
 
   if (alert.condition === 3 || alert.condition === 4) {
