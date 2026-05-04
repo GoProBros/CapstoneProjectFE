@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { Link2, Link2Off, Search, X } from 'lucide-react';
 import { FinancialIndicatorChart, type FinancialIndicatorChartDataPoint } from './FinancialIndicatorChart';
 import { FinancialIndicatorGroupTabs, type FinancialIndicatorGroupTabItem } from './FinancialIndicatorGroupTabs';
@@ -213,7 +214,7 @@ export function FinancialReportModule() {
   const selectedSymbol = useSelectedSymbolStore((s) => s.selectedSymbol);
   const setSelectedSymbol = useSelectedSymbolStore((s) => s.setSelectedSymbol);
 
-  const [isLinked, setIsLinked] = useState(true);
+  const [isLinked, setIsLinked] = useLinkedState();
   const [frozenSymbol, setFrozenSymbol] = useState(selectedSymbol);
 
   const effectiveSymbol = isLinked ? selectedSymbol : frozenSymbol;

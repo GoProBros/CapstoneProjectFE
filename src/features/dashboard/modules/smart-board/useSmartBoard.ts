@@ -37,7 +37,7 @@ function loadSavedFilters(): SmartBoardFilters {
 }
 
 export function useSmartBoard() {
-  const { isConnected, subscribeToSymbols, unsubscribeFromSymbols, marketData } = useSignalR();
+  const { isConnected, subscribeToSymbols, marketData } = useSignalR();
 
   const [filters, setFilters] = useState<SmartBoardFilters>(loadSavedFilters);
   const [items, setItems] = useState<HeatmapItem[]>([]);
@@ -108,16 +108,15 @@ export function useSmartBoard() {
     return () => { cancelled = true; };
   }, [filters.watchlistId]);
 
-  // Initial data load
+  // Initial data load — fetch ALL exchanges so VN30 column always has data
   useEffect(() => {
     if (!isConnected || hasLoadedRef.current) return;
 
     const load = async () => {
       setIsLoading(true);
       try {
-        const data = await smartBoardService.getMarketData({
-          exchange: filters.exchange ?? undefined,
-        });
+        // No exchange filter here: client-side filtering keeps VN30 intact
+        const data = await smartBoardService.getMarketData();
         setItems(data.items);
 
         const tickers = data.items.map((i) => i.ticker);
@@ -135,38 +134,6 @@ export function useSmartBoard() {
 
     load();
   }, [isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reload when exchange changes
-  useEffect(() => {
-    if (!isConnected || !hasLoadedRef.current) return;
-
-    const reload = async () => {
-      setIsLoading(true);
-      try {
-        if (subscribedRef.current.length > 0) {
-          await unsubscribeFromSymbols(subscribedRef.current);
-          subscribedRef.current = [];
-        }
-
-        const data = await smartBoardService.getMarketData({
-          exchange: filters.exchange ?? undefined,
-        });
-        setItems(data.items);
-
-        const tickers = data.items.map((i) => i.ticker);
-        if (tickers.length > 0) {
-          await subscribeToSymbols(tickers);
-          subscribedRef.current = tickers;
-        }
-      } catch (err) {
-        console.error('[useSmartBoard] Failed to reload:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    reload();
-  }, [filters.exchange, isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync live prices from SignalR
   useEffect(() => {
@@ -210,6 +177,13 @@ export function useSmartBoard() {
   // Compute filtered + sector-grouped items
   const sectorColumns = useMemo(() => {
     let filtered = items;
+
+    // Exchange filter applied client-side so VN30 column is unaffected
+    if (filters.exchange) {
+      filtered = filtered.filter(
+        (i) => i.exchange?.toLowerCase() === filters.exchange!.toLowerCase()
+      );
+    }
 
     if (filters.hideNoTrading) {
       filtered = filtered.filter((i) => i.volume > 0);

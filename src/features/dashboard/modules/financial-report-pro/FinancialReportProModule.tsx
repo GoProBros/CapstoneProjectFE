@@ -23,6 +23,8 @@ import type { ColumnConfig, ModuleLayoutDetail, ModuleLayoutSummary } from '@/ty
 import HeaderSection from './HeaderSection';
 import FinancialReportTable from './FinancialReportTable';
 import { FinancialReportColumnSidebar } from './FinancialReportColumnSidebar';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
+import { useFinancialReportStore } from '@/stores/financialReportStore';
 
 const MODULE_TYPE_FINANCIAL_REPORT_PRO = ModuleType.FinancialReportPro;
 const GROUP_PREFIX = 'group:';
@@ -194,6 +196,15 @@ const FinancialReportContent = memo(function FinancialReportContent() {
   const lastSyncedLayoutSnapshotRef = useRef<string | null>(null);
 
   const { data, isLoading, isError, error, tickerHasMore, canShowLoadMore, loadMore } = useFinancialReportQuery();
+
+  // Sync global symbol → tickerList when lockState is on
+  const storeSymbol = useSelectedSymbolStore((s) => s.selectedSymbol);
+  const { lockState, setTickerList } = useFinancialReportStore();
+  useEffect(() => {
+    if (lockState && storeSymbol) {
+      setTickerList([storeSymbol]);
+    }
+  }, [lockState, storeSymbol, setTickerList]);
 
   useEffect(() => {
     if (moduleId) {

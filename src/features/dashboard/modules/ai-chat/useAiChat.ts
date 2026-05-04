@@ -30,7 +30,7 @@ export function useAiChat() {
   const [showSessions, setShowSessions] = useState(false);
   const [isPendingNew, setIsPendingNew] = useState(false);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sessionsPanelRef = useRef<HTMLDivElement>(null);
   // Polling refs — stable across renders, no closure staleness
@@ -101,18 +101,19 @@ export function useAiChat() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-scroll on new messages
+  // Auto-resize textarea (MUST run before scroll so layout is stable)
   useLayoutEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Auto-resize textarea
-  useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
     ta.style.height = `${Math.min(ta.scrollHeight, 110)}px`;
   }, [input]);
+
+  // Auto-scroll on new messages
+  useLayoutEffect(() => {
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   const loadSessions = async () => {
     try {
@@ -297,7 +298,7 @@ export function useAiChat() {
     isPendingNew,
     canSend,
     // Refs
-    bottomRef,
+    messagesContainerRef,
     textareaRef,
     sessionsPanelRef,
     // Actions

@@ -125,7 +125,7 @@ export default function SystemNotificationModal({
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] max-h-[260px] overflow-y-auto rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_strong]:font-semibold [&_em]:italic [&_u]:underline",
+          "min-h-[180px] max-h-[260px] overflow-y-auto rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_strong]:font-semibold [&_em]:italic [&_u]:underline break-all",
       },
     },
     content: "",

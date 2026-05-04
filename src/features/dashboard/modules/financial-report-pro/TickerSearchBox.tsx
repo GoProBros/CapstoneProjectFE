@@ -7,10 +7,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFinancialReportStore } from '@/stores/financialReportStore';
+import { useSelectedSymbolStore } from '@/stores/selectedSymbolStore';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TickerSearchBox() {
-  const { tickerList, setTickerList, clearAllData, setSelectedSectorId } = useFinancialReportStore();
+  const { tickerList, setTickerList, clearAllData, setSelectedSectorId, lockState } = useFinancialReportStore();
+  const setSelectedSymbol = useSelectedSymbolStore((s) => s.setSelectedSymbol);
   const { theme } = useTheme();
   const [localValue, setLocalValue] = useState(tickerList.join(','));
 
@@ -38,6 +40,10 @@ export default function TickerSearchBox() {
     setSelectedSectorId(''); // Clear sector selection when manually searching
     setTickerList(newTickerList); // This will auto-clear data for removed tickers
     setLocalValue(newTickerList.join(',')); // Update local value with cleaned version
+    // Push to global symbol store so other modules stay in sync
+    if (lockState && newTickerList.length === 1) {
+      setSelectedSymbol(newTickerList[0]);
+    }
   };
 
   /**

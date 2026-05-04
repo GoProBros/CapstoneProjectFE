@@ -3,6 +3,7 @@
 // ─ REDESIGNED: compact layout, fixed row heights, cleaner footer ─────────────
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
 import { Search, X, Link2, Link2Off } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSignalR } from '@/contexts/SignalRContext';
@@ -51,7 +52,7 @@ export function SessionInfoModule() {
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown]   = useState(false);
   const [depth, setDepth]                 = useState<PriceDepthDto | null>(null);
-  const [isLinked, setIsLinked]           = useState(true);
+  const [isLinked, setIsLinked]           = useLinkedState();
 
   const searchRef   = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
