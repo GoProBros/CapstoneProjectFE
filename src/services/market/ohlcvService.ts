@@ -76,23 +76,27 @@ export function calculateDateRange(timeframe: string): { fromDate: string; toDat
   
   let fromDate = new Date(today);
   
-  // Set date range based on timeframe
-  if (timeframe === 'D1' || timeframe === 'W1' || timeframe === 'MN1') {
-    fromDate.setFullYear(fromDate.getFullYear() - 5); // 5 years for daily
-  } else if (timeframe === 'M1') {
-    fromDate.setMonth(fromDate.getMonth() - 6); // 6 months for M1
-  } else if (timeframe === 'M5') {
-    fromDate.setMonth(fromDate.getMonth() - 3); // 3 months for M5
-  } else if (timeframe === 'M15') {
-    fromDate.setMonth(fromDate.getMonth() - 2); // 2 months for M15
-  } else if (timeframe === 'M30') {
-    fromDate.setMonth(fromDate.getMonth() - 1); // 1 month for M30
-  } else if (timeframe === 'H1') {
-    fromDate.setDate(fromDate.getDate() - 30); // 30 days for H1
+  // Set date range to fetch ALL available data from the beginning
+  if (timeframe === 'MN1') {
+    fromDate.setFullYear(fromDate.getFullYear() - 20);
+  } else if (timeframe === 'W1') {
+    fromDate.setFullYear(fromDate.getFullYear() - 15);
+  } else if (timeframe === 'D1') {
+    fromDate.setFullYear(fromDate.getFullYear() - 10);
   } else if (timeframe === 'H4') {
-    fromDate.setDate(fromDate.getDate() - 60); // 60 days for H4
+    fromDate.setFullYear(fromDate.getFullYear() - 5);
+  } else if (timeframe === 'H1') {
+    fromDate.setFullYear(fromDate.getFullYear() - 3);
+  } else if (timeframe === 'M30') {
+    fromDate.setFullYear(fromDate.getFullYear() - 2);
+  } else if (timeframe === 'M15') {
+    fromDate.setFullYear(fromDate.getFullYear() - 2);
+  } else if (timeframe === 'M5') {
+    fromDate.setFullYear(fromDate.getFullYear() - 1);
+  } else if (timeframe === 'M1') {
+    fromDate.setMonth(fromDate.getMonth() - 3);
   } else {
-    fromDate.setMonth(fromDate.getMonth() - 6); // Default 6 months
+    fromDate.setFullYear(fromDate.getFullYear() - 5);
   }
   
   return {

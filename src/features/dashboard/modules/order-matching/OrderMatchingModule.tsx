@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
+import { useLocalSymbol } from '@/features/dashboard/hooks/useLocalSymbol';
 import { Search, X, Link2, Link2Off } from 'lucide-react';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -57,12 +58,12 @@ export function OrderMatchingModule() {
   const storeSymbol = useSelectedSymbolStore(s => s.selectedSymbol);
   const setSelectedSymbol = useSelectedSymbolStore(s => s.setSelectedSymbol);
 
-  const [ticker, setTicker] = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
-  const [inputValue, setInputValue] = useState(() => useSelectedSymbolStore.getState().selectedSymbol || 'FPT');
+  const [isLinked, setIsLinked] = useLinkedState();
+  const [ticker, setTicker] = useLocalSymbol(isLinked);
+  const [inputValue, setInputValue] = useState(ticker);
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [isLinked, setIsLinked] = useLinkedState();
 
   const tbodyRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);

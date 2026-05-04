@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLinkedState } from '@/features/dashboard/hooks/useLinkedState';
+import { useLocalSymbol } from '@/features/dashboard/hooks/useLocalSymbol';
 import { Link2, Link2Off, Search, X } from 'lucide-react';
 import { FinancialIndicatorChart, type FinancialIndicatorChartDataPoint } from './FinancialIndicatorChart';
 import { FinancialIndicatorGroupTabs, type FinancialIndicatorGroupTabItem } from './FinancialIndicatorGroupTabs';
@@ -215,7 +216,7 @@ export function FinancialReportModule() {
   const setSelectedSymbol = useSelectedSymbolStore((s) => s.setSelectedSymbol);
 
   const [isLinked, setIsLinked] = useLinkedState();
-  const [frozenSymbol, setFrozenSymbol] = useState(selectedSymbol);
+  const [frozenSymbol, setFrozenSymbol] = useLocalSymbol(isLinked);
 
   const effectiveSymbol = isLinked ? selectedSymbol : frozenSymbol;
 
@@ -227,7 +228,7 @@ export function FinancialReportModule() {
   }, [selectedSymbol]);
 
   // Search states
-  const [inputValue, setInputValue] = useState(() => selectedSymbol || '');
+  const [inputValue, setInputValue] = useState(effectiveSymbol || '');
   const [searchResults, setSearchResults] = useState<SymbolSearchResultDto[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
