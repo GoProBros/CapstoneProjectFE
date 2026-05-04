@@ -50,7 +50,7 @@ export function IndexMiniChart({ data, history, onRemove }: IndexMiniChartProps)
     return {
       animation: false,
       backgroundColor: 'transparent',
-      grid: { top: 6, right: 52, bottom: 22, left: 2, containLabel: false },
+      grid: { top: 6, right: 52, bottom: 22, left: 14, containLabel: false },
       xAxis: {
         type: 'time',
         min: midnight + 9 * 3_600_000,   // 09:00 VN
@@ -65,6 +65,7 @@ export function IndexMiniChart({ data, history, onRemove }: IndexMiniChartProps)
           show: true,
           fontSize: 9,
           color: '#6b7280',
+          align: 'center',
           // Derive hour purely from offset so timezone doesn't matter
           formatter: (value: number) => {
             const h = Math.round((value - midnight) / 3_600_000);
