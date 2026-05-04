@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import SystemNotificationModal from "@/features/admin/components/dashboard/SystemNotificationModal";
+// SystemNotification moved to AlertTemplatesFeature
 import UserDashboardSection from "@/features/admin/components/dashboard/UserDashboardSection";
 import RevenueDashboardSection from "@/features/admin/components/dashboard/RevenueDashboardSection";
 import SystemDashboardSection from "@/features/admin/components/dashboard/SystemDashboardSection";
@@ -133,8 +133,7 @@ function formatSystemLogMessage(log: SystemLogItem): string {
 export function DashboardFeature() {
   const router = useRouter();
   const { user } = useAuth();
-  const [isSystemNotificationModalOpen, setIsSystemNotificationModalOpen] =
-    useState(false);
+  
 
   const [statistics, setStatistics] = useState<SubscriptionStatisticsDto | null>(
     null
@@ -495,22 +494,10 @@ export function DashboardFeature() {
             >
               Mô phỏng vĩ mô (DEMO)
             </button>
-            <button
-              type="button"
-              onClick={() => setIsSystemNotificationModalOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
-            >
-              Tạo thông báo
-            </button>
           </div>
         )}
       </div>
       
-      <SystemNotificationModal
-        isOpen={isSystemNotificationModalOpen}
-        onOpenChange={setIsSystemNotificationModalOpen}
-      />
-
       <UserDashboardSection
         totalUsers={activeUsers}
         paidCustomers={paidCustomers}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type FormEvent } from "react";
 import type { Editor } from "@tiptap/react";
 
 interface SystemNotificationEditorToolbarProps {
@@ -15,9 +15,7 @@ function getToolbarButtonClass(isActive: boolean) {
   }`;
 }
 
-export default function SystemNotificationEditorToolbar({
-  editor,
-}: SystemNotificationEditorToolbarProps) {
+export default function SystemNotificationEditorToolbar({ editor }: SystemNotificationEditorToolbarProps) {
   const [, forceRender] = useState(0);
   const savedSelection = useRef<{ from: number; to: number } | null>(null);
   const linkPopupRef = useRef<HTMLDivElement | null>(null);
@@ -27,9 +25,7 @@ export default function SystemNotificationEditorToolbar({
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     const refreshToolbar = () => {
       forceRender((prev) => prev + 1);
@@ -70,9 +66,7 @@ export default function SystemNotificationEditorToolbar({
   }, [editor]);
 
   useEffect(() => {
-    if (!isLinkPopupOpen) {
-      return;
-    }
+    if (!isLinkPopupOpen) return;
 
     const handlePointerDownOutside = (event: globalThis.MouseEvent) => {
       const target = event.target as Node;
@@ -100,9 +94,7 @@ export default function SystemNotificationEditorToolbar({
   }, [isLinkPopupOpen]);
 
   const rememberSelection = () => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     savedSelection.current = {
       from: editor.state.selection.from,
@@ -111,9 +103,7 @@ export default function SystemNotificationEditorToolbar({
   };
 
   const restoreSelection = () => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     const selection = savedSelection.current;
 
@@ -128,33 +118,21 @@ export default function SystemNotificationEditorToolbar({
     }
   };
 
-  const applyTextStyle = (attrs: {
-    color?: string | null;
-  }) => {
-    if (!editor) {
-      return;
-    }
+  const applyTextStyle = (attrs: { color?: string | null }) => {
+    if (!editor) return;
 
     restoreSelection();
 
     const nextColor = attrs.color ?? null;
     const hasColor = typeof nextColor === "string" && nextColor.trim().length > 0;
-    if (!editor.schema.marks.textStyle) {
-      return;
-    }
+    if (!editor.schema.marks.textStyle) return;
 
     if (!hasColor) {
       editor.chain().focus().unsetMark("textStyle").run();
       return;
     }
 
-    editor
-      .chain()
-      .focus()
-      .setMark("textStyle", {
-        color: nextColor,
-      })
-      .run();
+    editor.chain().focus().setMark("textStyle", { color: nextColor }).run();
   };
 
   const keepSelectionOnToolbarClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -163,9 +141,7 @@ export default function SystemNotificationEditorToolbar({
   };
 
   const toggleUnderline = () => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     restoreSelection();
 
@@ -173,18 +149,14 @@ export default function SystemNotificationEditorToolbar({
   };
 
   const toggleBulletList = () => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     restoreSelection();
     editor.chain().focus().toggleBulletList().run();
   };
 
   const openLinkPopup = () => {
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     restoreSelection();
 
@@ -192,9 +164,7 @@ export default function SystemNotificationEditorToolbar({
     const { from, to, empty } = editor.state.selection;
     const selectedText = empty ? "" : editor.state.doc.textBetween(from, to, " ");
 
-    if (!editor.schema.marks.link) {
-      return;
-    }
+    if (!editor.schema.marks.link) return;
 
     setLinkUrlInput(currentHref || "https://");
     setLinkTextInput(selectedText);
@@ -205,15 +175,11 @@ export default function SystemNotificationEditorToolbar({
   const applyLink = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!editor) {
-      return;
-    }
+    if (!editor) return;
 
     restoreSelection();
 
-    if (!editor.schema.marks.link) {
-      return;
-    }
+    if (!editor.schema.marks.link) return;
 
     const trimmedUrl = linkUrlInput.trim();
 
@@ -222,15 +188,9 @@ export default function SystemNotificationEditorToolbar({
       return;
     }
 
-    const href = /^(https?:\/\/|mailto:|tel:)/i.test(trimmedUrl)
-      ? trimmedUrl
-      : `https://${trimmedUrl}`;
+    const href = /^(https?:\/\/|mailto:|tel:)/i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
     const displayText = linkTextInput.trim();
-    const attrs = {
-      href,
-      target: "_blank",
-      rel: "noopener noreferrer",
-    };
+    const attrs = { href, target: "_blank", rel: "noopener noreferrer" };
     const { from, to, empty } = editor.state.selection;
 
     if (empty) {
@@ -361,9 +321,7 @@ export default function SystemNotificationEditorToolbar({
         >
           <form onSubmit={applyLink} className="space-y-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Đường dẫn
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">Đường dẫn</label>
               <input
                 type="text"
                 value={linkUrlInput}
@@ -374,9 +332,7 @@ export default function SystemNotificationEditorToolbar({
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Văn bản hiển thị
-              </label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">Văn bản hiển thị</label>
               <input
                 type="text"
                 value={linkTextInput}
@@ -386,9 +342,7 @@ export default function SystemNotificationEditorToolbar({
               />
             </div>
 
-            {linkError && (
-              <p className="text-xs text-red-600 dark:text-red-400">{linkError}</p>
-            )}
+            {linkError && <p className="text-xs text-red-600 dark:text-red-400">{linkError}</p>}
 
             <div className="flex justify-end gap-2">
               <button
@@ -401,12 +355,7 @@ export default function SystemNotificationEditorToolbar({
               >
                 Hủy
               </button>
-              <button
-                type="submit"
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-              >
-                Áp dụng
-              </button>
+              <button type="submit" className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">Chèn</button>
             </div>
           </form>
         </div>

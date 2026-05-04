@@ -10,16 +10,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { sendSystemNotification } from "@/services/chat/chatService";
-import { userManagementService } from "@/services/admin/userManagementService";
-import type { UserManagementListItem } from "@/types/userManagement";
-import SystemNotificationEditor from "@/features/admin/components/dashboard/SystemNotificationEditor";
-import {
-  LinkMark,
-  TextStyleMark,
-  UnderlineMark,
-} from "@/features/admin/components/dashboard/editorExtensions";
+} from '@/components/ui/dialog';
+import { sendSystemNotification } from '@/services/chat/chatService';
+import { userManagementService } from '@/services/admin/userManagementService';
+import type { UserManagementListItem } from '@/types/userManagement';
+import SystemNotificationEditor from '@/features/admin/components/alerts/SystemNotificationEditor';
+import { LinkMark, TextStyleMark, UnderlineMark } from '@/features/admin/components/alerts/editorExtensions';
 
 interface SystemNotificationModalProps {
   isOpen: boolean;
@@ -48,9 +44,7 @@ export default function SystemNotificationModal({
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editorContent, setEditorContent] = useState({ html: "", text: "" });
-  const [selectorPlacement, setSelectorPlacement] = useState<"top" | "bottom">(
-    "bottom"
-  );
+  const [selectorPlacement, setSelectorPlacement] = useState<"top" | "bottom">("bottom");
   const [selectorMaxHeight, setSelectorMaxHeight] = useState(224);
   const selectorTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectorDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -101,7 +95,7 @@ export default function SystemNotificationModal({
         setUsersError(
           error instanceof Error
             ? error.message
-            : "Không thể tải danh sách người dùng"
+            : 'Không thể tải danh sách người dùng'
         );
       } finally {
         setIsLoadingUsers(false);
@@ -119,16 +113,16 @@ export default function SystemNotificationModal({
       TextStyleMark,
       LinkMark,
       Placeholder.configure({
-        placeholder: "Nhập nội dung thông báo hệ thống...",
+        placeholder: 'Nhập nội dung thông báo hệ thống...',
       }),
     ],
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] max-h-[260px] overflow-y-auto rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_strong]:font-semibold [&_em]:italic [&_u]:underline break-all",
+          'min-h-[180px] max-h-[260px] overflow-y-auto rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_strong]:font-semibold [&_em]:italic [&_u]:underline break-all',
       },
     },
-    content: "",
+    content: '',
     onCreate({ editor: currentEditor }) {
       setEditorContent({
         html: currentEditor.getHTML(),
@@ -189,17 +183,17 @@ export default function SystemNotificationModal({
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setIsUserSelectorOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handlePointerDownOutside);
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener('mousedown', handlePointerDownOutside);
+    document.addEventListener('keydown', handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handlePointerDownOutside);
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener('mousedown', handlePointerDownOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [isUserSelectorOpen]);
 
@@ -218,12 +212,12 @@ export default function SystemNotificationModal({
     const shouldOpenTop =
       spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
 
-    const nextPlacement: "top" | "bottom" = shouldOpenTop ? "top" : "bottom";
+    const nextPlacement: 'top' | 'bottom' = shouldOpenTop ? 'top' : 'bottom';
 
     setSelectorPlacement(nextPlacement);
 
     const availableSpace =
-      nextPlacement === "top" ? spaceAbove - 16 : spaceBelow - 16;
+      nextPlacement === 'top' ? spaceAbove - 16 : spaceBelow - 16;
 
     setSelectorMaxHeight(Math.max(160, Math.min(320, availableSpace)));
   }, [isUserSelectorOpen]);
@@ -239,13 +233,13 @@ export default function SystemNotificationModal({
       updateSelectorPlacement();
     };
 
-    window.addEventListener("resize", handleReposition);
-    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", handleReposition);
-      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
     };
   }, [isUserSelectorOpen, updateSelectorPlacement]);
 
@@ -253,26 +247,26 @@ export default function SystemNotificationModal({
     if (!isOpen) {
       setSendToAll(false);
       setSelectedUserIds([]);
-      setUserSearch("");
-      setSearchKeyword("");
+      setUserSearch('');
+      setSearchKeyword('');
       setUsers([]);
       setUserPageIndex(1);
       setHasNextUsersPage(false);
       setSubmitError(null);
       setSubmitSuccess(null);
-      setEditorContent({ html: "", text: "" });
+      setEditorContent({ html: '', text: '' });
       editor?.commands.clearContent();
     }
   }, [editor, isOpen]);
 
   const selectedUsersLabel = useMemo(() => {
     if (selectedUserIds.length === 0) {
-      return "Chọn người nhận cố định";
+      return 'Chọn người nhận cố định';
     }
 
     if (selectedUserIds.length === 1) {
       const selectedUser = users.find((user) => user.id === selectedUserIds[0]);
-      return selectedUser?.name || selectedUser?.email || "1 người dùng đã chọn";
+      return selectedUser?.name || selectedUser?.email || '1 người dùng đã chọn';
     }
 
     return `${selectedUserIds.length} người dùng đã chọn`;
@@ -301,17 +295,17 @@ export default function SystemNotificationModal({
     setSubmitSuccess(null);
 
     if (!editorContent.text) {
-      setSubmitError("Vui lòng nhập nội dung thông báo");
+      setSubmitError('Vui lòng nhập nội dung thông báo');
       return;
     }
 
     if (editorContent.html.length > MAX_MESSAGE_LENGTH) {
-      setSubmitError("Nội dung HTML không được vượt quá 4000 ký tự");
+      setSubmitError('Nội dung HTML không được vượt quá 4000 ký tự');
       return;
     }
 
     if (!sendToAll && selectedUserIds.length === 0) {
-      setSubmitError("Vui lòng chọn ít nhất 1 người dùng nhận thông báo");
+      setSubmitError('Vui lòng chọn ít nhất 1 người dùng nhận thông báo');
       return;
     }
 
@@ -319,8 +313,8 @@ export default function SystemNotificationModal({
       setIsSubmitting(true);
 
       const sanitizedHtml = DOMPurify.sanitize(editorContent.html, {
-        ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li", "span"],
-        ALLOWED_ATTR: ["href", "target", "rel", "style", "class"],
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'span'],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'style', 'class'],
         ALLOW_DATA_ATTR: false,
       });
 
@@ -330,21 +324,15 @@ export default function SystemNotificationModal({
         message: sanitizedHtml,
       });
 
-      setSubmitSuccess(
-        response.message || "Gửi thông báo hệ thống thành công"
-      );
+      setSubmitSuccess(response.message || 'Gửi thông báo hệ thống thành công');
 
       setSelectedUserIds([]);
-      setUserSearch("");
-      setSearchKeyword("");
-      setEditorContent({ html: "", text: "" });
+      setUserSearch('');
+      setSearchKeyword('');
+      setEditorContent({ html: '', text: '' });
       editor?.commands.clearContent();
     } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Không thể gửi thông báo hệ thống"
-      );
+      setSubmitError(error instanceof Error ? error.message : 'Không thể gửi thông báo hệ thống');
     } finally {
       setIsSubmitting(false);
     }
@@ -354,33 +342,21 @@ export default function SystemNotificationModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0 overflow-visible">
         <DialogHeader className="border-b border-slate-100 dark:border-slate-700 px-6 py-4">
-          <DialogTitle className="text-xl font-bold">
-            Tạo thông báo hệ thống
-          </DialogTitle>
+          <DialogTitle className="text-xl font-bold">Tạo thông báo hệ thống</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 px-6 py-5">
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Nội dung thông báo
-            </p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Nội dung thông báo</p>
             <div className="max-w-full break-all">
-              <SystemNotificationEditor
-                editor={editor}
-                characterCount={editorContent.text.length}
-                maxLength={MAX_MESSAGE_LENGTH}
-              />
+              <SystemNotificationEditor editor={editor} characterCount={editorContent.text.length} maxLength={MAX_MESSAGE_LENGTH} />
             </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Gửi toàn bộ người dùng
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Bật để gửi thông báo cho toàn bộ user đang hoạt động
-              </p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Gửi toàn bộ người dùng</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Bật để gửi thông báo cho toàn bộ user đang hoạt động</p>
             </div>
             <button
               type="button"
@@ -388,23 +364,15 @@ export default function SystemNotificationModal({
               aria-checked={sendToAll}
               onClick={() => setSendToAll((prev) => !prev)}
               className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                sendToAll
-                  ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]"
-                  : "bg-slate-300 dark:bg-slate-600"
+                sendToAll ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]' : 'bg-slate-300 dark:bg-slate-600'
               }`}
             >
-              <span
-                className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  sendToAll ? "translate-x-8" : "translate-x-1"
-                }`}
-              />
+              <span className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${sendToAll ? 'translate-x-8' : 'translate-x-1'}`} />
             </button>
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Người nhận cố định
-            </p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Người nhận cố định</p>
 
             <div className="relative">
               <button
@@ -414,15 +382,13 @@ export default function SystemNotificationModal({
                 onClick={() => setIsUserSelectorOpen((prev) => !prev)}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500"
               >
-                {sendToAll ? "Đang bật gửi toàn bộ người dùng" : selectedUsersLabel}
+                {sendToAll ? 'Đang bật gửi toàn bộ người dùng' : selectedUsersLabel}
               </button>
 
               {isUserSelectorOpen && !sendToAll && (
                 <div
                   ref={selectorDropdownRef}
-                  className={`absolute left-0 z-[80] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg ${
-                    selectorPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2"
-                  }`}
+                  className={`absolute left-0 z-[80] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg ${selectorPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
                 >
                   <div className="p-3 border-b border-slate-100 dark:border-slate-700">
                     <input
@@ -434,71 +400,38 @@ export default function SystemNotificationModal({
                     />
                   </div>
 
-                  <div
-                    className="overflow-y-auto p-2"
-                    style={{ maxHeight: `${selectorMaxHeight}px` }}
-                  >
+                  <div className="overflow-y-auto p-2" style={{ maxHeight: `${selectorMaxHeight}px` }}>
                     {isLoadingUsers && (
-                      <p className="px-2 py-2 text-sm text-slate-500 dark:text-slate-400">
-                        Đang tải danh sách người dùng...
-                      </p>
+                      <p className="px-2 py-2 text-sm text-slate-500 dark:text-slate-400">Đang tải danh sách người dùng...</p>
                     )}
 
                     {!isLoadingUsers && usersError && (
-                      <p className="px-2 py-2 text-sm text-red-600 dark:text-red-400">
-                        {usersError}
-                      </p>
+                      <p className="px-2 py-2 text-sm text-red-600 dark:text-red-400">{usersError}</p>
                     )}
 
                     {!isLoadingUsers && !usersError && users.length === 0 && (
-                      <p className="px-2 py-2 text-sm text-slate-500 dark:text-slate-400">
-                        Không tìm thấy người dùng phù hợp
-                      </p>
+                      <p className="px-2 py-2 text-sm text-slate-500 dark:text-slate-400">Không tìm thấy người dùng phù hợp</p>
                     )}
 
-                    {!isLoadingUsers &&
-                      !usersError &&
-                      users.map((user) => {
-                        const isSelected = selectedUserIds.includes(user.id);
-                        const initials = (user.name || "?")
-                          .trim()
-                          .split(" ")
-                          .slice(0, 2)
-                          .map((part) => part.charAt(0).toUpperCase())
-                          .join("");
+                    {!isLoadingUsers && !usersError && users.map((user) => {
+                      const isSelected = selectedUserIds.includes(user.id);
+                      const initials = (user.name || '?').trim().split(' ').slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('');
 
-                        return (
-                          <label
-                            key={user.id}
-                            className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelectUser(user.id)}
-                              className="mt-3"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                                {user.name || "Không có tên"}
-                              </span>
-                              <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                                {user.email || "Chưa có email"}
-                              </span>
-                            </span>
-                          </label>
-                        );
-                      })}
+                      return (
+                        <label key={user.id} className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelectUser(user.id)} className="mt-3" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-slate-700 dark:text-slate-200">{user.name || 'Không có tên'}</span>
+                            <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{user.email || 'Chưa có email'}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
 
                     {!usersError && hasNextUsersPage && (
                       <div className="pt-2">
-                        <button
-                          type="button"
-                          onClick={handleLoadMoreUsers}
-                          disabled={isLoadingMoreUsers}
-                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isLoadingMoreUsers ? "Đang tải thêm..." : "Xem thêm"}
+                        <button type="button" onClick={handleLoadMoreUsers} disabled={isLoadingMoreUsers} className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+                          {isLoadingMoreUsers ? 'Đang tải thêm...' : 'Xem thêm'}
                         </button>
                       </div>
                     )}
@@ -509,34 +442,17 @@ export default function SystemNotificationModal({
           </div>
 
           {submitError && (
-            <p className="rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-600 dark:text-red-400">
-              {submitError}
-            </p>
+            <p className="rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-600 dark:text-red-400">{submitError}</p>
           )}
 
           {submitSuccess && (
-            <p className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-              {submitSuccess}
-            </p>
+            <p className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">{submitSuccess}</p>
           )}
         </div>
 
         <div className="border-t border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            Đóng
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Đang gửi..." : "Gửi thông báo"}
-          </button>
+          <button type="button" onClick={() => onOpenChange(false)} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Đóng</button>
+          <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? 'Đang gửi...' : 'Gửi thông báo'}</button>
         </div>
       </DialogContent>
     </Dialog>

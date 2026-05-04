@@ -42,7 +42,7 @@ export function FinancialIndicatorMetricsTable({
                     : 'text-gray-900';
 
               return (
-                <div key={cell.key} className={`w-16 text-sm ${colorClass}`}>
+                <div key={cell.key} className={`w-20 text-sm ${colorClass}`}>
                   {cell.text}
                 </div>
               );

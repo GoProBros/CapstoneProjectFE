@@ -102,6 +102,10 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/alerts',
     BY_ID: (id: number) => `/api/v1/alerts/${id}`,
     STATUS: (id: number) => `/api/v1/alerts/${id}/status`,
+    TEMPLATES: '/api/v1/alerts/templates',
+    TEMPLATE_BY_ID: (id: number) => `/api/v1/alerts/templates/${id}`,
+    TEMPLATE_STATUS: (id: number) => `/api/v1/alerts/templates/${id}/status`,
+    PLACEHOLDERS: '/api/v1/alerts/placeholders',
   },
   
   // OHLCV endpoints
