@@ -153,6 +153,7 @@ export function useAiChat() {
 
   const loadSession = useCallback(async (sessionId: number) => {
     setActiveSessionId(sessionId);
+    setIsPendingNew(false);
     setShowSessions(false);
     setLoadingHistory(true);
     setMessages([]);

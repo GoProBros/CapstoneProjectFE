@@ -77,7 +77,7 @@ export function AnalysisReportModule() {
             ? `${selectedSource.code} - ${selectedSource.name}`
             : selectedReport.sourceId;
         const categoryLabel = selectedCategory
-            ? `${selectedCategory.code} - ${selectedCategory.name}`
+            ? selectedCategory.name
             : selectedReport.categoryId;
         return (
             <div className={`w-full h-full flex flex-col rounded-lg border ${bgCls} ${borderCls} overflow-hidden`}>
@@ -104,6 +104,10 @@ export function AnalysisReportModule() {
                             <div>
                                 <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Nguồn</p>
                                 <p className={`text-sm ${textSecondary}`}>{sourceLabel}</p>
+                            </div>
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Phân loại</p>
+                                <p className={`text-sm ${textSecondary}`}>{categoryLabel}</p>
                             </div>
                             <div>
                                 <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${textMutedCls}`}>Ngày xuất bản</p>
