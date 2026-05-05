@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -37,7 +38,9 @@ export default function RootLayout({
       </head>
 
       <body className="antialiased" suppressHydrationWarning>
-        <TopProgressBar />
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <ThemeProvider>
           <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
             <AuthProvider>
