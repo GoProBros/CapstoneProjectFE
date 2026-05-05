@@ -316,7 +316,6 @@ export function useStockScreener() {
 
   const resetSymbolSubscriptionState = useCallback(() => {
     symbolSubscriptionEpochRef.current += 1;
-    console.debug('[StockScreener] resetSymbolSubscriptionState: newEpoch=', symbolSubscriptionEpochRef.current);
     cancelScheduledPrefetch();
     activeSymbolSourceRef.current = null;
     pendingHighlightTicker.current = null;
@@ -810,7 +809,6 @@ export function useStockScreener() {
     }
 
     const epochAtStart = symbolSubscriptionEpochRef.current;
-    console.debug('[StockScreener] load default symbols: epochAtStart=', epochAtStart);
 
     const loadDefaultSymbols = async () => {
       // Mark as loaded immediately to prevent concurrent runs
@@ -828,7 +826,7 @@ export function useStockScreener() {
 
         const [firstPage] = await Promise.all([
           fetchSymbolsPageBySource(source, 1),
-          currentTickers.length > 0 ? (console.debug('[StockScreener] unsubscribing current tickers before default load', currentTickers), unsubscribeFromSymbols(currentTickers)) : Promise.resolve(),
+          currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
         ]);
 
         activeSymbolSourceRef.current = source;
@@ -863,7 +861,6 @@ export function useStockScreener() {
         setSelectedSector(null);
         activeSectorIdRef.current = null;
         setSelectedIndex(null);
-        console.debug('[StockScreener] subscribing default tickers', firstPage.tickers, 'epochAtStart=', epochAtStart);
         await subscribeToSymbols(firstPage.tickers);
       } catch (error) {
         if (epochAtStart !== symbolSubscriptionEpochRef.current) {

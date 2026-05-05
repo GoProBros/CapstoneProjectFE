@@ -7,6 +7,7 @@ import type { UserSubscriptionDto } from '@/types/subscription';
 import * as authService from '@/services/auth/authService';
 import { getMySubscription } from '@/services/admin/subscriptionService';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import SignalRService from '@/services/market/signalRService';
 import {
   clearAuthStorageItems,
   getAuthStorageItem,
@@ -262,6 +263,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[Auth] Logout error:', error);
     } finally {
+      void SignalRService.getInstance().disconnect().catch((error) => {
+        console.error('[Auth] SignalR disconnect error:', error);
+      });
       clearAuthData();
 
       if (options?.reloadCurrentPage && typeof window !== 'undefined') {
