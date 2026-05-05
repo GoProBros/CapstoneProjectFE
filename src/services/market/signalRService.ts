@@ -659,7 +659,12 @@ class SignalRService {
    * Ngắt kết nối khỏi SignalR Hub
    */
   public async disconnect(): Promise<void> {
-    if (!this.connection) return;
+    if (!this.connection) {
+      this.subscribedSymbols.clear();
+      this.subscribedIndices.clear();
+      this.updateConnectionState(ConnectionState.Disconnected);
+      return;
+    }
 
     // Nếu connect đang pending thì đợi settle trước khi stop
     if (this.connectPromise) {
@@ -672,6 +677,9 @@ class SignalRService {
 
     if (this.connection.state === signalR.HubConnectionState.Disconnected) {
       signalRDebugLogService.logState('DISCONNECT_SKIPPED_ALREADY_DISCONNECTED');
+      this.subscribedSymbols.clear();
+      this.subscribedIndices.clear();
+      this.updateConnectionState(ConnectionState.Disconnected);
       return;
     }
     
@@ -688,6 +696,9 @@ class SignalRService {
       signalRDebugLogService.logError('DISCONNECT_FAILED', error);
       console.error('[SignalR] Error during disconnect:', error);
       throw error;
+    } finally {
+      this.subscribedSymbols.clear();
+      this.subscribedIndices.clear();
     }
   }
   
