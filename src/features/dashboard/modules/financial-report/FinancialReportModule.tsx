@@ -390,6 +390,8 @@ function getPeriodLabel(row: FinancialReportTableRow): string {
 }
 
 export function FinancialReportModule() {
+  const moduleRef = useRef<HTMLDivElement>(null);
+  const [moduleWidth, setModuleWidth] = useState(0);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const selectedSymbol = useSelectedSymbolStore((s) => s.selectedSymbol);
@@ -503,6 +505,23 @@ export function FinancialReportModule() {
     setPageOffset(0);
   }, [activePeriodTab, activeGroupKey]);
 
+  useEffect(() => {
+    const element = moduleRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (typeof nextWidth === 'number') {
+        setModuleWidth(Math.round(nextWidth));
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const filteredData = useMemo(() => {
     return allData
       .filter((row) =>
@@ -514,9 +533,19 @@ export function FinancialReportModule() {
   }, [allData, activePeriodTab]);
 
   const totalPeriods = filteredData.length;
-  const maxOffset = Math.max(0, totalPeriods - 4);
+  const visibleColumnCount = moduleWidth > 0 && moduleWidth <= 340
+    ? 2
+    : moduleWidth > 0 && moduleWidth <= 430
+      ? 3
+      : 4;
+
+  const isCompact = moduleWidth > 0 && moduleWidth <= 430;
+  const maxOffset = Math.max(0, totalPeriods - visibleColumnCount);
   const startIndex = maxOffset - pageOffset;
-  const visibleData = filteredData.slice(Math.max(0, startIndex), Math.max(0, startIndex) + 4);
+  const visibleData = filteredData.slice(
+    Math.max(0, startIndex),
+    Math.max(0, startIndex) + visibleColumnCount
+  );
 
   const canGoPrev = pageOffset < maxOffset;
   const canGoNext = pageOffset > 0;
@@ -566,15 +595,18 @@ export function FinancialReportModule() {
   const periodLabels = useMemo(() => visibleData.map((row) => getPeriodLabel(row)), [visibleData]);
 
   return (
-    <div className={`dashboard-module w-full h-full rounded-lg flex flex-col overflow-hidden text-sm bg-cardBackground text-white `}>
+    <div
+      ref={moduleRef}
+      className={`dashboard-module w-full h-full rounded-md sm:rounded-lg flex flex-col overflow-hidden text-xs sm:text-sm bg-cardBackground text-white`}
+    >
       <div className="flex-none flex flex-col">
-        <div className="flex items-center justify-center pt-1.5 pb-1">
+        <div className="flex items-center justify-center pt-1.5 pb-1 sm:pt-2">
           <div className="flex items-center gap-1.5">
             <div className="relative flex items-center justify-center">
-              <svg width="260" height="30" viewBox="0 0 260 30" className="block">
+              <svg width="220" height="30" viewBox="0 0 260 30" className="block sm:w-[260px]">
                 <path d="M258 0C288 0 -28 0 3 0C34 0 49 30 84 30H180C215 30 226 0 258 0Z" fill="#4ADE80"/>
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold text-black tracking-wide">
+              <span className="absolute inset-0 flex items-center justify-center text-[11px] sm:text-[12px] font-semibold text-black tracking-wide">
                 Báo cáo tài chính
               </span>
             </div>
@@ -582,10 +614,10 @@ export function FinancialReportModule() {
         </div>
 
         {/* Symbol search + link toggle */}
-        <div className="flex-none px-3 pb-2" ref={searchRef}>
+        <div className="flex-none px-2 sm:px-3 pb-2" ref={searchRef}>
           <div className="flex items-center gap-1.5">
             <div className="relative flex-1">
-              <div className={`flex items-center gap-1 rounded border ${isDark ? 'border-gray-700 bg-cardBackground' : 'border-gray-200 bg-white'} focus-within:border-green-500 px-2 py-1`}>
+              <div className={`flex items-center gap-1 rounded border ${isDark ? 'border-gray-700 bg-cardBackground' : 'border-gray-200 bg-white'} focus-within:border-green-500 px-2 py-1 sm:py-1.5`}>
                 <Search size={12} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
                 <input
                   value={inputValue}
@@ -593,7 +625,7 @@ export function FinancialReportModule() {
                   onFocus={() => inputValue && setShowDropdown(true)}
                   onKeyDown={e => { if (e.key === 'Enter') selectSymbol(inputValue); }}
                   placeholder="Nhập mã CK..."
-                  className={`flex-1 bg-transparent text-xs outline-none ${isDark ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-400'}`}
+                  className={`flex-1 bg-transparent text-xs sm:text-sm outline-none ${isDark ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-400'}`}
                 />
                 {inputValue && (
                   <button onClick={() => { setInputValue(''); setSearchResults([]); setShowDropdown(false); }}>
@@ -602,14 +634,14 @@ export function FinancialReportModule() {
                 )}
               </div>
               {showDropdown && searchResults.length > 0 && (
-                <div className={`absolute z-50 left-0 right-0 top-full mt-1 rounded border ${isDark ? 'border-gray-700 bg-[#252938]' : 'border-gray-200 bg-white'} shadow-lg max-h-[200px] overflow-y-auto`}>
+                <div className={`absolute z-50 left-0 right-0 top-full mt-1 rounded border ${isDark ? 'border-gray-700 bg-[#252938]' : 'border-gray-200 bg-white'} shadow-lg max-h-[180px] sm:max-h-[220px] overflow-y-auto`}>
                   {searchResults.map(s => (
                     <button
                       key={s.ticker}
                       onMouseDown={() => selectSymbol(s.ticker)}
-                      className={`w-full text-left px-3 py-2 text-xs flex gap-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                      className={`w-full text-left px-2.5 sm:px-3 py-2 text-xs sm:text-sm flex gap-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
                     >
-                      <span className="font-bold text-[#22c55e] w-14">{s.ticker}</span>
+                      <span className="font-bold text-[#22c55e] w-12 sm:w-14">{s.ticker}</span>
                       <span className={`${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>{s.viCompanyName}</span>
                     </button>
                   ))}
@@ -642,25 +674,26 @@ export function FinancialReportModule() {
             }
           }}
           isDark={isDark}
+          compact={isCompact}
         />
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar">
         {!effectiveSymbol ? (
-          <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className={`flex h-full items-center justify-center text-[11px] sm:text-xs px-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Chọn một cổ phiếu để xem báo cáo tài chính
           </div>
         ) : loading ? (
-          <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className={`flex h-full items-center justify-center text-[11px] sm:text-xs px-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Đang tải dữ liệu...
           </div>
         ) : filteredData.length === 0 ? (
-          <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className={`flex h-full items-center justify-center text-[11px] sm:text-xs px-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Không có dữ liệu báo cáo tài chính
           </div>
         ) : (
           <>
-            <div className="px-2 pt-2 pb-1">
+            <div className="px-1.5 sm:px-2 pt-1.5 sm:pt-2 pb-1">
               <FinancialIndicatorChart
                 chartType={activeGroup.chartType}
                 data={chartData}
@@ -670,7 +703,7 @@ export function FinancialReportModule() {
             </div>
 
             {showBillionUnitNote && (
-              <div className={`px-6 pb-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div className={`px-4 sm:px-6 pb-1 text-[11px] sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 Đơn vị: tỷ đồng
               </div>
             )}
@@ -684,12 +717,13 @@ export function FinancialReportModule() {
               onPrev={() => setPageOffset((prev) => Math.min(prev + 1, maxOffset))}
               onNext={() => setPageOffset((prev) => Math.max(prev - 1, 0))}
               isDark={isDark}
+              compact={isCompact}
             />
 
             {metricRows.length > 0 ? (
-              <FinancialIndicatorMetricsTable rows={metricRows} isDark={isDark} />
+              <FinancialIndicatorMetricsTable rows={metricRows} isDark={isDark} compact={isCompact} />
             ) : (
-              <div className={`px-6 pb-4 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+              <div className={`px-4 sm:px-6 pb-4 text-[11px] sm:text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                 Nhóm chỉ số này chưa có dữ liệu trong kỳ đã chọn.
               </div>
             )}

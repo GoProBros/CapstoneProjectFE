@@ -9,6 +9,7 @@ interface SymbolTypeFilterProps {
   onSymbolTypeChange: (type: SymbolType | null) => void;
   isLoading?: boolean;
   selectedType?: SymbolType | null;
+  compact?: boolean;
 }
 
 const SYMBOL_TYPE_OPTIONS = [
@@ -20,6 +21,7 @@ export default function SymbolTypeFilter({
   onSymbolTypeChange,
   isLoading = false,
   selectedType = null,
+  compact = false,
 }: SymbolTypeFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -92,7 +94,7 @@ export default function SymbolTypeFilter({
 
   return (
     <div
-      className="relative w-[140px]"
+      className={`relative ${compact ? 'w-[128px]' : 'w-[140px]'}`}
       ref={dropdownRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -100,7 +102,7 @@ export default function SymbolTypeFilter({
       <button
         type="button"
         disabled={isLoading}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`w-full flex items-center justify-between gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm'} rounded-lg font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
           selectedType !== null
             ? isDark
               ? "bg-blue-600 text-white border border-blue-500"
@@ -129,7 +131,7 @@ export default function SymbolTypeFilter({
               key={option.value ?? "default"}
               type="button"
               onClick={() => handleSelect(option.value)}
-              className={`w-full px-3 py-2 text-sm text-left transition-colors ${
+              className={`w-full ${compact ? 'px-3 py-2 text-xs' : 'px-3 py-2 text-sm'} text-left transition-colors ${
                 selectedType === option.value
                   ? isDark
                     ? "bg-blue-600 text-white"

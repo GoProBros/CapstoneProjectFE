@@ -17,17 +17,22 @@ export interface FinancialIndicatorMetricDisplayRow {
 interface FinancialIndicatorMetricsTableProps {
   rows: FinancialIndicatorMetricDisplayRow[];
   isDark: boolean;
+  compact?: boolean;
 }
 
 export function FinancialIndicatorMetricsTable({
   rows,
   isDark,
+  compact = false,
 }: FinancialIndicatorMetricsTableProps) {
+  const labelWidthClass = compact ? 'w-24 text-xs' : 'w-30 text-sm';
+  const valueWidthClass = compact ? 'w-16 text-xs' : 'w-20 text-sm';
+
   return (
-    <div className="px-6 pb-4">
+    <div className={`${compact ? 'px-3' : 'px-6'} pb-4 overflow-x-auto scrollbar-hide`}>
       {rows.map((row) => (
-        <div key={row.key} className="flex justify-between items-center py-0.5 gap-3">
-          <div className={`flex-shrink-0 w-30 text-sm leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <div key={row.key} className="flex justify-between items-center py-0.5 gap-3 min-w-max">
+          <div className={`flex-shrink-0 ${labelWidthClass} leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {row.label}
           </div>
 
@@ -42,7 +47,7 @@ export function FinancialIndicatorMetricsTable({
                     : 'text-gray-900';
 
               return (
-                <div key={cell.key} className={`w-20 text-sm ${colorClass}`}>
+                <div key={cell.key} className={`${valueWidthClass} ${colorClass}`}>
                   {cell.text}
                 </div>
               );
