@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import FrontendConsoleCapture from "@/components/debug/FrontendConsoleCapture";
+import TopProgressBar from "@/components/ui/TopProgressBar";
 
 export const metadata: Metadata = {
   title: "KF Stock",
@@ -36,6 +37,7 @@ export default function RootLayout({
       </head>
 
       <body className="antialiased" suppressHydrationWarning>
+        <TopProgressBar />
         <ThemeProvider>
           <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
             <AuthProvider>
