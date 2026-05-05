@@ -96,6 +96,31 @@ export function useStockScreener() {
 
   // Highlighted ticker state — drives getRowClass in the grid
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
+  // Tracks the previously highlighted ticker so we can explicitly redraw it to clear its class.
+  // AG Grid does not re-evaluate getRowClass for existing rows when the prop changes,
+  // so without this, old highlighted rows accumulate stale ss-row-highlight classes.
+  const prevHighlightedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!gridApi) return;
+    const prev = prevHighlightedRef.current;
+    prevHighlightedRef.current = highlightedTicker;
+
+    const nodesToRedraw: any[] = [];
+    // Redraw the previously highlighted row so its class is cleared
+    if (prev && prev !== highlightedTicker) {
+      const prevNode = gridApi.getRowNode(prev);
+      if (prevNode) nodesToRedraw.push(prevNode);
+    }
+    // Redraw the newly highlighted row so its class is applied
+    if (highlightedTicker) {
+      const newNode = gridApi.getRowNode(highlightedTicker);
+      if (newNode) nodesToRedraw.push(newNode);
+    }
+    if (nodesToRedraw.length > 0) {
+      gridApi.redrawRows({ rowNodes: nodesToRedraw });
+    }
+  }, [highlightedTicker, gridApi]);
 
   // Link toggle — controls whether symbol selection broadcasts to global store
   const isLinkedRef = useRef(true);

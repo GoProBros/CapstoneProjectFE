@@ -50,14 +50,15 @@ export function IndexMiniChart({ data, history, onRemove }: IndexMiniChartProps)
     return {
       animation: false,
       backgroundColor: 'transparent',
-      grid: { top: 6, right: 52, bottom: 22, left: 14, containLabel: false },
+      // Symmetric margins give edge tick labels (9h / 15h) breathing room from the card border.
+      grid: { top: 6, right: 20, bottom: 22, left: 20, containLabel: false },
       xAxis: {
-        type: 'time',
-        min: midnight + 9 * 3_600_000,   // 09:00 VN
-        max: midnight + 15 * 3_600_000,  // 15:00 VN
-        minInterval: 3_600_000,           // ticks every 1 hour
-        maxInterval: 3_600_000,
-        boundaryGap: false,
+        // Use 'value' instead of 'time' so axisLabel.align:'center' is fully respected.
+        // 'time' type has edge-case label anchor quirks on first/last ticks.
+        type: 'value',
+        min: midnight + 9 * 3_600_000,    // 09:00 VN
+        max: midnight + 15 * 3_600_000,   // 15:00 VN
+        interval: 3_600_000,              // tick every 1 hour: 9h 10h 11h 12h 13h 14h 15h
         axisLine: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
@@ -66,7 +67,6 @@ export function IndexMiniChart({ data, history, onRemove }: IndexMiniChartProps)
           fontSize: 9,
           color: '#6b7280',
           align: 'center',
-          // Derive hour purely from offset so timezone doesn't matter
           formatter: (value: number) => {
             const h = Math.round((value - midnight) / 3_600_000);
             return h + 'h';
@@ -107,6 +107,7 @@ export function IndexMiniChart({ data, history, onRemove }: IndexMiniChartProps)
                 position: 'insideEndTop',
                 fontSize: 9,
                 color: '#9ca3af',
+                align: 'right',
                 backgroundColor: 'transparent',
                 padding: [1, 4],
                 formatter: () => fmt(ref),
