@@ -188,6 +188,7 @@ export function SignalRProvider({
    */
   const disconnect = useCallback(async () => {
     try {
+      console.debug('[SignalR] disconnect() called');
       await SignalRService.getInstance().disconnect();
       
       // Clear market data và subscribed symbols
@@ -203,6 +204,7 @@ export function SignalRProvider({
    */
   const subscribeToSymbols = useCallback(async (symbols: string[]) => {
     try {
+      console.debug('[SignalR] subscribeToSymbols()', symbols);
       await SignalRService.getInstance().subscribeToSymbols(symbols);
       
       // Update subscribed symbols list
@@ -220,6 +222,7 @@ export function SignalRProvider({
    */
   const unsubscribeFromSymbols = useCallback(async (symbols: string[]) => {
     try {
+      console.debug('[SignalR] unsubscribeFromSymbols()', symbols);
       await SignalRService.getInstance().unsubscribeFromSymbols(symbols);
 
       const symbolsToRemoveSet = new Set(symbols.map(s => s.toUpperCase()));

@@ -82,19 +82,19 @@ const stockScreenerDebugLog = (message: string, payload?: unknown): void => {
 };
 
 /**
- * Custom hook chứa toàn bộ logic của StockScreenerModule
- * Tách riêng để dễ bảo trì và phát triển
+ * Custom hook chß╗⌐a to├án bß╗Ö logic cß╗ºa StockScreenerModule
+ * T├ích ri├¬ng ─æß╗â dß╗à bß║úo tr├¼ v├á ph├ít triß╗ân
  */
 export function useStockScreener() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === 'dark';
   const [gridApi, setGridApi] = useState<any>(null);
-  // Ref that stays in sync with gridApi state — used inside callbacks/timers
+  // Ref that stays in sync with gridApi state ΓÇö used inside callbacks/timers
   const gridApiRef = useRef<any>(null);
   useEffect(() => { gridApiRef.current = gridApi; }, [gridApi]);
 
-  // Highlighted ticker state — drives getRowClass in the grid
+  // Highlighted ticker state ΓÇö drives getRowClass in the grid
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
   // Tracks the previously highlighted ticker so we can explicitly redraw it to clear its class.
   // AG Grid does not re-evaluate getRowClass for existing rows when the prop changes,
@@ -183,7 +183,7 @@ export function useStockScreener() {
       
       // CRITICAL: Reset layout ready state when page changes
       setIsLayoutReady(false);
-      
+
       // OPTIMIZATION: Clear grid data immediately when switching workspace
       // This prevents showing old layout's columns with wrong data
       if (gridApi) {
@@ -201,17 +201,9 @@ export function useStockScreener() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleId, currentPageId]); // getModuleById and gridApi accessed directly, not as dependencies
-  
+
   // Reset layout ready state when user logs in/out so the layout is re-fetched
   const prevUserRef = useRef<typeof user>(user);
-  useEffect(() => {
-    const prevUser = prevUserRef.current;
-    prevUserRef.current = user;
-    // Transition from unauthenticated → authenticated: reload layout
-    if (!prevUser && user) {
-      setIsLayoutReady(false);
-    }
-  }, [user]);
 
   // NOTE: KHÔNG dùng rowData state - AG Grid sẽ quản lý data hoàn toàn qua Transaction API
   const [isSaving, setIsSaving] = useState(false);
@@ -285,6 +277,9 @@ export function useStockScreener() {
   /** Counter for sampled debug logs in high-frequency grid updates. */
   const gridUpdateDebugCountRef = useRef(0);
 
+  /** Epoch used to invalidate in-flight default/filter subscription work. */
+  const symbolSubscriptionEpochRef = useRef(0);
+
   /** Active source query for incremental page loading (infinite scroll). */
   const activeSymbolSourceRef = useRef<ActiveSymbolSource | null>(null);
 
@@ -318,6 +313,50 @@ export function useStockScreener() {
   useEffect(() => {
     subscribedTickerSetRef.current = new Set(subscribedSymbols.map((ticker) => ticker.toUpperCase()));
   }, [subscribedSymbols]);
+
+  const resetSymbolSubscriptionState = useCallback(() => {
+    symbolSubscriptionEpochRef.current += 1;
+    console.debug('[StockScreener] resetSymbolSubscriptionState: newEpoch=', symbolSubscriptionEpochRef.current);
+    cancelScheduledPrefetch();
+    activeSymbolSourceRef.current = null;
+    pendingHighlightTicker.current = null;
+    latestGridReadRowRef.current = -1;
+    lastNextPageLoadAtRef.current = 0;
+    symbolPaginationRef.current = {
+      pageIndex: 0,
+      hasNextPage: false,
+      isLoadingNextPage: false,
+      loadedTickerCount: 0,
+      nextPrefetchTriggerRow: Number.MAX_SAFE_INTEGER,
+    };
+  }, [cancelScheduledPrefetch]);
+
+  useEffect(() => {
+    const prevUser = prevUserRef.current;
+    prevUserRef.current = user;
+    if (prevUser && !user) {
+      resetSymbolSubscriptionState();
+      hasLoadedDefaultSymbols.current = false;
+
+      const currentSubscribedTickers = Array.from(subscribedTickerSetRef.current);
+      if (currentSubscribedTickers.length > 0 && isConnected) {
+        void unsubscribeFromSymbols(currentSubscribedTickers).catch(() => {});
+      }
+
+      setCurrentWatchListId(null);
+      setCurrentWatchListName('Danh mục của tôi');
+      currentWatchListTickers.current.clear();
+      setSelectedExchange(null);
+      setSelectedSymbolType(null);
+      setSelectedIndex(null);
+      setSelectedSector(null);
+      activeSectorIdRef.current = null;
+    }
+    // Transition from unauthenticated → authenticated: reload layout
+    if (!prevUser && user) {
+      setIsLayoutReady(false);
+    }
+  }, [user, isConnected, resetSymbolSubscriptionState, unsubscribeFromSymbols]);
 
   const resetSymbolPagination = useCallback(() => {
     cancelScheduledPrefetch();
@@ -766,16 +805,19 @@ export function useStockScreener() {
 
   // Subscribe to default symbols when connected - default is HSX exchange
   useEffect(() => {
-    if (!isConnected || hasLoadedDefaultSymbols.current) {
+    if (!isConnected || !user || hasLoadedDefaultSymbols.current) {
       return;
     }
+
+    const epochAtStart = symbolSubscriptionEpochRef.current;
+    console.debug('[StockScreener] load default symbols: epochAtStart=', epochAtStart);
 
     const loadDefaultSymbols = async () => {
       // Mark as loaded immediately to prevent concurrent runs
       hasLoadedDefaultSymbols.current = true;
       resetSymbolPagination();
       try {
-        const currentTickers = Array.from(marketData.keys());
+        const currentTickers = Array.from(subscribedTickerSetRef.current);
 
         const source: ActiveSymbolSource = {
           mode: 'filter',
@@ -786,7 +828,7 @@ export function useStockScreener() {
 
         const [firstPage] = await Promise.all([
           fetchSymbolsPageBySource(source, 1),
-          currentTickers.length > 0 ? unsubscribeFromSymbols(currentTickers) : Promise.resolve(),
+          currentTickers.length > 0 ? (console.debug('[StockScreener] unsubscribing current tickers before default load', currentTickers), unsubscribeFromSymbols(currentTickers)) : Promise.resolve(),
         ]);
 
         activeSymbolSourceRef.current = source;
@@ -804,6 +846,10 @@ export function useStockScreener() {
           nextPrefetchTriggerRow: firstPageTriggerRow,
         };
 
+        if (epochAtStart !== symbolSubscriptionEpochRef.current || !isConnected || !user) {
+          return;
+        }
+
         if (!firstPage.tickers.length) {
           return;
         }
@@ -817,8 +863,12 @@ export function useStockScreener() {
         setSelectedSector(null);
         activeSectorIdRef.current = null;
         setSelectedIndex(null);
+        console.debug('[StockScreener] subscribing default tickers', firstPage.tickers, 'epochAtStart=', epochAtStart);
         await subscribeToSymbols(firstPage.tickers);
       } catch (error) {
+        if (epochAtStart !== symbolSubscriptionEpochRef.current) {
+          return;
+        }
         console.error('[StockScreener] Error loading default symbols:', error);
         hasLoadedDefaultSymbols.current = false;
       }
@@ -828,91 +878,13 @@ export function useStockScreener() {
   }, [
     fetchSymbolsPageBySource,
     isConnected,
-    marketData,
+    user,
+    moduleId,
+    currentPageId,
     resetSymbolPagination,
     subscribeToSymbols,
     unsubscribeFromSymbols,
   ]);
-
-  /**
-   * Global mouseup listener để detect khi user thả chuột sau khi drag ra ngoài grid
-   */
-  useEffect(() => {
-    const handleGlobalMouseUp = async () => {
-      if (isDraggingOutside) {
-        const ticker = isDraggingOutside;
-        
-        // Reset state TRƯỚC KHI hiện dialog để tránh duplicate
-        setIsDraggingOutside(null);
-        
-        // Show confirmation dialog
-        setConfirmDialog({
-          isOpen: true,
-          title: 'Xác nhận bỏ theo dõi',
-          message: `Bạn có muốn bỏ theo dõi mã ${ticker}?\n\nMã này sẽ được xóa khỏi danh sách và không nhận dữ liệu real-time nữa.`,
-          onConfirm: async () => {
-            try {
-              // 1. Unsubscribe từ SignalR
-              await unsubscribeFromSymbols([ticker]);
-              
-              // 2. Xóa row khỏi grid
-              if (gridApi) {
-                const rowNode = gridApi.getRowNode(ticker);
-                if (rowNode) {
-                  gridApi.applyTransaction({ remove: [rowNode.data] });
-                }
-              }
-              
-              // 3. If using watch-list, update watch-list to remove this ticker
-              if (currentWatchListId !== null) {
-                try {
-                  // Get current watch list detail
-                  const watchListDetail = await watchListService.getWatchListById(currentWatchListId);
-                  
-                  // Remove ticker from tickers array
-                  const updatedTickers = watchListDetail.tickers.filter(t => t.toUpperCase() !== ticker.toUpperCase());
-                  
-                  // Update watch list
-                  await watchListService.updateWatchList(
-                    currentWatchListId,
-                    watchListDetail.name,
-                    updatedTickers
-                  );
-                  
-                  // Refresh watch lists to update ticker count
-                  await fetchWatchLists();
-                } catch (watchListError) {
-                  console.error(`[StockScreener] Error updating watch-list:`, watchListError);
-                  // Don't show error to user - unsubscribe was successful
-                }
-              }
-              
-              // 4. Show success toast
-              setToast({
-                isOpen: true,
-                message: `Đã bỏ theo dõi mã ${ticker}`,
-                type: 'success'
-              });
-            } catch (error) {
-              console.error(`[StockScreener] Error unsubscribing from ${ticker}:`, error);
-              setToast({
-                isOpen: true,
-                message: `Lỗi khi bỏ theo dõi mã ${ticker}. Vui lòng thử lại.`,
-                type: 'error'
-              });
-            }
-          }
-        });
-      }
-    };
-
-    // Add global mouseup listener
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    
-    return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [isDraggingOutside, gridApi, unsubscribeFromSymbols]);
 
   /**
    * Update row data khi nhận được market data từ SignalR
@@ -1076,7 +1048,7 @@ export function useStockScreener() {
       // KHÔNG CẬP NHẬT rowData STATE - để AG Grid tự quản lý data qua Transaction API
       // Việc update state sẽ gây conflict với Transaction API
     }
-  }, [marketData, gridApi, currentWatchListId]); // CRITICAL: Add currentWatchListId to dependencies
+  }, [marketData, gridApi, currentWatchListId, highlightRow]); // CRITICAL: Add currentWatchListId to dependencies
 
   // Persist column width changes to Zustand
   const onColumnResized = useCallback((event: any) => {
@@ -1139,7 +1111,7 @@ export function useStockScreener() {
     } catch (error) {
       console.error('[StockScreener] Error applying column state:', error);
     }
-  }, [gridApi]); // CHỈ dependency gridApi - KHÔNG có columns!
+  }, [gridApi, columns]);
 
   // Sync column visibility changes from sidebar to AG Grid
   // CHỈ update các cột được specify, KHÔNG override toàn bộ grid state
@@ -1302,7 +1274,7 @@ export function useStockScreener() {
     };
 
     initializeLayout();
-  }, [user, moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById]);
+  }, [user, moduleId, workspaceLayoutId, isWorkspaceLayoutIdLoaded, currentPageId, loadLayoutById, isLayoutReady]);
 
   // Handle create new layout - clone from system default (id=1)
   const handleCreateNewLayout = async () => {

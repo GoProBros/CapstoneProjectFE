@@ -17,9 +17,11 @@ interface SectorFilterProps {
   isLoading?: boolean;
   selectedSector?: Sector | null;
   showAllOption?: boolean;
+  compact?: boolean;
+  fullWidth?: boolean;
 }
 
-export default function SectorFilter({ onSectorChange, isLoading, selectedSector = null, showAllOption = false }: SectorFilterProps) {
+export default function SectorFilter({ onSectorChange, isLoading, selectedSector = null, showAllOption = false, compact = false, fullWidth = false }: SectorFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -103,7 +105,7 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading || loadingSectors}
         className={`
-          w-48 px-4 py-2 rounded-lg font-semibold text-sm transition-all
+          ${(compact || fullWidth) ? 'w-full min-w-0 px-3 py-1.5 text-xs' : 'w-48 px-4 py-2 text-sm'} rounded-lg font-semibold transition-all
           flex items-center justify-between
           disabled:opacity-50 disabled:cursor-not-allowed
           ${selectedSector
@@ -137,7 +139,7 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
       {/* Dropdown menu with 2 columns */}
       {isOpen && !loadingSectors && (
         <div className={`
-          absolute top-full left-0 mt-2 w-[500px] rounded-lg shadow-xl z-50
+          absolute top-full left-0 mt-2 ${(compact || fullWidth) ? 'w-full min-w-[220px]' : 'w-[500px]'} rounded-lg shadow-xl z-50
           max-h-[300px] overflow-y-auto
           ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}
         `}>
@@ -159,13 +161,13 @@ export default function SectorFilter({ onSectorChange, isLoading, selectedSector
                   Tất cả ngành
                 </button>
               )}
-              <div className="grid grid-cols-2 gap-2 p-3">
+              <div className={`grid ${(compact || fullWidth) ? 'grid-cols-1' : 'grid-cols-2'} gap-2 p-3`}>
               {level2Sectors.map((sector) => (
                 <button
                   key={sector.id}
                   onClick={() => handleSectorClick(sector)}
                   className={`
-                    px-3 py-2 rounded text-sm text-left transition-all
+                    ${(compact || fullWidth) ? 'px-3 py-2 text-xs' : 'px-3 py-2 text-sm'} rounded text-left transition-all
                     ${selectedSector?.id === sector.id
                       ? isDark
                         ? 'bg-blue-600 text-white'

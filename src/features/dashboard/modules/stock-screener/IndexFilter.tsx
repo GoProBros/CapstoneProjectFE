@@ -12,12 +12,14 @@ interface IndexFilterProps {
   onIndexChange: (index: MarketIndex | null) => void;
   isLoading?: boolean;
   selectedIndex?: MarketIndex | null;
+  compact?: boolean;
 }
 
 export default function IndexFilter({
   onIndexChange,
   isLoading = false,
   selectedIndex = null,
+  compact = false,
 }: IndexFilterProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -62,12 +64,12 @@ export default function IndexFilter({
   const isButtonLoading = isLoading || loadingIndices;
 
   return (
-    <div className="relative">
+    <div className={`relative ${compact ? 'w-[128px]' : ''}`}>
       {/* Dropdown Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isButtonLoading}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm transition-colors ${
+        className={`flex items-center gap-2 ${compact ? 'w-[128px] justify-between px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-lg border font-semibold transition-colors ${
           isDark
             ? "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
             : "bg-white border-gray-300 text-gray-900 hover:bg-gray-50"
@@ -102,7 +104,7 @@ export default function IndexFilter({
 
           {/* Menu */}
           <div
-            className={`absolute left-0 top-full mt-2 w-80 rounded-lg border shadow-lg z-20 overflow-hidden ${
+            className={`absolute left-0 top-full mt-2 ${compact ? 'w-72' : 'w-80'} rounded-lg border shadow-lg z-20 overflow-hidden ${
               isDark
                 ? "bg-gray-800 border-gray-700"
                 : "bg-white border-gray-200"
@@ -128,7 +130,7 @@ export default function IndexFilter({
                   <button
                     key={index.code}
                     onClick={() => handleSelectIndex(index)}
-                    className={`w-full px-4 py-3 text-left transition-colors border-b last:border-b-0 ${
+                    className={`w-full ${compact ? 'px-3 py-2.5' : 'px-4 py-3'} text-left transition-colors border-b last:border-b-0 ${
                       selectedIndex?.code === index.code
                         ? isDark
                           ? "bg-blue-900/30 border-blue-700"

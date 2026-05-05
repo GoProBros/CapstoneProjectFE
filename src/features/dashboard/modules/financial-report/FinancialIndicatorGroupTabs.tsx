@@ -13,6 +13,7 @@ interface FinancialIndicatorGroupTabsProps {
   tabs: FinancialIndicatorGroupTabItem[];
   activeTab: string;
   isDark: boolean;
+  compact?: boolean;
   onSelectTab: (tab: string) => void;
 }
 
@@ -20,12 +21,15 @@ export function FinancialIndicatorGroupTabs({
   tabs,
   activeTab,
   isDark,
+  compact = false,
   onSelectTab,
 }: FinancialIndicatorGroupTabsProps) {
-  const baseClass = 'rounded-xl border px-3 py-2 text-left transition-all min-w-[80px]';
+  const baseClass = compact
+    ? 'rounded-lg border px-2 py-1.5 text-left transition-all min-w-[64px]'
+    : 'rounded-xl border px-3 py-2 text-left transition-all min-w-[80px]';
 
   return (
-    <div className="px-4 pb-2 mt-[6px] overflow-x-auto scrollbar-hide">
+    <div className={`${compact ? 'px-2' : 'px-4'} pb-2 mt-[6px] overflow-x-auto scrollbar-hide`}>
       <div className="flex gap-2 whitespace-nowrap">
         {tabs.map((tab) => {
           const isActive = tab.key === activeTab;
@@ -55,7 +59,7 @@ export function FinancialIndicatorGroupTabs({
               className={`${baseClass} ${accentClass}`}
               onClick={() => onSelectTab(tab.key)}
             >
-              <div className="text-sm font-semibold">{tab.label}</div>
+              <div className={`${compact ? 'text-xs' : 'text-sm'} font-semibold`}>{tab.label}</div>
             </button>
           );
         })}
