@@ -177,11 +177,6 @@ const MODULE_LIBRARY: ModuleLibraryItem[] = [
     preview: "/assets/Dashboard/ModulePreviews/order-matching.png",
   },
   {
-    id: "canslim",
-    title: "Canslim",
-    preview: "/assets/Dashboard/ModulePreviews/canslim.png",
-  },
-  {
     id: "stock-screener",
     title: "Bảng Điện Chứng Khoán",
     preview: "/assets/Dashboard/ModulePreviews/stock-screener.png",
@@ -253,6 +248,16 @@ export default function SubscriptionManagement({
   const isAdmin =
     normalizedRole === "admin" || normalizedRole === "quản trị viên";
 
+  const maxExistingLevelOrder = useMemo(() => {
+    if (subscriptions.length === 0) {
+      return 0;
+    }
+
+    return Math.max(...subscriptions.map((item) => item.levelOrder));
+  }, [subscriptions]);
+
+  const minCreateLevelOrder = maxExistingLevelOrder + 1;
+
   const fetchManagementData = useCallback(async () => {
     try {
       setSubscriptionError(null);
@@ -303,6 +308,17 @@ export default function SubscriptionManagement({
   useEffect(() => {
     void fetchManagementData();
   }, [fetchManagementData]);
+
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      return;
+    }
+
+    setCreateDraft((prev) => ({
+      ...prev,
+      levelOrder: Math.max(prev.levelOrder, minCreateLevelOrder),
+    }));
+  }, [isCreateModalOpen, minCreateLevelOrder]);
 
   const selectedDraft =
     selectedSubscriptionId !== null
@@ -485,8 +501,8 @@ export default function SubscriptionManagement({
         [selectedDraft.id]: createDraftFromSubscription(updatedSubscription),
       }));
 
-      setActionMessage("Đã lưu thay đổi Giá và Allowed module thành công.");
-      setToastState({ isOpen: true, message: 'Đã lưu thay đổi Giá và Allowed module thành công.', type: 'success' });
+      setActionMessage("Cập nhật thành công");
+      setToastState({ isOpen: true, message: 'Cập nhật thành công', type: 'success' });
     } catch {
       setActionMessage("Lưu thay đổi thất bại. Vui lòng thử lại.");
       setToastState({ isOpen: true, message: 'Lưu thay đổi thất bại. Vui lòng thử lại.', type: 'error' });
@@ -521,6 +537,13 @@ export default function SubscriptionManagement({
     const trimmedName = createDraft.name.trim();
     if (!trimmedName) {
       setActionMessage("Vui lòng nhập tên gói trước khi tạo mới");
+      return;
+    }
+
+    if (createDraft.levelOrder < minCreateLevelOrder) {
+      setActionMessage(
+        `Thứ tự cấp gói phải lớn hơn ${maxExistingLevelOrder}`,
+      );
       return;
     }
 
@@ -635,6 +658,7 @@ export default function SubscriptionManagement({
         draft={createDraft}
         moduleTitles={MODULE_TITLES}
         isCreatingSubscription={isCreatingSubscription}
+        existingSubscriptions={subscriptions}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={createSubscription}
         onNameChange={(value) =>
@@ -652,7 +676,7 @@ export default function SubscriptionManagement({
         onLevelOrderChange={(value) =>
           setCreateDraft((prev) => ({
             ...prev,
-            levelOrder: value,
+            levelOrder: Math.max(value, minCreateLevelOrder),
           }))
         }
         onDurationChange={(value) =>
