@@ -9,6 +9,11 @@ interface AlertTemplatesTableProps {
   loading: boolean;
   error: string | null;
   statusLoadingMap: Record<number, boolean>;
+  pageIndex: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
   filterType: string;
   filterCondition: string;
   filterIsActive: string;
@@ -17,6 +22,8 @@ interface AlertTemplatesTableProps {
   onClearFilters: () => void;
   onEdit: (templateId: number) => void;
   onToggleStatus: (templateId: number) => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
 }
 
 function truncateText(value: string, maxLength: number): string {
@@ -32,6 +39,11 @@ export default function AlertTemplatesTable({
   loading,
   error,
   statusLoadingMap,
+  pageIndex,
+  totalPages,
+  totalCount,
+  hasPreviousPage,
+  hasNextPage,
   filterType,
   filterCondition,
   filterIsActive,
@@ -40,6 +52,8 @@ export default function AlertTemplatesTable({
   onClearFilters,
   onEdit,
   onToggleStatus,
+  onPrevPage,
+  onNextPage,
 }: AlertTemplatesTableProps) {
   const sortedTemplates = sortTemplates(templates);
 
@@ -52,7 +66,7 @@ export default function AlertTemplatesTable({
           </div>
 
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-            {templates.length} mẫu
+            {totalCount} mẫu
           </span>
         </div>
 
@@ -225,6 +239,32 @@ export default function AlertTemplatesTable({
           </tbody>
         </table>
       </div>
+
+      {!loading && sortedTemplates.length > 0 && (
+        <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Trang {pageIndex} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onPrevPage}
+              disabled={loading || !hasPreviousPage}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trang trước
+            </button>
+            <button
+              type="button"
+              onClick={onNextPage}
+              disabled={loading || !hasNextPage}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trang sau
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

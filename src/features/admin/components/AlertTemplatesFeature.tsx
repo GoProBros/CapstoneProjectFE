@@ -11,7 +11,13 @@ import { EMPTY_TEMPLATE_FORM, type TemplateFormState, type TemplateMode } from '
 import { mapTemplateToForm, sortTemplates } from '@/features/admin/components/alerts/alertTemplateUtils';
 
 export function AlertTemplatesFeature() {
+  const PAGE_SIZE = 10;
   const [templates, setTemplates] = useState<AlertTemplateDto[]>([]);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [placeholders, setPlaceholders] = useState<AlertTemplatePlaceholderDto[]>([]);
   const [form, setForm] = useState<TemplateFormState>(EMPTY_TEMPLATE_FORM);
   const [mode, setMode] = useState<TemplateMode>('create');
@@ -39,6 +45,8 @@ export function AlertTemplatesFeature() {
       setTemplatesError(null);
 
       const filters: AlertTemplateFilters = {
+        pageIndex,
+        pageSize: PAGE_SIZE,
         type: filterType || null,
         condition: filterCondition || null,
         isActive: filterIsActive ? (filterIsActive === 'true' ? true : false) : null,
@@ -46,14 +54,22 @@ export function AlertTemplatesFeature() {
       };
 
       const data = await alertTemplateService.getAlertTemplates(filters);
-      setTemplates(sortTemplates(data));
+      setTemplates(sortTemplates(data.items ?? []));
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
+      setHasPreviousPage(Boolean(data.hasPreviousPage));
+      setHasNextPage(Boolean(data.hasNextPage));
     } catch (error) {
       setTemplates([]);
+      setTotalPages(1);
+      setTotalCount(0);
+      setHasPreviousPage(false);
+      setHasNextPage(false);
       setTemplatesError(error instanceof Error ? error.message : 'Không thể tải danh sách alert template');
     } finally {
       setTemplatesLoading(false);
     }
-  }, [filterType, filterCondition, filterIsActive, filterIsDefault]);
+  }, [filterType, filterCondition, filterIsActive, filterIsDefault, pageIndex]);
 
   const loadPlaceholders = useCallback(async () => {
     try {
@@ -182,15 +198,19 @@ export function AlertTemplatesFeature() {
     switch (filterName) {
       case 'type':
         setFilterType(value);
+        setPageIndex(1);
         break;
       case 'condition':
         setFilterCondition(value);
+        setPageIndex(1);
         break;
       case 'isActive':
         setFilterIsActive(value);
+        setPageIndex(1);
         break;
       case 'isDefault':
         setFilterIsDefault(value);
+        setPageIndex(1);
         break;
       default:
         break;
@@ -202,6 +222,7 @@ export function AlertTemplatesFeature() {
     setFilterCondition('');
     setFilterIsActive('');
     setFilterIsDefault('');
+    setPageIndex(1);
   };
 
   const handleCreateAgain = () => {
@@ -258,6 +279,11 @@ export function AlertTemplatesFeature() {
         loading={templatesLoading}
         error={templatesError}
         statusLoadingMap={statusLoadingMap}
+        pageIndex={pageIndex}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
         filterType={filterType}
         filterCondition={filterCondition}
         filterIsActive={filterIsActive}
@@ -266,6 +292,8 @@ export function AlertTemplatesFeature() {
         onClearFilters={handleClearFilters}
         onEdit={openTemplateForEdit}
         onToggleStatus={handleToggleStatus}
+        onPrevPage={() => setPageIndex((prev) => Math.max(1, prev - 1))}
+        onNextPage={() => setPageIndex((prev) => Math.min(totalPages, prev + 1))}
       />
 
       <AlertTemplateEditorModal

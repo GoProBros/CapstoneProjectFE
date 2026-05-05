@@ -6,6 +6,7 @@ interface CreateSubscriptionModalProps {
   draft: CreateSubscriptionDraft;
   moduleTitles: Record<string, string>;
   isCreatingSubscription: boolean;
+  existingSubscriptions?: Array<{ levelOrder: number }>;
   onClose: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onNameChange: (value: string) => void;
@@ -23,6 +24,7 @@ export default function CreateSubscriptionModal({
   draft,
   moduleTitles,
   isCreatingSubscription,
+  existingSubscriptions,
   onClose,
   onSubmit,
   onNameChange,
@@ -34,12 +36,16 @@ export default function CreateSubscriptionModal({
   onOpenAddModuleModal,
   onRemoveModule,
 }: CreateSubscriptionModalProps) {
+  // Calculate minimum levelOrder required (max of existing + 1)
+  const minLevelOrder = existingSubscriptions && existingSubscriptions.length > 0
+    ? Math.max(...existingSubscriptions.map(s => s.levelOrder)) + 1
+    : 0;
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8">
+    <div className="fixed inset-0 z-[90] flex items-start justify-center p-8 overflow-y-auto">
       <div className="absolute inset-0 bg-slate-950/70" onClick={onClose} />
 
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-6 md:p-8 space-y-5">
@@ -96,13 +102,18 @@ export default function CreateSubscriptionModal({
               </label>
               <input
                 type="number"
-                min={0}
+                min={minLevelOrder}
                 value={draft.levelOrder}
                 onChange={(event) =>
-                  onLevelOrderChange(Number(event.target.value) || 0)
+                  onLevelOrderChange(Number(event.target.value) || minLevelOrder)
                 }
                 className="w-full border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 px-4 py-2.5 outline-none"
               />
+              {existingSubscriptions && existingSubscriptions.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Giá trị phải lớn hơn {Math.max(...existingSubscriptions.map(s => s.levelOrder))}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
