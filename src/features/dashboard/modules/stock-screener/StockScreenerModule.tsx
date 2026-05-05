@@ -119,6 +119,8 @@ const getPriceColorClass = (
 };
 
 export function StockScreenerModule() {
+  const moduleRef = React.useRef<HTMLDivElement>(null);
+  const [moduleWidth, setModuleWidth] = useState(0);
   // Use custom hook chứa toàn bộ logic
   const {
     // Theme & UI
@@ -210,7 +212,28 @@ export function StockScreenerModule() {
       setIsLinked(!v);
       return !v;
     });
-  }, [setIsLinked]);
+  }, [setIsLinked, setIsLinkedLocal]);
+
+  useEffect(() => {
+    const element = moduleRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (typeof nextWidth === 'number') {
+        setModuleWidth(Math.round(nextWidth));
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const isCompact = moduleWidth > 0 && moduleWidth <= 1280;
+  const isStacked = moduleWidth > 0 && moduleWidth <= 980;
+  const isVeryCompact = moduleWidth > 0 && moduleWidth <= 860;
 
   // Định nghĩa cột và nhóm cột - THEO LAYOUT HÌNH
   // QUAN TRỌANG: deps là [] để columnDefs không bao giờ được recreate khi columns visibility thay đổi.
@@ -727,6 +750,7 @@ export function StockScreenerModule() {
       />
 
       <div
+        ref={moduleRef}
         className={`relative w-full h-full rounded-lg overflow-hidden border flex flex-col ${
           isDark ? "bg-cardBackground border-gray-800" : "bg-white border-gray-200"
         }`}
@@ -743,13 +767,13 @@ export function StockScreenerModule() {
         <div className="module-header flex items-center justify-center pt-1.5 pb-1">
           <div className="flex items-center gap-1.5">
             <div className="drag-handle relative flex items-center justify-center cursor-move select-none">
-              <svg width="220" height="34" viewBox="0 0 136 22" className="block">
+              <svg width={isVeryCompact ? '170' : '220'} height="34" viewBox="0 0 136 22" className="block max-w-full">
                 <path
                   d="M134 0C151 0 -15 0 2 0C19 0 27 22 46 22H92C113 22 119 0 134 0Z"
                   fill="#4ADE80"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-black tracking-wide">
+              <span className={`absolute inset-0 flex items-center justify-center font-bold text-black tracking-wide ${isVeryCompact ? 'text-[12px]' : 'text-[14px]'}`}>
                 Bảng giá
               </span>
             </div>
@@ -757,19 +781,21 @@ export function StockScreenerModule() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 p-4 overflow-hidden flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
+        <div className={`${isCompact ? 'flex-1 px-3 py-3 overflow-hidden flex flex-col' : 'flex-1 p-4 overflow-hidden flex flex-col'}`}>
+          <div className={`flex ${isCompact ? 'flex-col items-stretch gap-3' : 'justify-between items-center mb-4'} mb-4`}>
+            <div className={`flex ${isCompact ? 'flex-col items-stretch gap-2' : 'items-center gap-3'} min-w-0 flex-1`}>
               {/* Symbol Search Box Component */}
               <SymbolSearchBox
                 isConnected={isConnected}
                 onSymbolSelect={handleSymbolSelect}
+                compact={isCompact}
+                fullWidth={isStacked}
                 trailingSlot={
                   <button
                     type="button"
                     onClick={handleToggleLink}
                     title={isLinked ? 'Đang đồng bộ mã — nhấn để tách biệt' : 'Đang tách biệt — nhấn để đồng bộ'}
-                    className={`rounded p-1 transition-colors ${
+                    className={`rounded p-1 transition-colors shrink-0 ${
                       isLinked
                         ? 'text-green-400 hover:bg-green-500/15'
                         : 'text-gray-500 hover:bg-white/8'
@@ -792,40 +818,48 @@ export function StockScreenerModule() {
                 onCreateNew={handleCreateWatchList}
               />
 
-              {/* Index Filter Dropdown */}
-              <IndexFilter
-                onIndexChange={handleIndexChange}
-                isLoading={isLoadingIndex}
-                selectedIndex={selectedIndex}
-              />
+              <div className={`flex ${isCompact ? 'flex-wrap gap-2' : 'items-center gap-3'} min-w-0`}>
+                {/* Index Filter Dropdown */}
+                <IndexFilter
+                  onIndexChange={handleIndexChange}
+                  isLoading={isLoadingIndex}
+                  selectedIndex={selectedIndex}
+                  compact={isCompact}
+                />
 
-              {/* Symbol Type Filter Dropdown */}
-              <SymbolTypeFilter
-                onSymbolTypeChange={handleSymbolTypeChange}
-                isLoading={isLoadingSymbolType}
-                selectedType={selectedSymbolType}
-              />
+                {/* Symbol Type Filter Dropdown */}
+                <SymbolTypeFilter
+                  onSymbolTypeChange={handleSymbolTypeChange}
+                  isLoading={isLoadingSymbolType}
+                  selectedType={selectedSymbolType}
+                  compact={isCompact}
+                />
 
-              {/* Exchange Filter Buttons */}
-              <ExchangeFilter
-                onExchangeChange={handleExchangeChange}
-                isLoading={isLoadingExchange}
-                selectedExchange={selectedExchange}
-              />
+                {/* Exchange Filter Buttons */}
+                <ExchangeFilter
+                  onExchangeChange={handleExchangeChange}
+                  isLoading={isLoadingExchange}
+                  selectedExchange={selectedExchange}
+                  compact={isCompact}
+                  fullWidth={isStacked}
+                />
 
-              {/* Sector Filter Dropdown */}
-              <SectorFilter
-                onSectorChange={handleSectorChange}
-                isLoading={isLoadingSector}
-                selectedSector={selectedSector}
-              />
+                {/* Sector Filter Dropdown */}
+                <SectorFilter
+                  onSectorChange={handleSectorChange}
+                  isLoading={isLoadingSector}
+                  selectedSector={selectedSector}
+                  compact={isCompact}
+                  fullWidth={isStacked}
+                />
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className={`flex ${isCompact ? 'flex-wrap items-stretch justify-start gap-2' : 'items-center gap-2'}`}>
               {/* Loading indicator when fetching workspace layout */}
               {!isWorkspaceLayoutIdLoaded && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 text-xs">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 text-xs shrink-0">
                   <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
                   <span>Đang tải cấu hình...</span>
                 </div>
@@ -847,7 +881,7 @@ export function StockScreenerModule() {
               <button
                 onClick={() => setSidebarOpen(true)}
                 title="Quản lý cột"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                   isDark
                     ? "bg-gray-700 hover:bg-gray-600 text-white"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"

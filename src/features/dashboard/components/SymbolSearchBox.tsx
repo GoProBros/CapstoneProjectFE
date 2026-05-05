@@ -10,9 +10,11 @@ interface SymbolSearchBoxProps {
   isConnected: boolean;
   onSymbolSelect: (ticker: string) => void;
   trailingSlot?: React.ReactNode;
+  compact?: boolean;
+  fullWidth?: boolean;
 }
 
-export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingSlot }: SymbolSearchBoxProps) {
+export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingSlot, compact = false, fullWidth = false }: SymbolSearchBoxProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -159,11 +161,11 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
   };
   
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${compact || fullWidth ? 'w-full min-w-0' : ''}`} ref={dropdownRef}>
       {/* Search Input Container */}
-      <div className="flex items-center gap-2">
+      <div className={`flex ${compact || fullWidth ? 'items-stretch gap-1.5 flex-wrap' : 'items-center gap-2'}`}>
         {/* Search Input */}
-        <div className="relative">
+        <div className={`relative ${compact || fullWidth ? 'w-full min-w-0 flex-1' : ''}`}>
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
             isDark ? 'text-gray-400' : 'text-gray-500'
           }`} />
@@ -178,7 +180,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
               }
             }}
             disabled={!isConnected}
-            className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors w-64 ${
+            className={`pl-9 pr-4 py-1.5 rounded-lg text-sm border transition-colors ${(compact || fullWidth) ? 'w-full min-w-0' : 'w-64'} ${
               isDark 
                 ? 'bg-cardBackground border-gray-700 text-white placeholder-gray-500 focus:border-green-500 disabled:opacity-50' 
                 : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-green-500 disabled:opacity-50'
@@ -214,7 +216,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
           onClick={() => setIsTickerOnly(prev => !prev)}
           disabled={!isConnected}
           title={isTickerOnly ? 'Chỉ tìm mã CK' : 'Tìm cả tên công ty'}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${(compact || fullWidth) ? 'w-full justify-center' : ''} ${
             isTickerOnly
               ? isDark 
                 ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50' 
@@ -231,7 +233,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
       
       {/* Dropdown Results */}
       {showDropdown && searchResults.length > 0 && (
-        <div className={`absolute top-full mt-2 w-96 max-h-96 overflow-y-auto rounded-lg shadow-lg border z-50 ${
+        <div className={`absolute top-full mt-2 ${(compact || fullWidth) ? 'left-0 right-0 w-full' : 'w-96'} max-h-96 overflow-y-auto rounded-lg shadow-lg border z-50 ${
           isDark 
             ? 'bg-gray-800 border-gray-700' 
             : 'bg-white border-gray-200'
@@ -242,7 +244,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
               <button
                 key={`${item.ticker}-${index}`}
                 onClick={() => handleSelectSymbol(item.ticker)}
-                className={`w-full px-4 py-2.5 text-left hover:bg-opacity-80 transition-colors ${
+                className={`w-full ${compact ? 'px-3 py-2' : 'px-4 py-2.5'} text-left hover:bg-opacity-80 transition-colors ${
                   isDark 
                     ? 'hover:bg-gray-700' 
                     : 'hover:bg-gray-100'
@@ -305,7 +307,7 @@ export default function SymbolSearchBox({ isConnected, onSymbolSelect, trailingS
       
       {/* No Results */}
       {showDropdown && searchResults.length === 0 && !isSearching && searchInput.trim() && (
-        <div className={`absolute top-full mt-2 w-96 rounded-lg shadow-lg border z-50 ${
+        <div className={`absolute top-full mt-2 ${(compact || fullWidth) ? 'left-0 right-0 w-full' : 'w-96'} rounded-lg shadow-lg border z-50 ${
           isDark 
             ? 'bg-gray-800 border-gray-700' 
             : 'bg-white border-gray-200'
