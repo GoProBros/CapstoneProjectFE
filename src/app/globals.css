@@ -198,6 +198,11 @@ html {
     @apply relative py-1 flex justify-center;
   }
   
+
+/* Prevent space-y utilities from adding top margin to full-screen modals. */
+:where([class*="space-y-"]) > .fixed.inset-0 {
+  margin-top: 0 !important;
+}
   .sidebar-active::before {
     content: '';
     @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full;

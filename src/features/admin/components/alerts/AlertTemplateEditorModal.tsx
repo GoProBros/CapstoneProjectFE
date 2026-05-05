@@ -138,17 +138,6 @@ export default function AlertTemplateEditorModal({
               </div>
             )}
 
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
-                {error}
-              </div>
-            )}
-            {message && (
-              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-600 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400">
-                {message}
-              </div>
-            )}
-
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Loại cảnh báo</span>
@@ -282,6 +271,20 @@ export default function AlertTemplateEditorModal({
           </aside>
         </div>
         <div className="flex flex-col gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-end">
+          {(error || message) && (
+            <div className="flex flex-col gap-2 sm:mr-auto">
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+              {message && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-600 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400">
+                  {message}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
